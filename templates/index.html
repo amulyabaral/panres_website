@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ontology Browser - panres_v2</title>
+    <!-- Link to external CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>panres_v2 Ontology Browser</h1>
+            <p>Explore the class hierarchy and details of the ontology</p>
+            <div class="search-container">
+                <input type="text" id="search" placeholder="Search classes or individuals...">
+            </div>
+        </header>
+
+        <div class="class-hierarchy">
+            <h2>Ontology Explorer</h2>
+            <!-- Hierarchy will be loaded here by script.js -->
+            <div id="hierarchy-container">
+                <div class="loader"></div> <!-- Initial loader -->
+            </div>
+        </div>
+
+        <div class="class-details">
+            <h2>Details</h2>
+            <!-- Details will be loaded here by script.js -->
+            <div id="details-container">
+                <div class="info-box">
+                    Loading ontology data...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Link to external JavaScript -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html> 
