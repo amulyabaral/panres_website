@@ -14,7 +14,8 @@ JSONLD_FILE_PATH = os.path.join(os.path.dirname(__file__), JSONLD_FILENAME) # Ne
 
 # --- Flask App Setup ---
 app = Flask(__name__, static_folder='static', template_folder='templates')
-app.logger.setLevel(logging.INFO) # Set logging level
+# app.logger.setLevel(logging.INFO) # Set logging level
+app.logger.setLevel(logging.DEBUG) # Change to DEBUG to see detailed parsing logs
 
 # --- Ontology Data Structures (Populated by load_ontology) ---
 # ontology_root = None # No longer needed (was for XML tree)
@@ -157,6 +158,8 @@ def load_ontology():
             raise ValueError("Unexpected JSON-LD structure. Expected a list of nodes or a {'@graph': [...]} object.")
 
         app.logger.info(f"Processing {len(nodes)} nodes from JSON-LD graph...")
+        processed_count = 0 # Add counter
+        top_level_uris = set() # Initialize here
 
         # --- Pass 1: Identify all entities and basic info ---
         for node in nodes:
@@ -170,6 +173,10 @@ def load_ontology():
             if not isinstance(node_types, list): # Ensure type is a list
                  node_types = [node_types]
 
+            # --- Add detailed logging here ---
+            app.logger.debug(f"Processing node: URI='{uri}', Types='{node_types}'")
+            # --- End detailed logging ---
+
             # Extract label and description (handle potential list format)
             label_val = _extract_jsonld_value(node.get(RDFS + "label")) or _local_name(uri)
             desc_val = _extract_jsonld_value(node.get(RDFS + "comment", ""))
@@ -182,6 +189,8 @@ def load_ontology():
                 uri_registry[uri] = {"label": label_val, "type": "class"}
                 class_details[uri]["label"] = label_val
                 class_details[uri]["description"] = desc_val
+                processed_count += 1 # Increment counter
+                app.logger.debug(f"  -> Identified as Class: {label_val}") # Log identification
 
             # Identify Individuals (NamedIndividual)
             elif OWL + "NamedIndividual" in node_types:
@@ -189,6 +198,8 @@ def load_ontology():
                 uri_registry[uri] = {"label": label_val, "type": "individual"}
                 individual_details[uri]["label"] = label_val
                 individual_details[uri]["description"] = desc_val
+                processed_count += 1 # Increment counter
+                app.logger.debug(f"  -> Identified as Individual: {label_val}") # Log identification
 
             # Identify Properties
             elif any(pt in node_types for pt in [OWL + "ObjectProperty", OWL + "DatatypeProperty", OWL + "AnnotationProperty"]):
@@ -196,7 +207,13 @@ def load_ontology():
                  # Only add to registry if not already added (e.g., if something is both Class and Property?)
                  if uri not in uri_registry:
                      uri_registry[uri] = {"label": label_val, "type": "property"}
+                     processed_count += 1 # Increment counter - count properties added to registry
+                     app.logger.debug(f"  -> Identified as Property: {label_val}") # Log identification
                  # Could potentially store domain/range here if needed later
+            else:
+                 # Log nodes that weren't classified
+                 app.logger.debug(f"  -> Node not classified as Class, Individual, or Property.")
+
 
             # --- Process relationships and properties within this pass ---
             # (JSON-LD structure often allows processing in one pass)
@@ -269,7 +286,7 @@ def load_ontology():
 
         # Identify top-level classes (defined classes not in all_subclasses)
         defined_classes = set(class_details.keys())
-        top_level_uris = defined_classes - all_subclasses
+        top_level_uris = defined_classes - all_subclasses # Calculate here
         # Refinement: Add classes whose only parent is owl:Thing or have no parents
         owl_thing_uri = OWL + "Thing"
         for uri, details in class_details.items():
@@ -279,7 +296,9 @@ def load_ontology():
                  top_level_uris.add(uri)
 
 
-        app.logger.info(f"Lookup structures built. Registry size: {len(uri_registry)}, Classes: {len(class_details)}, Individuals: {len(individual_details)}")
+        # Add a summary log after processing
+        app.logger.info(f"Finished processing nodes. Identified {processed_count} entities (Classes/Individuals/Properties added to registry).")
+        app.logger.info(f"Final Lookup structures: Registry size: {len(uri_registry)}, Classes: {len(class_details)}, Individuals: {len(individual_details)}")
         app.logger.info(f"Identified {len(top_level_uris)} top-level classes.")
 
         # No XML tree to clear, Python's GC will handle the loaded JSON data when done.
@@ -315,11 +334,14 @@ def get_hierarchy():
     """Provides top-level classes and the URI registry using pre-computed data."""
     if ontology_load_error:
         return jsonify({"error": f"Ontology load failed: {ontology_load_error}"}), 500
+    # Check AFTER load attempt, if registry/details are still empty, something went wrong in parsing
     if not uri_registry and not class_details and not individual_details:
+         app.logger.error("Hierarchy requested, but ontology data structures are empty after loading attempt.") # Add specific log here
          return jsonify({"error": "Ontology data structures are empty. Check JSON-LD file content or parsing."}), 500
 
     try:
         # --- Determine Top Level Classes (Retrieve from load_ontology calculation) ---
+        # Re-calculate here to be safe, or trust the calculation in load_ontology
         all_subclass_uris = set()
         for details in class_details.values():
             all_subclass_uris.update(details["subClasses"]) # Use pre-computed subclasses
@@ -411,7 +433,7 @@ def get_children(node_uri_encoded):
         return jsonify({"error": f"Internal server error processing children for {class_uri}: {e}"}), 500
 
 
-@app.route('/api/details/<path:node_uri>')
+@app.route('/api/details/<path:node_uri_encoded>') # Changed variable name for clarity
 def get_details(node_uri_encoded):
     """Provides full details for a specific URI using pre-computed data."""
     item_uri = unquote(node_uri_encoded)
@@ -472,7 +494,9 @@ def get_details(node_uri_encoded):
                      }
                  })
             else:
+                 # Use abort for standard 404 response
                  abort(404, description=f"Item URI <{item_uri}> not found in the ontology data.")
+
 
     except Exception as e:
         app.logger.error(f"Error processing /api/details for {item_uri}: {e}", exc_info=True)
@@ -487,12 +511,16 @@ if __name__ == '__main__':
     if ontology_load_error:
         print(f"WARNING: Ontology loading failed: {ontology_load_error}")
         print("Flask app will run, but API calls will likely return errors.")
-    elif not uri_registry:
-         print("WARNING: Ontology loaded but registry is empty. Check JSON-LD file content and parsing logic.")
+    # Check if registry is empty *after* loading attempt, even if no error was raised
+    elif not uri_registry and not class_details and not individual_details:
+         print("WARNING: Ontology loaded but data structures are empty. Check JSON-LD file content and parsing logic in load_ontology().")
+         print("         >> Check console DEBUG logs above for details on processed nodes. <<")
     else:
         print("Ontology data loaded and pre-processed successfully.")
 
     port_to_use = int(os.environ.get('PORT', 8080))
     print(f"Attempting to run Flask app on host 0.0.0.0 and port {port_to_use}")
 
+    # Use threaded=True for development server to handle multiple requests better
+    # Use debug=False for production or if reloading causes issues; set to True for development debugging features
     app.run(host='0.0.0.0', port=port_to_use, debug=False, threaded=True) 
