@@ -1,9 +1,10 @@
 from flask import Flask, jsonify, render_template, abort
 import sqlite3
 import os
+from rdflib import OWL
 
 app = Flask(__name__)
-DATABASE = 'ontology.db'
+DATABASE = '/db/ontology.db'
 BASE_IRI = "http://myonto.com/PanResOntology.owl#" # Match the one used in preprocessing
 
 def get_db():
@@ -41,12 +42,14 @@ def get_toplevel_classes():
     # This example assumes top-level classes have NULL parent_uri in our simplified schema
     # Or parent is the base 'Resistance' class if you have one defined at the root
     resistance_uri = BASE_IRI + "Resistance" # Example base class URI
+    owl_thing_uri = str(OWL.Thing) # Use the imported OWL namespace
+
     classes = query_db('''
         SELECT uri, name, label, description
         FROM classes
         WHERE parent_uri IS NULL OR parent_uri = ? OR parent_uri = ?
         ORDER BY label
-    ''', (str(OWL.Thing), resistance_uri))
+    ''', (owl_thing_uri, resistance_uri)) # Pass the correct variable
     if classes is None:
         return jsonify({"error": "Database not found"}), 500
     return jsonify([dict(ix) for ix in classes])
@@ -133,4 +136,9 @@ if __name__ == '__main__':
          print(f"ERROR: Database file '{DATABASE}' not found.")
          print("Please run 'python preprocess_ontology.py' first.")
     else:
-        app.run(debug=True) # debug=True for development, remove for production
+        # For Render deployment, Gunicorn will bind the port.
+        # Use host='0.0.0.0' to make it accessible externally.
+        # The port is usually set by Render via the PORT env var.
+        port = int(os.environ.get("PORT", 5000))
+        # Set debug=False for production on Render
+        app.run(host='0.0.0.0', port=port, debug=False)

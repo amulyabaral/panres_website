@@ -6,7 +6,9 @@ from urllib.parse import urldefrag
 
 # --- Configuration ---
 OWL_FILE = 'panres_v2.owl'
-DB_FILE = 'ontology.db'
+# Use the persistent disk path
+DB_DIR = '/db'
+DB_FILE = os.path.join(DB_DIR, 'ontology.db')
 BASE_IRI = "http://myonto.com/PanResOntology.owl#" # Make sure this matches your OWL file's base IRI
 
 # --- Helper Functions ---
@@ -41,10 +43,24 @@ def preprocess_ontology():
         print(f"Error parsing OWL file: {e}")
         return
 
+    # Ensure the database directory exists
+    if not os.path.exists(DB_DIR):
+        try:
+            os.makedirs(DB_DIR)
+            print(f"Created database directory: {DB_DIR}")
+        except OSError as e:
+            print(f"Error creating directory {DB_DIR}: {e}")
+            return
+
     # Remove existing DB if it exists
     if os.path.exists(DB_FILE):
-        os.remove(DB_FILE)
-        print(f"Removed existing database: {DB_FILE}")
+        try:
+            os.remove(DB_FILE)
+            print(f"Removed existing database: {DB_FILE}")
+        except OSError as e:
+            print(f"Error removing existing database {DB_FILE}: {e}")
+            # Decide if you want to stop or continue if removal fails
+            # return
 
     print(f"Connecting to SQLite database: {DB_FILE}...")
     conn = sqlite3.connect(DB_FILE)
