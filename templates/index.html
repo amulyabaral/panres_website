@@ -12,8 +12,14 @@
         <header>
             <h1>panres_v2 Ontology Browser</h1>
             <p>Explore the class hierarchy and details of the ontology</p>
+            <!-- Display loading error from Flask if it occurred -->
+            {% if load_error %}
+            <div class="error-box" style="margin-top: 15px; color: #721c24; background-color: #f8d7da; border-color: #f5c6cb;">
+                <strong>Server Error:</strong> Could not load ontology data. Details: {{ load_error }}
+            </div>
+            {% endif %}
             <div class="search-container">
-                <input type="text" id="search" placeholder="Search classes or individuals...">
+                <input type="text" id="search" placeholder="Search loaded items..."> <!-- Updated placeholder -->
             </div>
         </header>
 
@@ -29,9 +35,7 @@
             <h2>Details</h2>
             <!-- Details will be loaded here by script.js -->
             <div id="details-container">
-                <div class="info-box">
-                    Loading ontology data...
-                </div>
+                <!-- Initial message will be set by JS -->
             </div>
         </div>
     </div>

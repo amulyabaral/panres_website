@@ -247,4 +247,21 @@ a:hover {
 /* Ensure details container has some padding */
 #details-container {
     padding-top: 5px;
+}
+
+ul.tree li span.loading-placeholder,
+ul.tree li span.error-box-small,
+ul.tree li span.info-box-small {
+    font-style: italic;
+    color: #666;
+    padding: 2px 5px;
+    margin-left: 15px; /* Align with other items */
+    display: inline-block;
+}
+
+ul.tree li span.error-box-small {
+    color: #a94442; /* Dark red */
+    background-color: #f2dede; /* Light red */
+    border: 1px solid #ebccd1;
+    border-radius: 3px;
 } 
