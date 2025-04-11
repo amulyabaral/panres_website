@@ -1,3 +1,2 @@
 Flask>=2.0
 gunicorn>=20.0 # For deployment on Render
-rdflib>=6.0.0  # For OWL/RDF processing

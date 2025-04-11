@@ -1,10 +1,10 @@
 import os
 import gc
 from flask import Flask, jsonify, render_template, abort
-from rdflib import Graph, Namespace, Literal, URIRef, BNode
-from rdflib.namespace import RDF, RDFS, OWL, XSD
+import xml.etree.ElementTree as ET # Use ElementTree for XML parsing
 from urllib.parse import unquote
 from collections import defaultdict
+import logging # Use logging for errors
 
 # --- Configuration ---
 OWL_FILENAME = "panres_v2.owl"
@@ -12,343 +12,364 @@ OWL_FILE_PATH = os.path.join(os.path.dirname(__file__), OWL_FILENAME)
 
 # --- Flask App Setup ---
 app = Flask(__name__, static_folder='static', template_folder='templates')
+app.logger.setLevel(logging.INFO) # Set logging level
 
-# --- Ontology Graph ---
-ontology_graph = None
+# --- Ontology Data Structures (Populated by load_ontology) ---
+ontology_root = None # Stores the parsed XML root element
 ontology_load_error = None # Store potential loading errors
 
-# Define common namespaces
-ns_rdf = RDF
-ns_rdfs = RDFS
-ns_owl = OWL
-ns_xsd = XSD
-# Add your ontology's base namespace if known, otherwise rdflib handles prefixes
-# Example: NS_BASE = Namespace("http://myonto.com/PanResOntology.owl#")
+# Pre-computed lookups for efficiency
+uri_registry = {} # {uri: {"label": "...", "type": "class/individual/property"}}
+class_details = defaultdict(lambda: {
+    "label": "", "description": "", "superClasses": set(), "subClasses": set(), "instances": set()
+}) # {class_uri: {details...}}
+individual_details = defaultdict(lambda: {
+    "label": "", "description": "", "types": set(), "properties": defaultdict(list)
+}) # {individual_uri: {details...}}
+
+# Define common namespaces used in OWL/RDF XML
+NS = {
+    'rdf': "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    'rdfs': "http://www.w3.org/2000/01/rdf-schema#",
+    'owl': "http://www.w3.org/2002/07/owl#",
+    'xsd': "http://www.w3.org/2001/XMLSchema#",
+    # Add the default namespace if your OWL file uses one (check the rdf:RDF tag's xmlns attribute)
+    # Example: '': "http://myonto.com/PanResOntology.owl#"
+    # If the default namespace is defined, prefix tags like 'Class' with it in findall, e.g., '{http://myonto.com/PanResOntology.owl#}Class'
+    # Or handle it by checking tag names directly if ET doesn't support default NS well in findall.
+    # For now, assuming prefixes are used explicitly or no default namespace relevant here.
+}
 
 # --- Helper Functions ---
-def get_label(uri, g):
-    """Gets the RDFS label for a URI, falling back to local name."""
-    label = g.value(uri, RDFS.label)
-    if label:
-        return str(label)
-    # Fallback to local name extraction
+
+def _get_uri_from_elem(elem):
+    """Gets the rdf:about or rdf:resource URI from an element."""
+    if elem is None:
+        return None
+    uri = elem.get(f"{{{NS['rdf']}}}about")
+    if uri is None:
+        uri = elem.get(f"{{{NS['rdf']}}}resource")
+    return uri
+
+def _get_text_from_elem(elem, child_tag):
+    """Safely gets text content from a specific child element."""
+    if elem is None: return ""
+    child = elem.find(child_tag, NS)
+    return child.text.strip() if child is not None and child.text else ""
+
+def get_label(uri):
+    """Gets the label from the pre-built registry, falling back to local name."""
+    if uri in uri_registry:
+        return uri_registry[uri].get("label", "") or _local_name(uri) # Use label if present, else local name
+    return _local_name(uri) # Fallback if URI not in registry
+
+def _local_name(uri):
+    """Extracts the local name part of a URI."""
+    if not uri: return ""
     try:
-        uri_str = str(uri)
-        if '#' in uri_str:
-            return uri_str.split('#')[-1]
-        return uri_str.split('/')[-1]
+        if '#' in uri:
+            return uri.split('#')[-1]
+        return uri.split('/')[-1]
     except:
         return str(uri) # Failsafe
 
-def get_comment(uri, g):
-    """Gets the RDFS comment for a URI."""
-    comment = g.value(uri, RDFS.comment)
-    return str(comment) if comment else ""
+# --- Ontology Loading and Pre-processing ---
+def load_ontology():
+    """Loads the OWL file using ElementTree and builds lookup structures."""
+    global ontology_root, ontology_load_error
+    global uri_registry, class_details, individual_details
+    app.logger.info(f"Starting ontology loading from: {OWL_FILE_PATH}")
 
-def has_children(uri, g, child_type='subclass'):
-    """Checks if a class URI has direct subclasses or instances."""
-    if child_type == 'subclass':
-        # Check if anything is a subclass of this URI (excluding Thing and self)
-        query = g.query(
-            "ASK { ?subclass rdfs:subClassOf ?class . FILTER(?subclass != ?class && ?subclass != owl:Thing) }",
-            initBindings={'class': uri, 'rdfs': RDFS, 'owl': OWL}
-        )
-        return bool(query)
-    elif child_type == 'instance':
-        # Check if anything has this URI as its rdf:type
-        query = g.query(
-            "ASK { ?instance rdf:type ?class . }",
-            initBindings={'class': uri, 'rdf': RDF}
-        )
-        return bool(query)
-    return False
-
-def build_uri_registry(g):
-    """Builds a basic registry of known URIs and their types/labels."""
-    registry = {}
-    # Classes
-    for class_uri in g.subjects(RDF.type, OWL.Class):
-        if isinstance(class_uri, URIRef):
-             # Basic filtering of built-in OWL/RDF/RDFS/XSD classes
-            uri_str = str(class_uri)
-            if not any(uri_str.startswith(str(ns)) for ns in [OWL, RDF, RDFS, XSD]):
-                registry[uri_str] = {"type": "class", "label": get_label(class_uri, g)}
-    # Individuals
-    for ind_uri in g.subjects(RDF.type, OWL.NamedIndividual):
-         if isinstance(ind_uri, URIRef):
-            registry[str(ind_uri)] = {"type": "individual", "label": get_label(ind_uri, g)}
-    # Also add individuals typed by specific classes if not caught by NamedIndividual
-    for s, o in g.subject_objects(RDF.type):
-        if isinstance(s, URIRef) and isinstance(o, URIRef) and str(o) in registry and registry[str(o)]['type'] == 'class':
-             if str(s) not in registry:
-                 registry[str(s)] = {"type": "individual", "label": get_label(s, g)}
-    # Properties (Object, Datatype, Annotation)
-    for prop_type in [OWL.ObjectProperty, OWL.DatatypeProperty, OWL.AnnotationProperty]:
-        for prop_uri in g.subjects(RDF.type, prop_type):
-            if isinstance(prop_uri, URIRef):
-                registry[str(prop_uri)] = {"type": "property", "label": get_label(prop_uri, g)}
-    return registry
-
-
-# --- Ontology Loading Function ---
-def load_ontology_graph():
-    """Loads the OWL file into the global graph object."""
-    global ontology_graph, ontology_load_error
-    print(f"Starting ontology loading from: {OWL_FILE_PATH}")
     if not os.path.exists(OWL_FILE_PATH):
         ontology_load_error = f"Error: Ontology file not found at {OWL_FILE_PATH}"
-        print(ontology_load_error)
+        app.logger.error(ontology_load_error)
         return
 
-    g = Graph()
     try:
-        print("Parsing OWL file...")
-        g.parse(OWL_FILE_PATH) # rdflib detects format based on extension or content
-        print(f"Ontology loaded successfully. Graph size: {len(g)} triples.")
-        ontology_graph = g
-        # Clear graph from memory after parsing if rdflib keeps internal copies (depends on store)
-        # del g
+        app.logger.info("Parsing OWL file with ElementTree...")
+        tree = ET.parse(OWL_FILE_PATH)
+        ontology_root = tree.getroot()
+        app.logger.info(f"Ontology XML parsed successfully.")
+
+        app.logger.info("Building lookup structures...")
+        # --- Pass 1: Identify all entities and basic info ---
+        for elem in ontology_root.iter():
+            uri = _get_uri_from_elem(elem)
+            if not uri: continue # Skip elements without a direct URI identifier
+
+            label = _get_text_from_elem(elem, 'rdfs:label') or _local_name(uri)
+            description = _get_text_from_elem(elem, 'rdfs:comment')
+
+            # Identify Classes
+            if elem.tag == f"{{{NS['owl']}}}Class":
+                uri_registry[uri] = {"label": label, "type": "class"}
+                class_details[uri]["label"] = label
+                class_details[uri]["description"] = description
+
+            # Identify Individuals
+            elif elem.tag == f"{{{NS['owl']}}}NamedIndividual":
+                uri_registry[uri] = {"label": label, "type": "individual"}
+                individual_details[uri]["label"] = label
+                individual_details[uri]["description"] = description
+                # Extract properties asserted directly on the individual
+                for prop_elem in elem:
+                    prop_uri = prop_elem.tag # Full URI like {http://namespace#}propertyName
+                    if prop_uri.startswith(f"{{{NS['rdf']}}}") or prop_uri.startswith(f"{{{NS['rdfs']}}}") or prop_uri.startswith(f"{{{NS['owl']}}}"):
+                         # Skip rdf:type, rdfs:label, rdfs:comment handled elsewhere
+                         if prop_uri not in [f"{{{NS['rdf']}}}type", f"{{{NS['rdfs']}}}label", f"{{{NS['rdfs']}}}comment"]:
+                             continue # Skip other schema properties if needed
+
+                    prop_entry = {}
+                    obj_uri = _get_uri_from_elem(prop_elem)
+                    if obj_uri: # Object Property
+                        prop_entry["type"] = "uri"
+                        prop_entry["value"] = obj_uri
+                    elif prop_elem.text: # Datatype or Annotation Property
+                        prop_entry["type"] = "literal"
+                        prop_entry["value"] = prop_elem.text.strip()
+                        prop_entry["datatype"] = prop_elem.get(f"{{{NS['rdf']}}}datatype")
+                    else:
+                        continue # Skip if no value found
+
+                    individual_details[uri]["properties"][prop_uri].append(prop_entry)
+
+
+            # Identify Properties (Object, Datatype, Annotation)
+            elif elem.tag in [f"{{{NS['owl']}}}ObjectProperty", f"{{{NS['owl']}}}DatatypeProperty", f"{{{NS['owl']}}}AnnotationProperty"]:
+                 # Only add to registry if not already added (e.g., as a class/individual by mistake)
+                 if uri not in uri_registry:
+                     uri_registry[uri] = {"label": label, "type": "property"}
+
+
+        # --- Pass 2: Process relationships ---
+        all_subclasses = set() # Keep track of URIs that are subclasses of something specific
+        for elem in ontology_root.iter():
+            subj_uri = _get_uri_from_elem(elem)
+            if not subj_uri: continue
+
+            # Process SubClassOf
+            for sub_class_elem in elem.findall('rdfs:subClassOf', NS):
+                parent_uri = _get_uri_from_elem(sub_class_elem)
+                if parent_uri and subj_uri != parent_uri and parent_uri != f"{{{NS['owl']}}}Thing":
+                    # Ensure both are known classes before adding relationship
+                    if subj_uri in class_details and parent_uri in class_details:
+                        class_details[subj_uri]["superClasses"].add(parent_uri)
+                        class_details[parent_uri]["subClasses"].add(subj_uri)
+                        all_subclasses.add(subj_uri) # Mark this as having a parent
+
+            # Process rdf:type (Instance Of)
+            for type_elem in elem.findall('rdf:type', NS):
+                class_uri = _get_uri_from_elem(type_elem)
+                # Link instance to class if both are known and class_uri isn't owl:NamedIndividual
+                if class_uri and subj_uri in individual_details and class_uri in class_details \
+                   and class_uri != f"{{{NS['owl']}}}NamedIndividual":
+                    individual_details[subj_uri]["types"].add(class_uri)
+                    class_details[class_uri]["instances"].add(subj_uri)
+
+        # Identify top-level classes (those defined but not subclasses of other defined classes)
+        # This logic might need refinement based on exact OWL structure (e.g., handling owl:Thing explicitly)
+        defined_classes = set(class_details.keys())
+        top_level_uris = defined_classes - all_subclasses
+        # Add classes whose only parent is owl:Thing? Check class_details[uri]['superClasses'] if needed.
+
+        # Store top-level URIs for the hierarchy endpoint (can be done here or in the endpoint)
+        # For simplicity, we'll filter in the endpoint using the computed details.
+
+        app.logger.info(f"Lookup structures built. Registry size: {len(uri_registry)}, Classes: {len(class_details)}, Individuals: {len(individual_details)}")
+        # Clear the XML tree from memory if possible (depends on if needed later)
+        # ontology_root = None
         # gc.collect()
+
+    except ET.ParseError as e:
+        ontology_load_error = f"Error parsing ontology XML: {e}"
+        app.logger.error(ontology_load_error)
+        ontology_root = None
     except Exception as e:
-        ontology_load_error = f"Error parsing ontology file: {e}"
-        print(ontology_load_error)
-        ontology_graph = None # Ensure graph is None on error
-        # del g # Clean up graph object if parsing failed midway
-        # gc.collect()
+        ontology_load_error = f"An unexpected error occurred during ontology loading: {e}"
+        app.logger.error(ontology_load_error, exc_info=True)
+        ontology_root = None
+        # Clean up potentially partially filled structures
+        uri_registry.clear()
+        class_details.clear()
+        individual_details.clear()
+        gc.collect()
+
 
 # --- Flask Routes ---
 @app.route('/')
 def index():
     """Serves the main HTML page."""
-    # Pass potential load error to template
     return render_template('index.html', load_error=ontology_load_error)
 
 @app.route('/api/hierarchy')
 def get_hierarchy():
-    """Provides top-level classes and the URI registry by querying the graph."""
+    """Provides top-level classes and the URI registry using pre-computed data."""
     if ontology_load_error:
-        # This handles errors during the initial load
         return jsonify({"error": f"Ontology load failed: {ontology_load_error}"}), 500
-    if not ontology_graph:
-        return jsonify({"error": "Ontology graph not loaded or unavailable."}), 500
+    if not class_details and not individual_details: # Check if structures are empty
+         return jsonify({"error": "Ontology data structures not loaded or empty."}), 500
 
-    try: # Add try block here
-        g = ontology_graph
-        top_classes = []
-        processed_classes = set() # Keep track of classes with known parents
+    try:
+        top_classes_data = []
+        all_subclass_uris = set()
+        for details in class_details.values():
+            all_subclass_uris.update(details["subClasses"])
 
-        # Find all classes that are subclasses of something
-        for s, o in g.subject_objects(RDFS.subClassOf):
-            if isinstance(s, URIRef) and isinstance(o, URIRef) and o != OWL.Thing:
-                 # Basic filtering of built-in OWL/RDF/RDFS/XSD classes
-                uri_str = str(s)
-                if not any(uri_str.startswith(str(ns)) for ns in [OWL, RDF, RDFS, XSD]):
-                    processed_classes.add(s)
+        # Determine top-level: defined classes that are not subclasses of *other defined classes*
+        # (This excludes being a subclass of owl:Thing if owl:Thing isn't in class_details)
+        top_level_uris = set(class_details.keys()) - all_subclass_uris
 
-        # Find all defined classes
-        all_classes = set()
-        for class_uri in g.subjects(RDF.type, OWL.Class):
-             if isinstance(class_uri, URIRef):
-                uri_str = str(class_uri)
-                # Exclude built-ins and Thing
-                if not any(uri_str.startswith(str(ns)) for ns in [OWL, RDF, RDFS, XSD]) and class_uri != OWL.Thing:
-                     all_classes.add(class_uri)
-
-        # Top classes are those defined but not found as subclasses of others (excluding Thing)
-        top_class_uris = all_classes - processed_classes
-
-        # Also consider classes that only subclass owl:Thing as top-level
-        for s, o in g.subject_objects(RDFS.subClassOf):
-             if isinstance(s, URIRef) and o == OWL.Thing and s not in processed_classes:
-                 uri_str = str(s)
-                 if not any(uri_str.startswith(str(ns)) for ns in [OWL, RDF, RDFS, XSD]):
-                     top_class_uris.add(s)
+        # Alternative: A class is top-level if its only superclass (if any) is owl:Thing
+        # top_level_uris = set()
+        # owl_thing_uri = f"{{{NS['owl']}}}Thing"
+        # for uri, details in class_details.items():
+        #     parents = details['superClasses']
+        #     if not parents or parents == {owl_thing_uri}:
+        #          top_level_uris.add(uri)
 
 
-        for class_uri in top_class_uris:
-            class_id = str(class_uri)
-            top_classes.append({
-                "id": class_id,
-                "label": get_label(class_uri, g),
-                "hasSubClasses": has_children(class_uri, g, 'subclass'),
-                "hasInstances": has_children(class_uri, g, 'instance')
+        for uri in sorted(list(top_level_uris), key=get_label):
+            details = class_details[uri]
+            top_classes_data.append({
+                "id": uri,
+                "label": get_label(uri), # Use helper to get label
+                "hasSubClasses": bool(details["subClasses"]),
+                "hasInstances": bool(details["instances"])
             })
 
-        top_classes.sort(key=lambda x: x["label"])
-
-        # Build registry on the fly (can be slow for large ontologies)
-        # Consider caching this registry if performance is an issue
-        uri_registry = build_uri_registry(g)
-
+        # Return the pre-built registry along with top classes
         return jsonify({
-            "topClasses": top_classes,
-            "uriRegistry": uri_registry
+            "topClasses": top_classes_data,
+            "uriRegistry": uri_registry # Send the whole registry
         })
 
-    except Exception as e: # Catch any exception during processing
-        # Log the error server-side for debugging
+    except Exception as e:
         app.logger.error(f"Error processing /api/hierarchy: {e}", exc_info=True)
-        # Return a JSON error to the client
         return jsonify({"error": f"Internal server error processing hierarchy: {e}"}), 500
 
 
 @app.route('/api/children/<path:node_uri>')
-def get_children(node_uri):
-    """Provides direct subclasses and instances for a given class URI by querying the graph."""
-    class_uri = URIRef(unquote(node_uri)) # Assume node_uri is a full URI
+def get_children(node_uri_encoded):
+    """Provides direct subclasses and instances using pre-computed data."""
+    class_uri = unquote(node_uri_encoded)
 
     if ontology_load_error:
-        return jsonify({"error": ontology_load_error}), 500
-    if not ontology_graph:
-        return jsonify({"error": "Ontology graph not loaded."}), 500
+        return jsonify({"error": f"Ontology load failed: {ontology_load_error}"}), 500
+    if class_uri not in class_details:
+         # Check if it's an individual or unknown
+         if class_uri in individual_details:
+              return jsonify({"subClasses": [], "instances": []}) # Individuals have no ontology children
+         else:
+              return jsonify({"error": f"Class URI <{class_uri}> not found."}), 404
 
-    g = ontology_graph
-    subclass_details = []
-    instance_details = []
+    try:
+        details = class_details[class_uri]
+        subclass_data = []
+        instance_data = []
 
-    # Find direct subclasses
-    for sub_uri in g.subjects(RDFS.subClassOf, class_uri):
-        # Ensure it's a URI, not a blank node, and not the class itself or Thing
-        if isinstance(sub_uri, URIRef) and sub_uri != class_uri and sub_uri != OWL.Thing:
-            # Avoid adding subclasses that are only defined via complex restrictions unless explicitly typed as owl:Class
-            # This check might be too strict depending on the ontology style
-            # if (sub_uri, RDF.type, OWL.Class) in g:
-            subclass_details.append({
-                "id": str(sub_uri),
-                "label": get_label(sub_uri, g),
-                "hasSubClasses": has_children(sub_uri, g, 'subclass'),
-                "hasInstances": has_children(sub_uri, g, 'instance')
-            })
+        # Get subclasses
+        for sub_uri in sorted(list(details["subClasses"]), key=get_label):
+            if sub_uri in class_details: # Ensure subclass exists in details
+                 sub_details = class_details[sub_uri]
+                 subclass_data.append({
+                     "id": sub_uri,
+                     "label": get_label(sub_uri),
+                     "hasSubClasses": bool(sub_details["subClasses"]),
+                     "hasInstances": bool(sub_details["instances"])
+                 })
 
-    # Find direct instances
-    for inst_uri in g.subjects(RDF.type, class_uri):
-        # Ensure it's a named individual (URIRef)
-        if isinstance(inst_uri, URIRef):
-             # Check if it's explicitly an OWL NamedIndividual or just typed
-             # if (inst_uri, RDF.type, OWL.NamedIndividual) in g: # Be stricter if needed
-             instance_details.append({
-                 "id": str(inst_uri),
-                 "label": get_label(inst_uri, g)
-             })
+        # Get instances
+        for inst_uri in sorted(list(details["instances"]), key=get_label):
+             if inst_uri in individual_details: # Ensure instance exists
+                 instance_data.append({
+                     "id": inst_uri,
+                     "label": get_label(inst_uri)
+                 })
 
-    subclass_details.sort(key=lambda x: x["label"])
-    instance_details.sort(key=lambda x: x["label"])
+        return jsonify({
+            "subClasses": subclass_data,
+            "instances": instance_data
+        })
 
-    return jsonify({
-        "subClasses": subclass_details,
-        "instances": instance_details
-    })
+    except Exception as e:
+        app.logger.error(f"Error processing /api/children for {class_uri}: {e}", exc_info=True)
+        return jsonify({"error": f"Internal server error processing children for {class_uri}: {e}"}), 500
 
 
 @app.route('/api/details/<path:node_uri>')
-def get_details(node_uri):
-    """Provides full details for a specific class or individual URI by querying the graph."""
-    item_uri = URIRef(unquote(node_uri))
+def get_details(node_uri_encoded):
+    """Provides full details for a specific URI using pre-computed data."""
+    item_uri = unquote(node_uri_encoded)
 
     if ontology_load_error:
-        return jsonify({"error": ontology_load_error}), 500
-    if not ontology_graph:
-        return jsonify({"error": "Ontology graph not loaded."}), 500
+        return jsonify({"error": f"Ontology load failed: {ontology_load_error}"}), 500
 
-    g = ontology_graph
-    details = None
-    item_type = None
+    try:
+        details_data = None
+        item_type = None
 
-    # Check if it's a class
-    if (item_uri, RDF.type, OWL.Class) in g:
-        item_type = "class"
-        details = {
-            "id": str(item_uri),
-            "label": get_label(item_uri, g),
-            "description": get_comment(item_uri, g),
-            "superClasses": [],
-            "subClasses": [],
-            "instances": []
-        }
-        # Get superclasses (direct parents)
-        for super_uri in g.objects(item_uri, RDFS.subClassOf):
-            if isinstance(super_uri, URIRef) and super_uri != OWL.Thing:
-                details["superClasses"].append(str(super_uri))
-        # Get subclasses (direct children)
-        for sub_uri in g.subjects(RDFS.subClassOf, item_uri):
-             if isinstance(sub_uri, URIRef) and sub_uri != item_uri and sub_uri != OWL.Thing:
-                 details["subClasses"].append(str(sub_uri))
-        # Get instances (direct members)
-        for inst_uri in g.subjects(RDF.type, item_uri):
-             if isinstance(inst_uri, URIRef):
-                 details["instances"].append(str(inst_uri))
+        if item_uri in class_details:
+            item_type = "class"
+            details = class_details[item_uri]
+            # Convert sets to sorted lists for JSON serialization
+            details_data = {
+                "id": item_uri,
+                "label": get_label(item_uri),
+                "description": details["description"],
+                "superClasses": sorted(list(details["superClasses"]), key=get_label),
+                "subClasses": sorted(list(details["subClasses"]), key=get_label),
+                "instances": sorted(list(details["instances"]), key=get_label)
+            }
+        elif item_uri in individual_details:
+            item_type = "individual"
+            details = individual_details[item_uri]
+            # Convert sets/defaultdicts for JSON
+            # Sort properties by label for consistent display
+            sorted_properties = {
+                prop_uri: values
+                for prop_uri, values in sorted(
+                    details["properties"].items(), key=lambda item: get_label(item[0])
+                )
+            }
+            details_data = {
+                "id": item_uri,
+                "label": get_label(item_uri),
+                "description": details["description"],
+                "types": sorted(list(details["types"]), key=get_label),
+                "properties": sorted_properties # Already sorted dict
+            }
 
-    # Check if it's an individual (NamedIndividual or just having a class type)
-    elif (item_uri, RDF.type, OWL.NamedIndividual) in g or \
-         any(isinstance(t, URIRef) and (t, RDF.type, OWL.Class) in g for t in g.objects(item_uri, RDF.type)):
-        item_type = "individual"
-        details = {
-            "id": str(item_uri),
-            "label": get_label(item_uri, g),
-            "description": get_comment(item_uri, g),
-            "types": [],
-            "properties": defaultdict(list) # { propUri: [{ type: 'uri'/'literal', value: '...', datatype: '...' }] }
-        }
-        # Get types (classes)
-        for type_uri in g.objects(item_uri, RDF.type):
-            if isinstance(type_uri, URIRef) and type_uri != OWL.NamedIndividual:
-                 # Optionally check if the type_uri is actually an owl:Class
-                 # if (type_uri, RDF.type, OWL.Class) in g:
-                 details["types"].append(str(type_uri))
+        if details_data:
+            return jsonify({"type": item_type, "details": details_data})
+        else:
+            # Check registry for other types or if URI is completely unknown
+            if item_uri in uri_registry:
+                 return jsonify({"error": f"Item <{item_uri}> found but type (Class/Individual) could not be determined or is not supported for details view."}), 404
+            else:
+                 abort(404, description=f"Item URI <{item_uri}> not found in the ontology data.")
 
-        # Get properties asserted on the individual
-        for p, o in g.predicate_objects(item_uri):
-            prop_uri = str(p)
-            # Skip basic schema properties already handled
-            if p in [RDF.type, RDFS.label, RDFS.comment]:
-                continue
-            # Skip other RDF/RDFS/OWL schema properties if desired
-            # if str(p).startswith(str(RDF)) or str(p).startswith(str(RDFS)) or str(p).startswith(str(OWL)):
-            #    continue
-
-            prop_entry = {}
-            if isinstance(o, URIRef):
-                prop_entry["type"] = "uri"
-                prop_entry["value"] = str(o)
-            elif isinstance(o, Literal):
-                prop_entry["type"] = "literal"
-                prop_entry["value"] = str(o)
-                prop_entry["datatype"] = str(o.datatype) if o.datatype else None
-            else: # Skip blank nodes or other types
-                continue
-
-            details["properties"][prop_uri].append(prop_entry)
-
-    if details:
-        return jsonify({"type": item_type, "details": details})
-    else:
-         # Check if the URI exists at all in the graph before 404'ing
-         if (item_uri, None, None) in g or (None, None, item_uri) in g or (None, item_uri, None) in g:
-             # URI exists but isn't recognized as a class or individual we handle
-             return jsonify({"error": f"Item <{node_uri}> found but type (Class/Individual) could not be determined or is not supported."}), 404
-         else:
-             abort(404, description=f"Item URI <{node_uri}> not found in the ontology graph.")
+    except Exception as e:
+        app.logger.error(f"Error processing /api/details for {item_uri}: {e}", exc_info=True)
+        return jsonify({"error": f"Internal server error processing details for {item_uri}: {e}"}), 500
 
 
 # --- Main Execution ---
 if __name__ == '__main__':
-    # Load graph on startup
-    print("Loading ontology graph on startup...")
-    load_ontology_graph() # This populates ontology_graph or ontology_load_error
+    print("Loading ontology data on startup...")
+    load_ontology() # This populates the lookup structures or ontology_load_error
 
     if ontology_load_error:
         print(f"WARNING: Ontology loading failed: {ontology_load_error}")
         print("Flask app will run, but API calls will likely return errors.")
-    elif ontology_graph:
-        print("Ontology graph loaded successfully.")
+    elif not uri_registry:
+         print("WARNING: Ontology loaded but registry is empty. Check OWL file content and parsing logic.")
     else:
-         print("WARNING: Ontology graph variable is unexpectedly None after loading attempt.")
+        print("Ontology data loaded and pre-processed successfully.")
 
 
     port_to_use = int(os.environ.get('PORT', 8080))
     print(f"Attempting to run Flask app on host 0.0.0.0 and port {port_to_use}")
 
     # Use debug=False for production/deployment
-    # Use threaded=True if rdflib store is thread-safe (default Memory store usually is)
-    # Use processes > 1 if store supports multiprocessing (less common for in-memory)
+    # threaded=True is generally safe for Flask apps not sharing complex state across requests
     app.run(host='0.0.0.0', port=port_to_use, debug=False, threaded=True) 
