@@ -332,12 +332,15 @@ def index():
 @app.route('/api/hierarchy')
 def get_hierarchy():
     """Provides top-level classes and the URI registry using pre-computed data."""
-    if ontology_load_error:
-        return jsonify({"error": f"Ontology load failed: {ontology_load_error}"}), 500
-    # Check AFTER load attempt, if registry/details are still empty, something went wrong in parsing
-    if not uri_registry and not class_details and not individual_details:
-         app.logger.error("Hierarchy requested, but ontology data structures are empty after loading attempt.") # Add specific log here
-         return jsonify({"error": "Ontology data structures are empty. Check JSON-LD file content or parsing."}), 500
+    if not uri_registry: # Check uri_registry specifically as the most basic indicator
+         app.logger.error("Hierarchy requested, but uri_registry is empty after loading attempt.")
+         # Check if load_error was set, otherwise provide a more specific message
+         if ontology_load_error:
+              # If load_ontology explicitly set an error, use it
+              return jsonify({"error": f"Ontology load failed: {ontology_load_error}"}), 500
+         else:
+              # If load_ontology finished without error but registry is empty, report that
+              return jsonify({"error": "Ontology data structures are empty after processing. Check server logs for details (e.g., JSON-LD content or parsing logic issues)."}), 500
 
     try:
         # --- Determine Top Level Classes (Retrieve from load_ontology calculation) ---
