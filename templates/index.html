@@ -16,33 +16,29 @@
             <p>Explore the class hierarchy and details of the ontology</p>
             <!-- Display loading error from Flask if it occurred -->
             {% if load_error %}
-            <div class="error-box" style="margin-top: 15px; color: #721c24; background-color: #f8d7da; border-color: #f5c6cb;">
+            <div class="error-box">
                 <strong>Server Error:</strong> Could not load ontology data. Details: {{ load_error }}
             </div>
             {% endif %}
             <div class="search-container">
-                <input type="text" id="search" placeholder="Search loaded items..."> <!-- Updated placeholder -->
+                <input type="text" id="search" placeholder="Search classes and individuals...">
             </div>
         </header>
 
-        <!-- Replaced class-hierarchy div with plot-container -->
-        <div class="plot-view">
-            <h2>Ontology Explorer</h2>
-            <!-- Plotly Sunburst chart will be loaded here -->
-            <div id="plot-container">
-                <div class="loader"></div> <!-- Initial loader -->
+        <div class="hierarchy-view">
+            <h2>Class Hierarchy</h2>
+            <div id="tree-container" class="tree-container">
+                <div class="loader"></div>
             </div>
         </div>
 
         <div class="class-details">
             <h2>Details</h2>
-            <!-- Details will be loaded here by script.js -->
             <div id="details-container">
-                <!-- Initial message will be set by JS -->
+                <!-- Details will be loaded here -->
             </div>
-             <!-- Container for charts within the details pane -->
-            <div id="details-chart-container" style="margin-top: 20px;">
-                 <!-- Bar charts will be rendered here -->
+            <div id="details-chart-container">
+                <!-- Bar chart will be rendered here -->
             </div>
         </div>
     </div>
