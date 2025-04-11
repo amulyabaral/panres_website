@@ -11,6 +11,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedNodeType = null;
     let loadError = null;
 
+    // --- Helper: Update Global URI Registry ---
+    function updateUriRegistry(registryUpdate) {
+        if (registryUpdate && typeof registryUpdate === 'object') {
+            uriRegistry = { ...uriRegistry, ...registryUpdate };
+            // console.log("URI Registry updated:", Object.keys(uriRegistry).length, "entries");
+        }
+    }
+
     // --- Fetch Initial Data ---
     async function fetchInitialData() {
         treeContainer.innerHTML = '<div class="loader"></div>';
@@ -43,11 +51,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log("Received Initial Hierarchy:", data);
 
             // Check if data seems valid
-            if (!data.topClasses || !data.uriRegistry) {
-                throw new Error("Received incomplete or invalid hierarchy data structure.");
+            if (!data.topClasses) {
+                throw new Error("Received incomplete or invalid hierarchy data structure (missing topClasses).");
             }
 
-            uriRegistry = data.uriRegistry; // Store the registry
+            // Update registry with initial data (might just be top-level items)
+            updateUriRegistry(data.uriRegistry);
 
             // Render the top-level tree
             renderTreeRoot(data.topClasses);
@@ -206,12 +215,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         const response = await fetch(`/api/children/${encodedUri}`);
         
         if (!response.ok) {
-            throw new Error(`Error ${response.status}: ${response.statusText}`);
+            // Try to get error message from JSON body
+            let errorMsg = `Error ${response.status}: ${response.statusText}`;
+            try {
+                const errorData = await response.json();
+                if (errorData && errorData.error) errorMsg = errorData.error;
+            } catch(e) {}
+            throw new Error(errorMsg);
         }
         
         const data = await response.json();
         parentUl.innerHTML = ''; // Clear the loading indicator
         
+        // Update global registry with children info
+        updateUriRegistry(data.uriRegistryUpdate);
+
         // Process subclasses
         if (data.subClasses && data.subClasses.length > 0) {
             // Sort by label
@@ -297,18 +315,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Check registry for type to decide link behavior
         const info = uriRegistry ? uriRegistry[uri] : null;
 
-        if (info && (info.type === 'class' || info.type === 'individual')) {
-            // Internal link to navigate within the browser
-            // Ensure URI is properly escaped for the function call
-            const escapedUri = uri.replace(/'/g, "\\'"); // Basic escaping for single quotes
-            return `<a href="#" title="${title}" onclick="event.preventDefault(); window.handleInternalLinkClick('${escapedUri}', '${info.type}');">${label}</a>`;
+        let linkType = 'external'; // Default to external
+        if (info) {
+            if (info.type === 'class' || info.type === 'individual') {
+                linkType = 'internal';
+            } else if (info.type === 'property') {
+                linkType = 'external'; // Or 'none' if properties shouldn't be links
+            }
         } else {
-            // External link for properties or unknown URIs (open in new tab)
-            // Or potentially just display label if it's a property? User preference.
-            // Let's make properties linkable externally for now.
+            // Guess type based on common patterns if not in registry (less reliable)
+            // This is optional, could just default all unknown to external
+            // if (uri.toLowerCase().includes('class')) linkType = 'internal'; // Very rough guess
+        }
+
+        if (linkType === 'internal') {
+            const escapedUri = uri.replace(/'/g, "\\'");
+            // Use the type from the registry if available, otherwise guess based on context (less ideal)
+            const nodeType = info ? info.type : (label === label.toUpperCase() ? 'individual' : 'class'); // Very rough guess if no info
+            return `<a href="#" title="${title}" onclick="event.preventDefault(); window.handleInternalLinkClick('${escapedUri}', '${nodeType}');">${label}</a>`;
+        } else if (linkType === 'external') {
              return `<a href="${uri}" target="_blank" title="${title}">${label}</a>`;
-            // Alternative: Just show property label without link
-            // return `<span title="${title}">${label}</span>`;
+        } else { // 'none' or other cases
+             return `<span title="${title}">${label}</span>`;
         }
     }
 
@@ -353,6 +381,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             const classObj = result.details;
+
+            // Update registry with related items from details
+            updateUriRegistry(result.uriRegistryUpdate);
 
             // Render Text Details
             let html = `
@@ -439,12 +470,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const result = await response.json();
 
+            // Update registry with related items from details
+            updateUriRegistry(result.uriRegistryUpdate);
+
             if (result.type !== 'individual' || !result.details) {
-                // Handle cases where the URI is found but not an individual (e.g., a property)
-                if (result.details && result.details.message) {
-                    detailsContainer.innerHTML = `<div class="info-box">${result.details.message}</div>
-                                                  <p><strong>URI:</strong> ${result.details.id}</p>
-                                                  <p><strong>Label:</strong> ${result.details.label}</p>`;
+                // Handle cases where the URI is found but not an individual (e.g., a property, class)
+                if (result.details && (result.details.message || result.type === 'class' || result.type === 'property')) {
+                    // Show basic info for non-individuals
+                    let nonIndHtml = `<div class="info-box">Details for non-individual URI (${result.type || 'other'})</div>
+                                      <p><strong>URI:</strong> ${renderUriLink(result.details.id)}</p>
+                                      <p><strong>Label:</strong> ${result.details.label}</p>`;
+                     if (result.details.description) nonIndHtml += `<p><strong>Description:</strong> ${result.details.description}</p>`;
+                     // Add specific fields if property/class if needed (e.g., domain/range for property)
+                     if (result.type === 'property' && result.details.domains) { /* ... */ }
+                     if (result.type === 'class' && result.details.superClasses) { /* ... */ }
+
+                    detailsContainer.innerHTML = nonIndHtml;
                     return;
                 }
                 throw new Error("Invalid details data received for individual.");
@@ -617,7 +658,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             let matchCount = 0;
             
             treeItems.forEach(item => {
-                const label = item.querySelector('.tree-label').textContent.toLowerCase();
+                // Use getLocalName on the item's URI to search using the best available label
+                const uri = item.dataset.uri;
+                const label = getLocalName(uri).toLowerCase(); // Search using registry label if possible
+
                 if (label.includes(searchTerm)) {
                     item.classList.add('highlight');
                     matchCount++;
@@ -627,7 +671,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     while (parent && !parent.classList.contains('tree-container')) {
                         if (parent.tagName === 'UL' && parent.style.display === 'none') {
                             parent.style.display = 'block';
-                            const parentItem = parent.parentElement.querySelector('.tree-item');
+                            const parentItem = parent.parentElement.querySelector(':scope > .tree-item');
                             if (parentItem) {
                                 const toggle = parentItem.querySelector('.tree-toggle');
                                 if (toggle) toggle.textContent = '-';
@@ -678,8 +722,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const toggle = parentItemDiv.querySelector('.tree-toggle');
                         if (toggle && toggle.textContent === '+') {
                              toggle.textContent = '-';
-                             // Note: This doesn't lazy-load if parents weren't expanded before.
-                             // A full path expansion might require more complex logic or reloading.
+                             // Note: This still doesn't lazy-load if parents weren't expanded before.
+                             // Clicking the toggle manually is needed if children weren't loaded.
                         }
                     }
                 }
@@ -697,18 +741,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Item doesn't exist in currently expanded tree,
             // just show its details directly without changing tree selection/scroll
             console.log(`Node ${uri} not found in current tree view. Fetching details directly.`);
+            // Use the provided type hint, but the details endpoint will confirm the type anyway
             if (type === 'class') {
                 showClassDetails(uri);
             } else if (type === 'individual') {
                 showIndividualDetails(uri);
+            } else {
+                 // Fallback for unknown type from link - let details endpoint figure it out
+                 // We could try showClassDetails or showIndividualDetails and let them handle
+                 // the response if it's not the expected type. Let's try showClassDetails first.
+                 console.warn(`Unknown type '${type}' for internal link, attempting class details fetch.`);
+                 showClassDetails(uri);
             }
-            // Optionally, clear the tree selection?
-            // const previouslySelected = document.querySelector('.tree-item.selected');
-            // if (previouslySelected) {
-            //     previouslySelected.classList.remove('selected');
-            // }
-            // selectedNodeId = null;
-            // selectedNodeType = null;
+            // Clear tree selection when showing details for an item not in the tree
+            const previouslySelected = document.querySelector('.tree-item.selected');
+            if (previouslySelected) {
+                previouslySelected.classList.remove('selected');
+            }
+            selectedNodeId = null;
+            selectedNodeType = null;
         }
     };
 

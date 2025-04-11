@@ -1,2 +1,5 @@
 Flask>=2.0
 gunicorn>=20.0 # For deployment on Render
+rdflib>=6.0 # Use a recent version
+rdflib-sqlalchemy>=0.5 # Or the latest compatible version
+SQLAlchemy>=1.4 # Required by rdflib-sqlalchemy
