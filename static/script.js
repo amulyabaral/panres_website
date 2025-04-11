@@ -20,11 +20,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const response = await fetch('/api/hierarchy');
             if (!response.ok) {
-                let errorMsg = `Error fetching hierarchy: ${response.statusText}`;
-                throw new Error(errorMsg);
+                let errorMsg = `Error fetching hierarchy (${response.status}): ${response.statusText}`;
+                try {
+                    // Try to get more specific error from JSON response body
+                    const errorData = await response.json();
+                    if (errorData && errorData.error) {
+                        errorMsg = `Error fetching hierarchy: ${errorData.error}`;
+                    }
+                } catch (jsonError) {
+                    // Ignore if response is not JSON or empty
+                    console.warn("Could not parse error response as JSON:", jsonError);
+                }
+                throw new Error(errorMsg); // Throw the potentially more specific error
             }
             const data = await response.json();
 
+            // Check for error property even in successful responses ( belt-and-suspenders )
             if (data.error) {
                 throw new Error(`Server error: ${data.error}`);
             }
@@ -46,6 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             console.error("Error loading initial data:", error);
             loadError = error.message;
+            // Display the potentially more detailed error message
             treeContainer.innerHTML = `<div class="error-box"><p>Could not load ontology structure:</p><p>${error.message}</p></div>`;
             detailsContainer.innerHTML = '';
             detailsChartContainer.innerHTML = '';

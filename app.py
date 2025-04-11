@@ -127,61 +127,69 @@ def index():
 def get_hierarchy():
     """Provides top-level classes and the URI registry by querying the graph."""
     if ontology_load_error:
-        return jsonify({"error": ontology_load_error}), 500
+        # This handles errors during the initial load
+        return jsonify({"error": f"Ontology load failed: {ontology_load_error}"}), 500
     if not ontology_graph:
-        return jsonify({"error": "Ontology graph not loaded."}), 500
+        return jsonify({"error": "Ontology graph not loaded or unavailable."}), 500
 
-    g = ontology_graph
-    top_classes = []
-    processed_classes = set() # Keep track of classes with known parents
+    try: # Add try block here
+        g = ontology_graph
+        top_classes = []
+        processed_classes = set() # Keep track of classes with known parents
 
-    # Find all classes that are subclasses of something
-    for s, o in g.subject_objects(RDFS.subClassOf):
-        if isinstance(s, URIRef) and isinstance(o, URIRef) and o != OWL.Thing:
-             # Basic filtering of built-in OWL/RDF/RDFS/XSD classes
-            uri_str = str(s)
-            if not any(uri_str.startswith(str(ns)) for ns in [OWL, RDF, RDFS, XSD]):
-                processed_classes.add(s)
+        # Find all classes that are subclasses of something
+        for s, o in g.subject_objects(RDFS.subClassOf):
+            if isinstance(s, URIRef) and isinstance(o, URIRef) and o != OWL.Thing:
+                 # Basic filtering of built-in OWL/RDF/RDFS/XSD classes
+                uri_str = str(s)
+                if not any(uri_str.startswith(str(ns)) for ns in [OWL, RDF, RDFS, XSD]):
+                    processed_classes.add(s)
 
-    # Find all defined classes
-    all_classes = set()
-    for class_uri in g.subjects(RDF.type, OWL.Class):
-         if isinstance(class_uri, URIRef):
-            uri_str = str(class_uri)
-            # Exclude built-ins and Thing
-            if not any(uri_str.startswith(str(ns)) for ns in [OWL, RDF, RDFS, XSD]) and class_uri != OWL.Thing:
-                 all_classes.add(class_uri)
+        # Find all defined classes
+        all_classes = set()
+        for class_uri in g.subjects(RDF.type, OWL.Class):
+             if isinstance(class_uri, URIRef):
+                uri_str = str(class_uri)
+                # Exclude built-ins and Thing
+                if not any(uri_str.startswith(str(ns)) for ns in [OWL, RDF, RDFS, XSD]) and class_uri != OWL.Thing:
+                     all_classes.add(class_uri)
 
-    # Top classes are those defined but not found as subclasses of others (excluding Thing)
-    top_class_uris = all_classes - processed_classes
+        # Top classes are those defined but not found as subclasses of others (excluding Thing)
+        top_class_uris = all_classes - processed_classes
 
-    # Also consider classes that only subclass owl:Thing as top-level
-    for s, o in g.subject_objects(RDFS.subClassOf):
-         if isinstance(s, URIRef) and o == OWL.Thing and s not in processed_classes:
-             uri_str = str(s)
-             if not any(uri_str.startswith(str(ns)) for ns in [OWL, RDF, RDFS, XSD]):
-                 top_class_uris.add(s)
+        # Also consider classes that only subclass owl:Thing as top-level
+        for s, o in g.subject_objects(RDFS.subClassOf):
+             if isinstance(s, URIRef) and o == OWL.Thing and s not in processed_classes:
+                 uri_str = str(s)
+                 if not any(uri_str.startswith(str(ns)) for ns in [OWL, RDF, RDFS, XSD]):
+                     top_class_uris.add(s)
 
 
-    for class_uri in top_class_uris:
-        class_id = str(class_uri)
-        top_classes.append({
-            "id": class_id,
-            "label": get_label(class_uri, g),
-            "hasSubClasses": has_children(class_uri, g, 'subclass'),
-            "hasInstances": has_children(class_uri, g, 'instance')
+        for class_uri in top_class_uris:
+            class_id = str(class_uri)
+            top_classes.append({
+                "id": class_id,
+                "label": get_label(class_uri, g),
+                "hasSubClasses": has_children(class_uri, g, 'subclass'),
+                "hasInstances": has_children(class_uri, g, 'instance')
+            })
+
+        top_classes.sort(key=lambda x: x["label"])
+
+        # Build registry on the fly (can be slow for large ontologies)
+        # Consider caching this registry if performance is an issue
+        uri_registry = build_uri_registry(g)
+
+        return jsonify({
+            "topClasses": top_classes,
+            "uriRegistry": uri_registry
         })
 
-    top_classes.sort(key=lambda x: x["label"])
-
-    # Build registry on the fly (can be slow for large ontologies)
-    # Consider caching this registry if performance is an issue
-    uri_registry = build_uri_registry(g)
-
-    return jsonify({
-        "topClasses": top_classes,
-        "uriRegistry": uri_registry
-    })
+    except Exception as e: # Catch any exception during processing
+        # Log the error server-side for debugging
+        app.logger.error(f"Error processing /api/hierarchy: {e}", exc_info=True)
+        # Return a JSON error to the client
+        return jsonify({"error": f"Internal server error processing hierarchy: {e}"}), 500
 
 
 @app.route('/api/children/<path:node_uri>')
