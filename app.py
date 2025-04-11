@@ -339,5 +339,9 @@ if __name__ == '__main__':
     else:
         print("Ontology loaded successfully.")
 
+    # Determine the port
+    port_to_use = int(os.environ.get('PORT', 8080))
+    print(f"Attempting to run Flask app on host 0.0.0.0 and port {port_to_use}") # Added log
+
     # Use debug=False for production/deployment
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)), debug=False) 
+    app.run(host='0.0.0.0', port=port_to_use, debug=False) 
