@@ -1,0 +1,29 @@
+# Define the services for your application
+services:
+  - type: web # Your Flask application is a web service
+    name: panres-website # Choose a name for your service on Render
+    env: python # Specify the environment
+    plan: free # Or your desired plan (e.g., starter)
+    # --- Build Configuration ---
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt" # How to build your app
+    # --- Runtime Configuration ---
+    startCommand: "gunicorn app:app" # How to start your app (Gunicorn is recommended for Flask)
+    envVars: # Environment variables
+      - key: PYTHON_VERSION
+        value: "3.11" # Specify your Python version
+      # Add any other environment variables your app needs
+    # --- Persistent Disk ---
+    disk:
+      name: ontology-db # A name for your persistent disk
+      mountPath: /db # The path where the disk will be mounted in your container
+      sizeGB: 1 # Adjust size as needed (minimum 1 GB)
+    # --- Pre-Deploy Hook ---
+    # This command runs AFTER build but BEFORE the new deployment is live.
+    # It runs in the runtime environment with the disk mounted.
+    preDeployCommand: "python preprocess_ontology.py"
+
+# Optional: Explicitly define the disk if you need to share it or manage it separately
+# disks:
+#  - name: ontology-db
+#    sizeGB: 1
+#    # mountPath is defined in the service using the disk 
