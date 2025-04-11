@@ -1,0 +1,109 @@
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+}
+
+h1, h2 {
+    color: #333;
+    text-align: center;
+    padding: 10px 0;
+}
+
+.container {
+    display: flex;
+    max-width: 1200px;
+    margin: 20px auto;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar {
+    width: 30%;
+    border-right: 1px solid #ccc;
+    padding: 15px;
+    height: 80vh; /* Adjust as needed */
+    overflow-y: auto;
+}
+
+.main-content {
+    width: 70%;
+    padding: 15px;
+    height: 80vh; /* Adjust as needed */
+    overflow-y: auto;
+}
+
+#ontology-tree ul {
+    list-style: none;
+    padding-left: 20px;
+}
+
+#ontology-tree li {
+    margin: 5px 0;
+}
+
+#ontology-tree span {
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+#ontology-tree span:hover {
+    background-color: #eee;
+}
+
+#ontology-tree .class-item::before {
+    content: "C "; /* Indicate Class */
+    font-weight: bold;
+    color: darkblue;
+}
+#ontology-tree .individual-item::before {
+    content: "I "; /* Indicate Individual */
+    font-weight: bold;
+    color: darkgreen;
+}
+
+#details-view h3 {
+    margin-top: 0;
+    color: #555;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+#details-view h4 {
+    margin-top: 15px;
+    margin-bottom: 5px;
+    color: #666;
+}
+#details-view ul {
+    list-style: disc;
+    padding-left: 25px;
+}
+#details-view li {
+    margin-bottom: 5px;
+}
+#details-view .property-list li strong {
+    color: #a04000; /* Brownish */
+}
+#details-view .relationship-list li strong {
+    color: #154360; /* Dark blue */
+}
+#details-view .relationship-list li span {
+    cursor: pointer;
+    text-decoration: underline;
+    color: blue;
+}
+#details-view .relationship-list li span:hover {
+    color: darkviolet;
+}
+
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #888;
+}
+
+.error {
+    color: red;
+    font-weight: bold;
+} 

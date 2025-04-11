@@ -3,45 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ontology Browser - panres_v2</title>
-    <!-- Link to external CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>Ontology Browser</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>panres_v2 Ontology Browser</h1>
-            <p>Explore the class hierarchy and details of the ontology</p>
-            <!-- Display loading error from Flask if it occurred -->
-            {% if load_error %}
-            <div class="error-box">
-                <strong>Server Error:</strong> Could not load ontology data. Details: {{ load_error }}
-            </div>
-            {% endif %}
-            <div class="search-container">
-                <input type="text" id="search" placeholder="Search classes and individuals...">
-            </div>
-        </header>
+    <h1>PanRes Ontology Browser</h1>
 
-        <div class="hierarchy-view">
-            <h2>Class Hierarchy</h2>
-            <div id="tree-container" class="tree-container">
-                <div class="loader"></div>
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <h2>Ontology Structure</h2>
+            <div id="ontology-tree">
+                <!-- Top-level classes will be loaded here -->
+                Loading...
             </div>
         </div>
-
-        <div class="class-details">
+        <div class="main-content" id="main-content">
             <h2>Details</h2>
-            <div id="details-container">
-                <!-- Details will be loaded here -->
-            </div>
-            <div id="details-chart-container">
-                <!-- Bar chart will be rendered here -->
+            <div id="details-view">
+                Select an item from the left to see details.
             </div>
         </div>
     </div>
 
-    <!-- Link to external JavaScript -->
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html> 
