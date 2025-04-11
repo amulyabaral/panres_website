@@ -539,12 +539,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // Get the CSS variable color value properly
+        const secondaryColor = getComputedStyle(document.documentElement).getPropertyValue('--secondary-color').trim();
+        
         const trace = {
             x: ['Direct Subclasses', 'Direct Instances'],
             y: [subClassCount, instanceCount],
             type: 'bar',
             marker: {
-                color: [var(--secondary-color), '#FFA15A'] // Colors for bars
+                color: [secondaryColor, '#FFA15A'] // Colors for bars
             },
             text: [subClassCount, instanceCount], // Show values on bars
             textposition: 'auto',
