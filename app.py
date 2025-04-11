@@ -225,7 +225,8 @@ def get_hierarchy():
         uri_registry_subset = {} # Build a registry subset for the frontend
 
         for row in results:
-            class_uri = str(row.class)
+            # Fix: Use dict-style access instead of attribute access for 'class' (reserved keyword)
+            class_uri = str(row['class'])
             label = str(row.labelSample) if row.labelSample else _local_name(class_uri)
 
             # Check if it has subclasses (more efficient than getting all subclasses)
