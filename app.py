@@ -155,17 +155,25 @@ def load_ontology():
         elif isinstance(data, dict) and "@graph" in data and isinstance(data["@graph"], list):
             nodes = data["@graph"]
         else:
-            raise ValueError("Unexpected JSON-LD structure. Expected a list of nodes or a {'@graph': [...]} object.")
+            # If it's just a single node object at the top level? Less common for ontologies.
+            if isinstance(data, dict) and "@id" in data:
+                 app.logger.warning("JSON-LD data is a single top-level object, not a list or @graph. Processing as a single node.")
+                 nodes = [data]
+            else:
+                raise ValueError("Unexpected JSON-LD structure. Expected a list of nodes or a {'@graph': [...]} object.")
+
 
         app.logger.info(f"Processing {len(nodes)} nodes from JSON-LD graph...")
         processed_count = 0 # Add counter
-        top_level_uris = set() # Initialize here
+        skipped_nodes = 0 # Counter for skipped nodes
+        unclassified_nodes = 0 # Counter for nodes not matching Class/Ind/Prop
 
         # --- Pass 1: Identify all entities and basic info ---
-        for node in nodes:
-            if "@id" not in node:
+        for i, node in enumerate(nodes):
+            if not isinstance(node, dict) or "@id" not in node:
                 # Skip blank nodes or nodes without an identifier for now
-                # app.logger.debug(f"Skipping node without '@id': {node.get('@type', 'No type')}")
+                app.logger.debug(f"Node {i+1}/{len(nodes)}: Skipping node without '@id' or not a dict: {str(node)[:100]}...") # Log skipped node
+                skipped_nodes += 1
                 continue
 
             uri = node["@id"]
@@ -174,12 +182,12 @@ def load_ontology():
                  node_types = [node_types]
 
             # --- Add detailed logging here ---
-            app.logger.debug(f"Processing node: URI='{uri}', Types='{node_types}'")
+            app.logger.debug(f"Node {i+1}/{len(nodes)}: Processing URI='{uri}', Types='{node_types}'")
             # --- End detailed logging ---
 
             # Extract label and description (handle potential list format)
             label_val = _extract_jsonld_value(node.get(RDFS + "label")) or _local_name(uri)
-            desc_val = _extract_jsonld_value(node.get(RDFS + "comment", ""))
+            desc_val = _extract_jsonld_value(node.get(RDFS + "comment", "")) # Use rdfs:comment standardly
 
             entity_type = None # Determine primary type (class, individual, property)
 
@@ -201,18 +209,21 @@ def load_ontology():
                 processed_count += 1 # Increment counter
                 app.logger.debug(f"  -> Identified as Individual: {label_val}") # Log identification
 
-            # Identify Properties
-            elif any(pt in node_types for pt in [OWL + "ObjectProperty", OWL + "DatatypeProperty", OWL + "AnnotationProperty"]):
+            # Identify Properties (Object, Datatype, Annotation)
+            elif any(pt in node_types for pt in [OWL + "ObjectProperty", OWL + "DatatypeProperty", OWL + "AnnotationProperty", RDF + "Property"]): # Added rdf:Property
                  entity_type = "property"
                  # Only add to registry if not already added (e.g., if something is both Class and Property?)
                  if uri not in uri_registry:
                      uri_registry[uri] = {"label": label_val, "type": "property"}
-                     processed_count += 1 # Increment counter - count properties added to registry
-                     app.logger.debug(f"  -> Identified as Property: {label_val}") # Log identification
+                     # Don't increment processed_count here if we only count Classes/Individuals added to details
+                     app.logger.debug(f"  -> Identified as Property: {label_val} (Added to registry only)") # Log identification
+                 else:
+                     app.logger.debug(f"  -> Identified as Property: {label_val} (Already in registry as {uri_registry[uri].get('type')})")
                  # Could potentially store domain/range here if needed later
             else:
                  # Log nodes that weren't classified
-                 app.logger.debug(f"  -> Node not classified as Class, Individual, or Property.")
+                 app.logger.debug(f"  -> Node not classified as Class, Individual, or Property based on types: {node_types}")
+                 unclassified_nodes += 1
 
 
             # --- Process relationships and properties within this pass ---
@@ -224,38 +235,49 @@ def load_ontology():
                 if not isinstance(super_classes, list): super_classes = [super_classes]
                 for parent_obj in super_classes:
                     parent_uri = _extract_jsonld_id(parent_obj)
-                    if parent_uri and parent_uri != OWL + "Thing": # Ignore owl:Thing links for hierarchy
+                    # Check if parent_uri is a valid URI string before adding
+                    if isinstance(parent_uri, str) and parent_uri != OWL + "Thing": # Ignore owl:Thing links for hierarchy
                         class_details[uri]["superClasses"].add(parent_uri)
-                        # We'll build subClasses later or in a second pass
+                        app.logger.debug(f"      Added superclass link: {uri} -> {parent_uri}")
+                    elif parent_uri: # Log if it's owl:Thing or other non-string ID
+                        app.logger.debug(f"      Ignoring superclass link to {parent_uri}")
+
 
             # If it's an Individual, find its types and properties
             if entity_type == "individual":
                 # Types
-                types = node.get(RDF + "type", [])
-                if not isinstance(types, list): types = [types]
-                for type_obj in types:
+                types_raw = node.get(RDF + "type", []) # Use rdf:type standardly
+                if not isinstance(types_raw, list): types_raw = [types_raw]
+                for type_obj in types_raw:
                     class_uri = _extract_jsonld_id(type_obj)
                     # Link instance to class if class_uri is valid and not owl:NamedIndividual/owl:Thing
-                    if class_uri and class_uri not in [OWL + "NamedIndividual", OWL + "Thing"]:
+                    # Check if class_uri is a valid URI string
+                    if isinstance(class_uri, str) and class_uri not in [OWL + "NamedIndividual", OWL + "Thing"]:
                         individual_details[uri]["types"].add(class_uri)
-                        # We'll add to class_details[class_uri]["instances"] later
+                        app.logger.debug(f"      Added type link: {uri} -> {class_uri}")
+                    elif class_uri: # Log if it's NamedIndividual/Thing or other non-string ID
+                         app.logger.debug(f"      Ignoring type link to {class_uri}")
+
 
                 # Properties
                 for prop_uri, values in node.items():
                     # Skip JSON-LD keywords and known handled properties
-                    if prop_uri.startswith("@") or prop_uri in [RDF + "type", RDFS + "label", RDFS + "comment"]:
+                    if prop_uri.startswith("@") or prop_uri in [RDF + "type", RDFS + "label", RDFS + "comment", RDFS + "subClassOf"]: # Added subClassOf here
                         continue
 
                     # Ensure values is a list for consistent processing
                     if not isinstance(values, list): values = [values]
 
+                    app.logger.debug(f"      Processing property '{_local_name(prop_uri)}' ({prop_uri}) with {len(values)} value(s)")
+
                     for value_obj in values:
                         prop_entry = {}
                         target_id = _extract_jsonld_id(value_obj) # Check if it's a link {"@id": ...}
 
-                        if target_id: # Object Property Assertion
+                        if target_id and isinstance(target_id, str): # Object Property Assertion (ensure target_id is string URI)
                             prop_entry["type"] = "uri"
                             prop_entry["value"] = target_id
+                            app.logger.debug(f"        -> Object property value: {target_id}")
                         else: # Datatype or Annotation Property Assertion
                             literal_details = _extract_jsonld_literal_details(value_obj)
                             if literal_details["value"] is not None:
@@ -263,8 +285,11 @@ def load_ontology():
                                 prop_entry["value"] = literal_details["value"]
                                 prop_entry["datatype"] = literal_details["datatype"]
                                 # prop_entry["lang"] = literal_details["lang"] # Could store lang if needed
+                                app.logger.debug(f"        -> Literal property value: '{literal_details['value']}' (Type: {literal_details['datatype']}, Lang: {literal_details['lang']})")
+
                             else:
                                 # Skip if we couldn't extract a value
+                                app.logger.debug(f"        -> Skipping property value, couldn't extract literal/id: {str(value_obj)[:100]}...")
                                 continue
 
                         individual_details[uri]["properties"][prop_uri].append(prop_entry)
@@ -273,16 +298,25 @@ def load_ontology():
         # --- Pass 2: Build reverse relationships (subClasses, instances) ---
         app.logger.info("Building reverse relationships (subClasses, instances)...")
         all_subclasses = set()
+        # Build subclass links
         for class_uri, details in class_details.items():
             for parent_uri in details["superClasses"]:
                 if parent_uri in class_details: # Ensure parent exists in our map
                     class_details[parent_uri]["subClasses"].add(class_uri)
                     all_subclasses.add(class_uri) # Mark as a subclass
+                    app.logger.debug(f"  Added subclass link: {parent_uri} <- {class_uri}")
+                else:
+                    app.logger.debug(f"  Parent class {parent_uri} for {class_uri} not found in class_details map.")
 
+        # Build instance links
         for ind_uri, details in individual_details.items():
             for class_uri in details["types"]:
                 if class_uri in class_details: # Ensure class exists
                     class_details[class_uri]["instances"].add(ind_uri)
+                    app.logger.debug(f"  Added instance link: {class_uri} <- {ind_uri}")
+                else:
+                     app.logger.debug(f"  Class {class_uri} for instance {ind_uri} not found in class_details map.")
+
 
         # Identify top-level classes (defined classes not in all_subclasses)
         defined_classes = set(class_details.keys())
@@ -293,13 +327,24 @@ def load_ontology():
             parents = details['superClasses']
             # If no parents OR only owl:Thing parent (which we ignore anyway), it's top-level
             if not parents or parents == {owl_thing_uri}:
-                 top_level_uris.add(uri)
+                 if uri not in top_level_uris:
+                      app.logger.debug(f"  Marking {uri} as top-level (no parents or only owl:Thing).")
+                      top_level_uris.add(uri)
 
 
         # Add a summary log after processing
-        app.logger.info(f"Finished processing nodes. Identified {processed_count} entities (Classes/Individuals/Properties added to registry).")
+        app.logger.info(f"Finished processing {len(nodes)} nodes.")
+        app.logger.info(f"  Skipped nodes (no @id or not dict): {skipped_nodes}")
+        app.logger.info(f"  Processed nodes added to details (Class/Individual): {processed_count}")
+        app.logger.info(f"  Unclassified nodes (based on type): {unclassified_nodes}")
         app.logger.info(f"Final Lookup structures: Registry size: {len(uri_registry)}, Classes: {len(class_details)}, Individuals: {len(individual_details)}")
         app.logger.info(f"Identified {len(top_level_uris)} top-level classes.")
+        # Log top-level classes found for debugging
+        if len(top_level_uris) < 20: # Log if the list isn't too long
+             app.logger.debug(f"Top-level URIs found: {list(top_level_uris)}")
+        elif len(top_level_uris) == 0:
+             app.logger.warning("No top-level classes were identified.")
+
 
         # No XML tree to clear, Python's GC will handle the loaded JSON data when done.
         gc.collect()
@@ -312,6 +357,9 @@ def load_ontology():
     except json.JSONDecodeError as e:
         ontology_load_error = f"Error parsing ontology JSON-LD file: {e}"
         app.logger.error(ontology_load_error)
+    except ValueError as e: # Catch specific errors like unexpected structure
+        ontology_load_error = f"Error processing JSON-LD structure: {e}"
+        app.logger.error(ontology_load_error, exc_info=True)
     except Exception as e:
         ontology_load_error = f"An unexpected error occurred during ontology loading: {e}"
         app.logger.error(ontology_load_error, exc_info=True)
@@ -332,31 +380,35 @@ def index():
 @app.route('/api/hierarchy')
 def get_hierarchy():
     """Provides top-level classes and the URI registry using pre-computed data."""
-    if not uri_registry: # Check uri_registry specifically as the most basic indicator
-         app.logger.error("Hierarchy requested, but uri_registry is empty after loading attempt.")
-         # Check if load_error was set, otherwise provide a more specific message
-         if ontology_load_error:
-              # If load_ontology explicitly set an error, use it
-              return jsonify({"error": f"Ontology load failed: {ontology_load_error}"}), 500
-         else:
-              # If load_ontology finished without error but registry is empty, report that
-              return jsonify({"error": "Ontology data structures are empty after processing. Check server logs for details (e.g., JSON-LD content or parsing logic issues)."}), 500
+    # Check for explicit load error first
+    if ontology_load_error:
+        app.logger.error(f"Hierarchy requested, but ontology load failed: {ontology_load_error}")
+        return jsonify({"error": f"Ontology load failed: {ontology_load_error}"}), 500
+
+    # Check if data structures are empty *after* loading attempt finished without error
+    if not uri_registry and not class_details and not individual_details:
+         app.logger.error("Hierarchy requested, but data structures (uri_registry, class_details, individual_details) are empty after loading attempt completed without explicit error.")
+         return jsonify({"error": "Ontology data structures are empty after processing. Check server logs (DEBUG level) for details on node processing and potential reasons (e.g., file content, type mismatches, logic issues)."}), 500
 
     try:
-        # --- Determine Top Level Classes (Retrieve from load_ontology calculation) ---
-        # Re-calculate here to be safe, or trust the calculation in load_ontology
+        # --- Determine Top Level Classes ---
+        # Re-calculate here to ensure consistency, or trust the calculation in load_ontology
+        # Let's recalculate to be safe, using the same logic as in load_ontology
         all_subclass_uris = set()
         for details in class_details.values():
-            all_subclass_uris.update(details["subClasses"]) # Use pre-computed subclasses
+            # Iterate through superClasses to find children (subClasses)
+            for parent_uri in details.get("superClasses", set()):
+                 if parent_uri in class_details:
+                      # The child is the key 'details' belongs to
+                      all_subclass_uris.add(details.get("id", list(class_details.keys())[list(class_details.values()).index(details)])) # Get the URI for the current details
 
         defined_classes = set(class_details.keys())
         top_level_uris_calculated = defined_classes - all_subclass_uris
 
-        # Add classes whose only parent is owl:Thing or have no parents
+        # Refinement: Add classes whose only parent is owl:Thing or have no parents
         owl_thing_uri = OWL + "Thing"
         for uri, details in class_details.items():
-            parents = details['superClasses']
-            # If no parents OR only owl:Thing parent (which we ignore anyway), it's top-level
+            parents = details.get('superClasses', set())
             if not parents or parents == {owl_thing_uri}:
                  top_level_uris_calculated.add(uri)
         # --- End Determine Top Level ---
@@ -370,13 +422,25 @@ def get_hierarchy():
                 top_classes_data.append({
                     "id": uri,
                     "label": get_label(uri),
-                    "hasSubClasses": bool(details["subClasses"]),
-                    "hasInstances": bool(details["instances"])
+                    # Check the actual calculated subclasses/instances for this specific URI
+                    "hasSubClasses": bool(details.get("subClasses", set())),
+                    "hasInstances": bool(details.get("instances", set()))
                 })
+            else:
+                # This case should ideally not happen if top_level_uris_calculated is derived correctly
+                app.logger.warning(f"Top-level URI {uri} identified but not found in class_details during hierarchy generation.")
+
+
+        # Add a check if top_classes_data is empty even if registry wasn't
+        if not top_classes_data and (uri_registry or class_details or individual_details):
+             app.logger.warning("Hierarchy requested, data structures populated but no top-level classes were identified.")
+             # Optionally return a specific message or just empty list
+             # return jsonify({"error": "Ontology loaded but no top-level classes found. Check class definitions and subclass relationships."}), 500
+
 
         return jsonify({
             "topClasses": top_classes_data,
-            "uriRegistry": uri_registry
+            "uriRegistry": uri_registry # Send the full registry for lookups
         })
 
     except Exception as e:
@@ -516,14 +580,26 @@ if __name__ == '__main__':
         print("Flask app will run, but API calls will likely return errors.")
     # Check if registry is empty *after* loading attempt, even if no error was raised
     elif not uri_registry and not class_details and not individual_details:
-         print("WARNING: Ontology loaded but data structures are empty. Check JSON-LD file content and parsing logic in load_ontology().")
-         print("         >> Check console DEBUG logs above for details on processed nodes. <<")
+         print("\n" + "="*60)
+         print("WARNING: Ontology loading process completed BUT data structures are empty.")
+         print("         This means the JSON-LD was likely parsed, but no Classes or Individuals")
+         print("         were successfully identified and stored based on the current logic.")
+         print("         Please check the following:")
+         print("           1. Flask DEBUG logs above for details on processed/skipped/unclassified nodes.")
+         print("           2. The content of the JSON-LD file ('panres_v2.jsonld').")
+         print("           3. The type URIs (e.g., owl:Class) used in the JSON-LD match the constants in app.py.")
+         print("           4. The structure of nodes in the JSON-LD (@id, @type fields).")
+         print("="*60 + "\n")
+         print("Flask app will run, but API calls will return errors due to missing data.")
     else:
         print("Ontology data loaded and pre-processed successfully.")
+        print(f"  -> Registry: {len(uri_registry)} items, Classes: {len(class_details)}, Individuals: {len(individual_details)}")
+
 
     port_to_use = int(os.environ.get('PORT', 8080))
     print(f"Attempting to run Flask app on host 0.0.0.0 and port {port_to_use}")
 
     # Use threaded=True for development server to handle multiple requests better
     # Use debug=False for production or if reloading causes issues; set to True for development debugging features
+    # Ensure Flask's debug mode is OFF for production, but keep our logging level high enough
     app.run(host='0.0.0.0', port=port_to_use, debug=False, threaded=True) 
