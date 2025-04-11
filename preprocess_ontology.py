@@ -7,9 +7,8 @@ from urllib.parse import urldefrag
 
 # --- Configuration ---
 OWL_FILE = 'panres_v2.owl'
-# Use Render's typical persistent disk mount point unless you have a custom setup
-# DB_DIR = '/db' # Your original path
-DB_DIR = os.environ.get('RENDER_DISK_PATH', '/var/data/ontology') # Use env var or default
+# Use Render's persistent disk mount point
+DB_DIR = os.environ.get('RENDER_DISK_PATH', '/db/ontology')
 DB_FILE = os.path.join(DB_DIR, 'ontology.db')
 # Make sure this matches your OWL file's base IRI - extract if possible or keep hardcoded
 # BASE_IRI = "http://myonto.com/PanResOntology.owl#"

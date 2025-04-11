@@ -4,7 +4,7 @@ import os
 from rdflib import OWL
 
 app = Flask(__name__)
-DATABASE = os.environ.get('RENDER_DISK_PATH', '/var/data/ontology/ontology.db')
+DATABASE = os.environ.get('RENDER_DISK_PATH', '/db/ontology/ontology.db')
 BASE_IRI = "http://myonto.com/PanResOntology.owl#" # Match the one used in preprocessing
 
 def get_db():
