@@ -267,52 +267,71 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Helper Functions ---
     function getLocalName(uri) {
-        // Use registry first if available
-        if (uriRegistry && uriRegistry[uri]) {
+        // Use registry first if available and has a label
+        if (uriRegistry && uriRegistry[uri] && uriRegistry[uri].label) {
             return uriRegistry[uri].label;
         }
-        
-        // Fallback parsing
+
+        // Fallback parsing: handle # and /
         if (!uri) return '';
         try {
-            const url = new URL(uri);
-            if (url.hash) return url.hash.substring(1);
-            const pathParts = url.pathname.split('/');
-            return pathParts[pathParts.length - 1] || uri;
+            let localName = uri;
+            if (uri.includes('#')) {
+                localName = uri.substring(uri.lastIndexOf('#') + 1);
+            } else if (uri.includes('/')) {
+                localName = uri.substring(uri.lastIndexOf('/') + 1);
+            }
+            // Handle potential empty string after split if URI ends with # or /
+            return localName || uri;
         } catch (e) {
-            const hashIndex = uri.lastIndexOf('#');
-            const slashIndex = uri.lastIndexOf('/');
-            const index = Math.max(hashIndex, slashIndex);
-            return index !== -1 ? uri.substring(index + 1) : uri;
+            console.warn("Error parsing local name for URI:", uri, e);
+            return uri; // Failsafe
         }
     }
 
     function renderUriLink(uri) {
+        // Use getLocalName which prioritizes registry label
+        const label = getLocalName(uri);
+        const title = uri; // Show full URI on hover
+
+        // Check registry for type to decide link behavior
         const info = uriRegistry ? uriRegistry[uri] : null;
-        const label = info ? info.label : getLocalName(uri);
-        const title = uri;
 
         if (info && (info.type === 'class' || info.type === 'individual')) {
-            return `<a href="#" title="${title}" onclick="event.preventDefault(); window.handleInternalLinkClick('${uri}', '${info.type}');">${label}</a>`;
-        } else if (info && info.type === 'property') {
-            return `<a href="${uri}" target="_blank" title="${title}">${label}</a>`;
+            // Internal link to navigate within the browser
+            // Ensure URI is properly escaped for the function call
+            const escapedUri = uri.replace(/'/g, "\\'"); // Basic escaping for single quotes
+            return `<a href="#" title="${title}" onclick="event.preventDefault(); window.handleInternalLinkClick('${escapedUri}', '${info.type}');">${label}</a>`;
         } else {
-            return `<a href="${uri}" target="_blank" title="${title}">${label}</a>`;
+            // External link for properties or unknown URIs (open in new tab)
+            // Or potentially just display label if it's a property? User preference.
+            // Let's make properties linkable externally for now.
+             return `<a href="${uri}" target="_blank" title="${title}">${label}</a>`;
+            // Alternative: Just show property label without link
+            // return `<span title="${title}">${label}</span>`;
         }
     }
 
     function renderPropertyValue(val) {
+        if (!val) return ''; // Handle null/undefined values
+
         if (val.type === 'uri') {
             return renderUriLink(val.value);
         } else { // Literal
-            const escapedValue = val.value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // Basic escaping for HTML display
+            const escapedValue = val.value
+                                    .replace(/&/g, '&amp;')
+                                    .replace(/</g, '&lt;')
+                                    .replace(/>/g, '&gt;')
+                                    .replace(/"/g, '&quot;')
+                                    .replace(/'/g, '&#039;');
             let literalHtml = escapedValue;
             if (val.datatype) {
-                const dtLabel = getLocalName(val.datatype);
-                const dtLink = uriRegistry[val.datatype]
-                    ? renderUriLink(val.datatype)
-                    : `<span title="${val.datatype}">${dtLabel}</span>`;
-                literalHtml += ` <small>(${dtLink})</small>`;
+                // Try to render the datatype URI as a link or label
+                const dtLabel = getLocalName(val.datatype); // Get label/local name for datatype
+                const dtLink = `<a href="${val.datatype}" target="_blank" title="${val.datatype}">${dtLabel}</a>`;
+                // Alternative: just show label: const dtLink = `<span title="${val.datatype}">${dtLabel}</span>`;
+                literalHtml += ` <small>(type: ${dtLink})</small>`;
             }
             return literalHtml;
         }
@@ -351,13 +370,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Super classes
             if (classObj.superClasses && classObj.superClasses.length > 0) {
                 html += `<div class="property-group">
-                    <h4>Parent Classes</h4>
+                    <h4>Parent Classes (${classObj.superClasses.length})</h4>
                     <ul>`;
+                // Sort by label using getLocalName which checks registry
                 const sortedSuperClasses = classObj.superClasses
-                    .map(id => ({ id: id, label: getLocalName(id) }))
-                    .sort((a, b) => a.label.localeCompare(b.label));
-                sortedSuperClasses.forEach(superInfo => {
-                    html += `<li>${renderUriLink(superInfo.id)}</li>`;
+                    .sort((a, b) => getLocalName(a).localeCompare(getLocalName(b)));
+                sortedSuperClasses.forEach(superUri => {
+                    html += `<li>${renderUriLink(superUri)}</li>`;
                 });
                 html += `</ul></div>`;
             }
@@ -367,11 +386,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 html += `<div class="property-group">
                     <h4>Subclasses (${classObj.subClasses.length})</h4>
                     <ul>`;
+                // Sort by label
                 const sortedSubClasses = classObj.subClasses
-                    .map(id => ({ id: id, label: getLocalName(id) }))
-                    .sort((a, b) => a.label.localeCompare(b.label));
-                sortedSubClasses.forEach(subInfo => {
-                    html += `<li>${renderUriLink(subInfo.id)}</li>`;
+                    .sort((a, b) => getLocalName(a).localeCompare(getLocalName(b)));
+                sortedSubClasses.forEach(subUri => {
+                    html += `<li>${renderUriLink(subUri)}</li>`;
                 });
                 html += `</ul></div>`;
             }
@@ -381,11 +400,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 html += `<div class="property-group">
                     <h4>Instances (${classObj.instances.length})</h4>
                     <ul>`;
+                 // Sort by label
                 const sortedInstances = classObj.instances
-                    .map(id => ({ id: id, label: getLocalName(id) }))
-                    .sort((a, b) => a.label.localeCompare(b.label));
-                sortedInstances.forEach(indInfo => {
-                    html += `<li>${renderUriLink(indInfo.id)}</li>`;
+                    .sort((a, b) => getLocalName(a).localeCompare(getLocalName(b)));
+                sortedInstances.forEach(indUri => {
+                    html += `<li>${renderUriLink(indUri)}</li>`;
                 });
                 html += `</ul></div>`;
             }
@@ -404,18 +423,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function showIndividualDetails(individualId) {
         detailsContainer.innerHTML = '<div class="loader"></div>';
-        detailsChartContainer.innerHTML = '';
+        detailsChartContainer.innerHTML = ''; // Clear chart for individuals
 
         try {
             const encodedUri = encodeURIComponent(individualId);
             const response = await fetch(`/api/details/${encodedUri}`);
-            if (!response.ok) throw new Error(`Details fetch failed: ${response.statusText}`);
+            if (!response.ok) {
+                 let errorMsg = `Details fetch failed (${response.status}): ${response.statusText}`;
+                 try {
+                     const errorData = await response.json();
+                     if (errorData && errorData.error) errorMsg = errorData.error;
+                     else if (errorData && errorData.description) errorMsg = errorData.description; // Handle 404 description
+                 } catch(e) {}
+                 throw new Error(errorMsg);
+            }
             const result = await response.json();
 
             if (result.type !== 'individual' || !result.details) {
-                throw new Error("Invalid details data received.");
+                // Handle cases where the URI is found but not an individual (e.g., a property)
+                if (result.details && result.details.message) {
+                    detailsContainer.innerHTML = `<div class="info-box">${result.details.message}</div>
+                                                  <p><strong>URI:</strong> ${result.details.id}</p>
+                                                  <p><strong>Label:</strong> ${result.details.label}</p>`;
+                    return;
+                }
+                throw new Error("Invalid details data received for individual.");
             }
-            
+
             const indObj = result.details;
 
             // Render Text Details
@@ -436,41 +470,48 @@ document.addEventListener('DOMContentLoaded', async () => {
                 html += `<div class="property-group">
                     <h4>Types (Classes)</h4>
                     <ul>`;
+                // Sort types by label
                 const sortedTypes = indObj.types
-                    .map(id => ({ id: id, label: getLocalName(id) }))
-                    .sort((a, b) => a.label.localeCompare(b.label));
-                sortedTypes.forEach(typeInfo => {
-                    html += `<li>${renderUriLink(typeInfo.id)}</li>`;
+                    .sort((a, b) => getLocalName(a).localeCompare(getLocalName(b)));
+                sortedTypes.forEach(typeUri => {
+                    html += `<li>${renderUriLink(typeUri)}</li>`;
                 });
                 html += `</ul></div>`;
             }
 
             // Properties
-            const properties = indObj.properties;
+            const properties = indObj.properties; // This is an object { prop_tag_uri: [values] }
             if (properties && Object.keys(properties).length > 0) {
                 html += `<div class="property-group"><h4>Properties</h4>`;
 
-                const sortedPropUris = Object.keys(properties).sort((a, b) => {
-                    const labelA = getLocalName(a);
+                // Get the property tag URIs (keys) and sort them by label
+                const sortedPropTagUris = Object.keys(properties).sort((a, b) => {
+                    const labelA = getLocalName(a); // Use getLocalName for the property URI itself
                     const labelB = getLocalName(b);
                     return labelA.localeCompare(labelB);
                 });
 
-                sortedPropUris.forEach(propUri => {
-                    const values = properties[propUri];
-                    html += `<div style="margin-bottom: 8px;"><strong>${renderUriLink(propUri)}:</strong>`;
+                sortedPropTagUris.forEach(propTagUri => {
+                    const values = properties[propTagUri]; // List of value objects
+                    // Render the property name using its URI (will show label via renderUriLink)
+                    html += `<div class="property-assertion">
+                                <strong class="property-name">${renderUriLink(propTagUri)}:</strong>`;
                     if (values.length > 1) {
-                        html += `<ul class="property-value">`;
+                        html += `<ul class="property-value-list">`;
+                        // Sort multiple values? Maybe not necessary unless they have inherent order.
                         values.forEach(val => html += `<li>${renderPropertyValue(val)}</li>`);
                         html += `</ul>`;
                     } else if (values.length === 1) {
-                        html += `<div class="property-value">${renderPropertyValue(values[0])}</div>`;
+                        // Display single value directly
+                        html += `<span class="property-value">${renderPropertyValue(values[0])}</span>`;
+                    } else {
+                        html += `<span class="property-value"><em>(No value specified)</em></span>`; // Should not happen based on backend logic
                     }
-                    html += `</div>`;
+                    html += `</div>`; // Close property-assertion
                 });
-                html += `</div>`;
+                html += `</div>`; // Close property-group
             } else {
-                html += `<div class="info-box">No properties defined for this individual.</div>`;
+                html += `<div class="info-box">No specific properties asserted for this individual.</div>`;
             }
 
             detailsContainer.innerHTML = html;
@@ -620,25 +661,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Make this function available globally for internal links
     window.handleInternalLinkClick = (uri, type) => {
         console.log("Internal link clicked:", uri, type);
-        
-        // First try to find the node in the tree and expand to it
+
+        // Find the node in the currently rendered tree
         const selector = `.tree-item[data-uri="${CSS.escape(uri)}"]`;
         const node = document.querySelector(selector);
-        
+
         if (node) {
-            // Item exists in the tree, select it
-            selectNode(uri, type);
-            
-            // Scroll to the node
-            node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Item exists in the tree, ensure it's visible and select it
+            // Expand parents if necessary
+            let parent = node.parentElement;
+            while (parent && !parent.classList.contains('tree-container')) {
+                if (parent.tagName === 'UL' && parent.style.display === 'none') {
+                    parent.style.display = 'block';
+                    const parentItemDiv = parent.parentElement.querySelector(':scope > .tree-item');
+                    if (parentItemDiv) {
+                        const toggle = parentItemDiv.querySelector('.tree-toggle');
+                        if (toggle && toggle.textContent === '+') {
+                             toggle.textContent = '-';
+                             // Note: This doesn't lazy-load if parents weren't expanded before.
+                             // A full path expansion might require more complex logic or reloading.
+                        }
+                    }
+                }
+                parent = parent.parentElement;
+            }
+
+            selectNode(uri, type); // Select the node (fetches details)
+
+            // Scroll to the node after potential expansions
+            setTimeout(() => {
+                 node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100); // Small delay to allow layout changes
+
         } else {
             // Item doesn't exist in currently expanded tree,
-            // just show its details directly
+            // just show its details directly without changing tree selection/scroll
+            console.log(`Node ${uri} not found in current tree view. Fetching details directly.`);
             if (type === 'class') {
                 showClassDetails(uri);
             } else if (type === 'individual') {
                 showIndividualDetails(uri);
             }
+            // Optionally, clear the tree selection?
+            // const previouslySelected = document.querySelector('.tree-item.selected');
+            // if (previouslySelected) {
+            //     previouslySelected.classList.remove('selected');
+            // }
+            // selectedNodeId = null;
+            // selectedNodeType = null;
         }
     };
 

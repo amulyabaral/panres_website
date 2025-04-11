@@ -33,11 +33,10 @@ NS = {
     'rdfs': "http://www.w3.org/2000/01/rdf-schema#",
     'owl': "http://www.w3.org/2002/07/owl#",
     'xsd': "http://www.w3.org/2001/XMLSchema#",
-    # Add the default namespace if your OWL file uses one (check the rdf:RDF tag's xmlns attribute)
-    # Example: '': "http://myonto.com/PanResOntology.owl#"
-    # If the default namespace is defined, prefix tags like 'Class' with it in findall, e.g., '{http://myonto.com/PanResOntology.owl#}Class'
-    # Or handle it by checking tag names directly if ET doesn't support default NS well in findall.
-    # For now, assuming prefixes are used explicitly or no default namespace relevant here.
+    # Add the default namespace from your OWL file (xml:base or xmlns)
+    '': "http://myonto.com/PanResOntology.owl#",
+    # Add other namespaces found in your file
+    'owlr': "http://www.lesfleursdunormal.fr/static/_downloads/owlready_ontology.owl#"
 }
 
 # --- Helper Functions ---
@@ -46,31 +45,53 @@ def _get_uri_from_elem(elem):
     """Gets the rdf:about or rdf:resource URI from an element."""
     if elem is None:
         return None
+    # Check for rdf:about first
     uri = elem.get(f"{{{NS['rdf']}}}about")
     if uri is None:
+        # Then check for rdf:resource
         uri = elem.get(f"{{{NS['rdf']}}}resource")
+    # Resolve relative URIs using xml:base if necessary (ElementTree doesn't do this automatically)
+    # For simplicity here, assuming absolute URIs or simple fragment identifiers (#...)
+    # If your base is 'http://myonto.com/PanResOntology.owl' and uri is '#Ant3-IIc',
+    # you might want to return 'http://myonto.com/PanResOntology.owl#Ant3-IIc'
+    # This basic version assumes the URI is usable as is or the fragment is the key part.
+    # Handle potential '#' prefix if base URI context is needed elsewhere
+    # base_uri = ontology_root.get(f"{{{NS['xml']}}}base") # Need 'xml': 'http://www.w3.org/XML/1998/namespace' in NS
+    # if uri and uri.startswith('#') and base_uri:
+    #     return base_uri + uri
     return uri
 
-def _get_text_from_elem(elem, child_tag):
-    """Safely gets text content from a specific child element."""
+
+def _get_text_from_elem(elem, child_tag_with_ns):
+    """Safely gets text content from a specific child element using full namespace tag."""
     if elem is None: return ""
-    child = elem.find(child_tag, NS)
+    # ElementTree find needs the full {namespace}tag format
+    child = elem.find(child_tag_with_ns, NS) # NS argument might not be needed if tag is already qualified
     return child.text.strip() if child is not None and child.text else ""
 
 def get_label(uri):
     """Gets the label from the pre-built registry, falling back to local name."""
-    if uri in uri_registry:
-        return uri_registry[uri].get("label", "") or _local_name(uri) # Use label if present, else local name
-    return _local_name(uri) # Fallback if URI not in registry
+    # Handle cases where the URI might not have been fully resolved if using fragments
+    full_uri = uri # Assume uri is the full identifier for now
+    # Example potential resolution (if needed and base_uri is available):
+    # base_uri = "http://myonto.com/PanResOntology.owl" # Or get dynamically
+    # if uri and uri.startswith('#'):
+    #     full_uri = base_uri + uri
+
+    if full_uri in uri_registry:
+        return uri_registry[full_uri].get("label", "") or _local_name(full_uri) # Use label if present, else local name
+    return _local_name(uri) # Fallback if URI not in registry (use original uri for local name)
 
 def _local_name(uri):
-    """Extracts the local name part of a URI."""
+    """Extracts the local name part of a URI (fragment or last path segment)."""
     if not uri: return ""
     try:
         if '#' in uri:
             return uri.split('#')[-1]
+        # Basic path splitting, might need refinement for complex URLs
         return uri.split('/')[-1]
-    except:
+    except Exception as e:
+        app.logger.warning(f"Could not extract local name from URI '{uri}': {e}")
         return str(uri) # Failsafe
 
 # --- Ontology Loading and Pre-processing ---
@@ -78,6 +99,14 @@ def load_ontology():
     """Loads the OWL file using ElementTree and builds lookup structures."""
     global ontology_root, ontology_load_error
     global uri_registry, class_details, individual_details
+    # Clear previous data
+    uri_registry.clear()
+    class_details.clear()
+    individual_details.clear()
+    ontology_root = None
+    ontology_load_error = None
+    gc.collect()
+
     app.logger.info(f"Starting ontology loading from: {OWL_FILE_PATH}")
 
     if not os.path.exists(OWL_FILE_PATH):
@@ -87,18 +116,33 @@ def load_ontology():
 
     try:
         app.logger.info("Parsing OWL file with ElementTree...")
-        tree = ET.parse(OWL_FILE_PATH)
-        ontology_root = tree.getroot()
-        app.logger.info(f"Ontology XML parsed successfully.")
+        # Iterate over the XML file to find the root rdf:RDF element
+        # This helps handle potential processing instructions or comments before the root
+        context = ET.iterparse(OWL_FILE_PATH, events=('start', 'end'))
+        _, root_elem = next(context) # Get the root element event
+        ontology_root = root_elem # Store the root <rdf:RDF> element
+        app.logger.info(f"Ontology XML parsed successfully. Root tag: {ontology_root.tag}")
+
+        # Extract base URI if needed later (requires xml namespace)
+        # NS['xml'] = "http://www.w3.org/XML/1998/namespace"
+        # base_uri = ontology_root.get(f"{{{NS['xml']}}}base")
+        # app.logger.info(f"XML Base URI: {base_uri}")
+
 
         app.logger.info("Building lookup structures...")
         # --- Pass 1: Identify all entities and basic info ---
-        for elem in ontology_root.iter():
+        # Iterate through all direct children of the root <rdf:RDF> element
+        for elem in ontology_root:
             uri = _get_uri_from_elem(elem)
-            if not uri: continue # Skip elements without a direct URI identifier
+            if not uri:
+                # Skip elements without rdf:about, like owl:Ontology or potentially complex anonymous nodes
+                # Log skipped elements for debugging if necessary
+                # app.logger.debug(f"Skipping element with tag {elem.tag} - no rdf:about URI found.")
+                continue # Skip elements without a direct URI identifier
 
-            label = _get_text_from_elem(elem, 'rdfs:label') or _local_name(uri)
-            description = _get_text_from_elem(elem, 'rdfs:comment')
+            # Use qualified tags for finding label/comment
+            label = _get_text_from_elem(elem, f"{{{NS['rdfs']}}}label") or _local_name(uri)
+            description = _get_text_from_elem(elem, f"{{{NS['rdfs']}}}comment")
 
             # Identify Classes
             if elem.tag == f"{{{NS['owl']}}}Class":
@@ -111,27 +155,34 @@ def load_ontology():
                 uri_registry[uri] = {"label": label, "type": "individual"}
                 individual_details[uri]["label"] = label
                 individual_details[uri]["description"] = description
-                # Extract properties asserted directly on the individual
-                for prop_elem in elem:
-                    prop_uri = prop_elem.tag # Full URI like {http://namespace#}propertyName
-                    if prop_uri.startswith(f"{{{NS['rdf']}}}") or prop_uri.startswith(f"{{{NS['rdfs']}}}") or prop_uri.startswith(f"{{{NS['owl']}}}"):
-                         # Skip rdf:type, rdfs:label, rdfs:comment handled elsewhere
-                         if prop_uri not in [f"{{{NS['rdf']}}}type", f"{{{NS['rdfs']}}}label", f"{{{NS['rdfs']}}}comment"]:
-                             continue # Skip other schema properties if needed
 
+                # Extract properties asserted directly on the individual
+                for prop_elem in elem: # Iterate through children of the NamedIndividual element
+                    prop_uri_tag = prop_elem.tag # Full tag e.g. "{http://myonto.com/PanResOntology.owl#}is_from_database"
+
+                    # Skip rdf:type, rdfs:label, rdfs:comment as they are handled elsewhere or globally
+                    if prop_uri_tag in [f"{{{NS['rdf']}}}type", f"{{{NS['rdfs']}}}label", f"{{{NS['rdfs']}}}comment"]:
+                         continue
+
+                    # Process the property assertion
                     prop_entry = {}
-                    obj_uri = _get_uri_from_elem(prop_elem)
-                    if obj_uri: # Object Property
+                    obj_uri = _get_uri_from_elem(prop_elem) # Checks rdf:resource
+
+                    if obj_uri: # Object Property Assertion (linked via rdf:resource)
                         prop_entry["type"] = "uri"
                         prop_entry["value"] = obj_uri
-                    elif prop_elem.text: # Datatype or Annotation Property
+                    elif prop_elem.text is not None: # Datatype or Annotation Property Assertion (has text content)
                         prop_entry["type"] = "literal"
                         prop_entry["value"] = prop_elem.text.strip()
-                        prop_entry["datatype"] = prop_elem.get(f"{{{NS['rdf']}}}datatype")
+                        prop_entry["datatype"] = prop_elem.get(f"{{{NS['rdf']}}}datatype") # Get datatype attribute
                     else:
-                        continue # Skip if no value found
+                        # Skip elements that are neither resource links nor have text content
+                        # Could be empty tags or complex inline structures not parsed here.
+                        # app.logger.debug(f"Skipping property element {prop_uri_tag} for individual {uri}: No resource or text content.")
+                        continue
 
-                    individual_details[uri]["properties"][prop_uri].append(prop_entry)
+                    # Store the property using the full tag URI as the key
+                    individual_details[uri]["properties"][prop_uri_tag].append(prop_entry)
 
 
             # Identify Properties (Object, Datatype, Annotation)
@@ -139,46 +190,75 @@ def load_ontology():
                  # Only add to registry if not already added (e.g., as a class/individual by mistake)
                  if uri not in uri_registry:
                      uri_registry[uri] = {"label": label, "type": "property"}
+                     # Could potentially parse domain/range here if needed for validation later
+                 else:
+                     # If URI exists, update type if it wasn't property before? Or log warning?
+                     if uri_registry[uri]['type'] != 'property':
+                         app.logger.warning(f"URI {uri} previously registered as {uri_registry[uri]['type']}, now also identified as property. Keeping previous type.")
 
 
         # --- Pass 2: Process relationships ---
         all_subclasses = set() # Keep track of URIs that are subclasses of something specific
-        for elem in ontology_root.iter():
+        # Iterate again now that all entities are potentially in the registry
+        for elem in ontology_root:
             subj_uri = _get_uri_from_elem(elem)
             if not subj_uri: continue
 
-            # Process SubClassOf
-            for sub_class_elem in elem.findall('rdfs:subClassOf', NS):
-                parent_uri = _get_uri_from_elem(sub_class_elem)
-                if parent_uri and subj_uri != parent_uri and parent_uri != f"{{{NS['owl']}}}Thing":
-                    # Ensure both are known classes before adding relationship
-                    if subj_uri in class_details and parent_uri in class_details:
-                        class_details[subj_uri]["superClasses"].add(parent_uri)
-                        class_details[parent_uri]["subClasses"].add(subj_uri)
-                        all_subclasses.add(subj_uri) # Mark this as having a parent
+            # Process SubClassOf (only relevant for owl:Class elements)
+            if elem.tag == f"{{{NS['owl']}}}Class":
+                for sub_class_elem in elem.findall(f"{{{NS['rdfs']}}}subClassOf", NS):
+                    parent_uri = _get_uri_from_elem(sub_class_elem)
+                    # Handle simple rdf:resource links to parent classes
+                    if parent_uri and subj_uri != parent_uri and parent_uri != f"{{{NS['owl']}}}Thing":
+                        # Ensure both are known classes before adding relationship
+                        # Check registry type for safety, though class_details check is primary
+                        if subj_uri in class_details and parent_uri in class_details:
+                            class_details[subj_uri]["superClasses"].add(parent_uri)
+                            class_details[parent_uri]["subClasses"].add(subj_uri)
+                            all_subclasses.add(subj_uri) # Mark this as having a parent
+                        # else:
+                            # Log if a subClassOf points to a non-class or unknown URI?
+                            # app.logger.debug(f"SubClassOf skipped: {subj_uri} -> {parent_uri}. Not both known classes.")
+                    # TODO: Add parsing for complex subClassOf (e.g., Restrictions) if needed
 
-            # Process rdf:type (Instance Of)
-            for type_elem in elem.findall('rdf:type', NS):
-                class_uri = _get_uri_from_elem(type_elem)
-                # Link instance to class if both are known and class_uri isn't owl:NamedIndividual
-                if class_uri and subj_uri in individual_details and class_uri in class_details \
-                   and class_uri != f"{{{NS['owl']}}}NamedIndividual":
-                    individual_details[subj_uri]["types"].add(class_uri)
-                    class_details[class_uri]["instances"].add(subj_uri)
+            # Process rdf:type (Instance Of - typically found on NamedIndividual elements)
+            if elem.tag == f"{{{NS['owl']}}}NamedIndividual":
+                for type_elem in elem.findall(f"{{{NS['rdf']}}}type", NS):
+                    class_uri = _get_uri_from_elem(type_elem)
+                    # Link instance to class if both are known and class_uri isn't owl:NamedIndividual/owl:Thing
+                    if class_uri and subj_uri in individual_details and class_uri in class_details \
+                       and class_uri not in [f"{{{NS['owl']}}}NamedIndividual", f"{{{NS['owl']}}}Thing"]:
+                        individual_details[subj_uri]["types"].add(class_uri)
+                        class_details[class_uri]["instances"].add(subj_uri)
+                    # else:
+                        # Log if rdf:type points to non-class, unknown URI, or ignored type?
+                        # app.logger.debug(f"rdf:type skipped for individual {subj_uri}: Class URI {class_uri} not found or invalid.")
+
 
         # Identify top-level classes (those defined but not subclasses of other defined classes)
-        # This logic might need refinement based on exact OWL structure (e.g., handling owl:Thing explicitly)
         defined_classes = set(class_details.keys())
+        # A class is top-level if it's defined and not found in the set of all subclasses
         top_level_uris = defined_classes - all_subclasses
-        # Add classes whose only parent is owl:Thing? Check class_details[uri]['superClasses'] if needed.
+        # Refinement: Also consider classes whose only parent is owl:Thing (if owl:Thing is not in class_details)
+        owl_thing_uri = f"{{{NS['owl']}}}Thing"
+        for uri in list(defined_classes): # Iterate over a copy if modifying inside loop
+             details = class_details[uri]
+             parents = details['superClasses']
+             # If it has parents BUT those parents are ONLY owl:Thing, consider it top-level too
+             if parents and parents.issubset({owl_thing_uri}):
+                  top_level_uris.add(uri)
+             # If it has NO parents at all, it's already included via (defined_classes - all_subclasses)
 
-        # Store top-level URIs for the hierarchy endpoint (can be done here or in the endpoint)
-        # For simplicity, we'll filter in the endpoint using the computed details.
 
         app.logger.info(f"Lookup structures built. Registry size: {len(uri_registry)}, Classes: {len(class_details)}, Individuals: {len(individual_details)}")
-        # Clear the XML tree from memory if possible (depends on if needed later)
-        # ontology_root = None
-        # gc.collect()
+        app.logger.info(f"Identified {len(top_level_uris)} top-level classes.")
+
+        # Clear the XML tree from memory after processing
+        ontology_root = None
+        root_elem = None
+        context = None
+        gc.collect()
+        app.logger.info("XML tree cleared from memory.")
 
     except ET.ParseError as e:
         ontology_load_error = f"Error parsing ontology XML: {e}"
@@ -206,36 +286,41 @@ def get_hierarchy():
     """Provides top-level classes and the URI registry using pre-computed data."""
     if ontology_load_error:
         return jsonify({"error": f"Ontology load failed: {ontology_load_error}"}), 500
-    if not class_details and not individual_details: # Check if structures are empty
-         return jsonify({"error": "Ontology data structures not loaded or empty."}), 500
+    # Check if structures were populated, even if load error didn't occur (e.g., empty file)
+    if not uri_registry and not class_details and not individual_details:
+         return jsonify({"error": "Ontology data structures are empty. Check file content or parsing."}), 500
 
     try:
-        top_classes_data = []
+        # --- Determine Top Level Classes ---
+        # This logic is now performed during load_ontology, we just need to retrieve them.
         all_subclass_uris = set()
         for details in class_details.values():
             all_subclass_uris.update(details["subClasses"])
 
-        # Determine top-level: defined classes that are not subclasses of *other defined classes*
-        # (This excludes being a subclass of owl:Thing if owl:Thing isn't in class_details)
-        top_level_uris = set(class_details.keys()) - all_subclass_uris
+        defined_classes = set(class_details.keys())
+        top_level_uris_calculated = defined_classes - all_subclass_uris
 
-        # Alternative: A class is top-level if its only superclass (if any) is owl:Thing
-        # top_level_uris = set()
-        # owl_thing_uri = f"{{{NS['owl']}}}Thing"
-        # for uri, details in class_details.items():
-        #     parents = details['superClasses']
-        #     if not parents or parents == {owl_thing_uri}:
-        #          top_level_uris.add(uri)
+        # Add classes whose only parent is owl:Thing (if owl:Thing isn't explicitly defined as a class)
+        owl_thing_uri = f"{{{NS['owl']}}}Thing"
+        for uri, details in class_details.items():
+            parents = details['superClasses']
+            if not parents or parents == {owl_thing_uri}:
+                 top_level_uris_calculated.add(uri)
+        # --- End Determine Top Level ---
 
 
-        for uri in sorted(list(top_level_uris), key=get_label):
-            details = class_details[uri]
-            top_classes_data.append({
-                "id": uri,
-                "label": get_label(uri), # Use helper to get label
-                "hasSubClasses": bool(details["subClasses"]),
-                "hasInstances": bool(details["instances"])
-            })
+        top_classes_data = []
+        # Use the calculated top_level_uris
+        for uri in sorted(list(top_level_uris_calculated), key=get_label):
+            # Ensure the URI still exists in class_details (safety check)
+            if uri in class_details:
+                details = class_details[uri]
+                top_classes_data.append({
+                    "id": uri,
+                    "label": get_label(uri), # Use helper to get label
+                    "hasSubClasses": bool(details["subClasses"]),
+                    "hasInstances": bool(details["instances"])
+                })
 
         # Return the pre-built registry along with top classes
         return jsonify({
@@ -316,36 +401,57 @@ def get_details(node_uri_encoded):
                 "id": item_uri,
                 "label": get_label(item_uri),
                 "description": details["description"],
-                "superClasses": sorted(list(details["superClasses"]), key=get_label),
-                "subClasses": sorted(list(details["subClasses"]), key=get_label),
-                "instances": sorted(list(details["instances"]), key=get_label)
+                # Sort lists using the get_label helper for consistency
+                "superClasses": sorted([uri for uri in details["superClasses"]], key=get_label),
+                "subClasses": sorted([uri for uri in details["subClasses"]], key=get_label),
+                "instances": sorted([uri for uri in details["instances"]], key=get_label)
             }
         elif item_uri in individual_details:
             item_type = "individual"
             details = individual_details[item_uri]
-            # Convert sets/defaultdicts for JSON
-            # Sort properties by label for consistent display
-            sorted_properties = {
-                prop_uri: values
-                for prop_uri, values in sorted(
-                    details["properties"].items(), key=lambda item: get_label(item[0])
-                )
-            }
+
+            # Format properties for display
+            formatted_properties = {}
+            # Sort properties by their label for consistent display
+            # The keys in details["properties"] are the full tag URIs
+            sorted_prop_tag_uris = sorted(
+                details["properties"].keys(),
+                key=lambda tag_uri: get_label(tag_uri) # Use get_label on the property tag URI
+            )
+
+            for prop_tag_uri in sorted_prop_tag_uris:
+                values = details["properties"][prop_tag_uri]
+                # The key in the output JSON should also be the full tag URI
+                # The frontend will use get_label(prop_tag_uri) for display
+                formatted_properties[prop_tag_uri] = values # values is already a list of {"type": ..., "value": ..., "datatype": ...}
+
             details_data = {
                 "id": item_uri,
                 "label": get_label(item_uri),
                 "description": details["description"],
-                "types": sorted(list(details["types"]), key=get_label),
-                "properties": sorted_properties # Already sorted dict
+                "types": sorted([uri for uri in details["types"]], key=get_label),
+                "properties": formatted_properties # Use the formatted properties
             }
 
         if details_data:
             return jsonify({"type": item_type, "details": details_data})
         else:
-            # Check registry for other types or if URI is completely unknown
+            # Check registry for other types (like properties) or if URI is completely unknown
             if item_uri in uri_registry:
-                 return jsonify({"error": f"Item <{item_uri}> found but type (Class/Individual) could not be determined or is not supported for details view."}), 404
+                 registry_info = uri_registry[item_uri]
+                 # Provide minimal info if it's a known property or other registered URI
+                 return jsonify({
+                     "type": registry_info.get("type", "unknown"),
+                     "details": {
+                         "id": item_uri,
+                         "label": get_label(item_uri),
+                         "description": registry_info.get("description", ""), # Add description if available
+                         # Indicate that full details are not applicable for this type
+                         "message": f"Details view primarily for Classes and Individuals. This is a {registry_info.get('type', 'registered URI')}."
+                     }
+                 })
             else:
+                 # Use Flask's abort to trigger a standard 404 response
                  abort(404, description=f"Item URI <{item_uri}> not found in the ontology data.")
 
     except Exception as e:
