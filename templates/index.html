@@ -6,6 +6,8 @@
     <title>Ontology Browser - panres_v2</title>
     <!-- Link to external CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <!-- Plotly.js CDN -->
+    <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
 </head>
 <body>
     <div class="container">
@@ -23,10 +25,11 @@
             </div>
         </header>
 
-        <div class="class-hierarchy">
+        <!-- Replaced class-hierarchy div with plot-container -->
+        <div class="plot-view">
             <h2>Ontology Explorer</h2>
-            <!-- Hierarchy will be loaded here by script.js -->
-            <div id="hierarchy-container">
+            <!-- Plotly Sunburst chart will be loaded here -->
+            <div id="plot-container">
                 <div class="loader"></div> <!-- Initial loader -->
             </div>
         </div>
@@ -36,6 +39,10 @@
             <!-- Details will be loaded here by script.js -->
             <div id="details-container">
                 <!-- Initial message will be set by JS -->
+            </div>
+             <!-- Container for charts within the details pane -->
+            <div id="details-chart-container" style="margin-top: 20px;">
+                 <!-- Bar charts will be rendered here -->
             </div>
         </div>
     </div>

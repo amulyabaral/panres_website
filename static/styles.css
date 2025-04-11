@@ -23,10 +23,11 @@ body {
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 1400px; /* Wider container for plot */
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 1fr 2fr;
+    /* Adjust grid layout if needed, e.g., make plot wider */
+    grid-template-columns: 1.5fr 1fr; /* Give plot more space */
     gap: 20px;
 }
 
@@ -56,13 +57,21 @@ h1 {
     font-size: 16px;
 }
 
-.class-hierarchy {
+/* Styles for the new plot container */
+.plot-view {
     background-color: white;
     border-radius: 8px;
     padding: 20px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    overflow-y: auto;
+    overflow: hidden; /* Prevent plot overflow issues */
     max-height: calc(100vh - 150px); /* Adjust based on header height */
+    display: flex; /* Use flexbox for layout */
+    flex-direction: column; /* Stack title and plot vertically */
+}
+
+#plot-container {
+    flex-grow: 1; /* Allow plot container to fill available space */
+    min-height: 400px; /* Ensure minimum height for the plot */
 }
 
 .class-details {
@@ -72,83 +81,19 @@ h1 {
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     overflow-y: auto;
     max-height: calc(100vh - 150px); /* Adjust based on header height */
+    display: flex; /* Use flexbox */
+    flex-direction: column; /* Stack content and chart */
 }
 
-ul.tree, ul.tree ul {
-    list-style: none;
-    padding-left: 0; /* Reset padding */
+#details-container {
+    flex-shrink: 0; /* Prevent details text from shrinking too much */
 }
 
-ul.tree li {
-    /* padding: 5px 0; */ /* Removed padding here, handled by spans/caret */
-     position: relative; /* Needed for absolute positioning of caret */
-     padding: 3px 0; /* Adjust padding */
-}
-
-ul.tree li span:not(.caret) { /* Apply padding to class/individual names */
-     cursor: pointer;
-     padding: 4px 8px;
-     border-radius: 4px;
-     transition: background-color 0.2s;
-     margin-left: 15px; /* Space for caret */
-     display: inline-block; /* Ensure padding is applied correctly */
-}
-
-
-ul.tree li span:not(.caret):hover {
-    background-color: var(--hover-color);
-}
-
-ul.tree li span.selected:not(.caret) {
-    background-color: var(--secondary-color);
-    color: white;
-}
-
-.caret {
-    cursor: pointer;
-    user-select: none;
-    /* margin-right: 5px; */ /* Replaced by absolute positioning */
-    position: absolute; /* Position caret relative to li */
-    left: 0;
-    top: 8px; /* Adjust vertical alignment */
-    width: 15px; /* Ensure consistent spacing */
-    text-align: center;
-}
-
-.caret::before {
-    content: "▶";
-    color: var(--secondary-color);
-    display: inline-block;
-    font-size: 0.8em;
-}
-
-.caret-down::before {
-    content: "▼";
-}
-
-.nested {
-    display: none;
-    /* padding-left: 20px; */ /* Replaced by increased value below */
-    padding-left: 25px; /* Increase indent for nested lists */
-}
-
-.active {
-    display: block;
-}
-
-.loader {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid var(--secondary-color);
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    animation: spin 1s linear infinite;
-    margin: 20px auto;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+#details-chart-container {
+    flex-shrink: 0; /* Prevent chart from shrinking */
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
 }
 
 .property-list {
@@ -188,30 +133,25 @@ ul.tree li span.selected:not(.caret) {
     border-radius: 4px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 992px) { /* Adjusted breakpoint */
     .container {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr; /* Stack columns */
     }
-    .class-hierarchy, .class-details {
-        max-height: 50vh; /* Adjust height for smaller screens */
+    .plot-view, .class-details {
+        max-height: 60vh; /* Adjust height for smaller screens */
     }
 }
 
-/* Style for individuals in the tree */
-ul.tree li span.individual-node {
-    font-style: italic;
-    color: #555;
-    /* display: block; */ /* Removed block display */
-    /* margin-left: 20px; */ /* Indent handled by general span rule */
+/* Ensure loader is centered in plot container */
+#plot-container .loader {
+    margin: 50px auto; /* Adjust margin for better centering */
 }
 
-ul.tree li span.individual-node:hover {
-    background-color: var(--hover-color);
-}
-
-ul.tree li span.individual-node.selected {
-    background-color: #77aaff; /* Lighter blue for selected individual */
-    color: white;
+/* Ensure details loader is reasonable */
+#details-container .loader {
+     margin: 30px auto;
+     width: 25px;
+     height: 25px;
 }
 
 /* Style for property values */
@@ -244,24 +184,36 @@ a:hover {
     margin-bottom: 10px;
 }
 
-/* Ensure details container has some padding */
-#details-container {
-    padding-top: 5px;
+/* Remove styles related to the old tree view elements */
+/* ul.tree li span:not(.caret) { ... } */
+/* ul.tree li span:not(.caret):hover { ... } */
+/* ul.tree li span.selected:not(.caret) { ... } */
+/* .caret { ... } */
+/* .caret::before { ... } */
+/* .caret-down::before { ... } */
+/* .nested { ... } */
+/* .active { ... } */
+/* ul.tree li span.individual-node { ... } */
+/* ul.tree li span.individual-node:hover { ... } */
+/* ul.tree li span.individual-node.selected { ... } */
+/* ul.tree li span.loading-placeholder, ... { ... } */
+/* ul.tree li span.error-box-small { ... } */
+
+/* Remove or comment out styles specific to the old tree view if desired */
+/*
+.class-hierarchy {
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    overflow-y: auto;
+    max-height: calc(100vh - 150px);
 }
 
-ul.tree li span.loading-placeholder,
-ul.tree li span.error-box-small,
-ul.tree li span.info-box-small {
-    font-style: italic;
-    color: #666;
-    padding: 2px 5px;
-    margin-left: 15px; /* Align with other items */
-    display: inline-block;
+ul.tree, ul.tree ul {
+    list-style: none;
+    padding-left: 0;
 }
-
-ul.tree li span.error-box-small {
-    color: #a94442; /* Dark red */
-    background-color: #f2dede; /* Light red */
-    border: 1px solid #ebccd1;
-    border-radius: 3px;
+*/
+/* ... other tree-specific styles like .caret, .nested etc. can be removed or commented out ... */ 
 } 

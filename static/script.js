@@ -1,17 +1,28 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const hierarchyContainer = document.getElementById('hierarchy-container');
+    // Containers
+    const plotContainer = document.getElementById('plot-container');
     const detailsContainer = document.getElementById('details-container');
+    const detailsChartContainer = document.getElementById('details-chart-container'); // New chart container
     const searchInput = document.getElementById('search');
 
-    // Store only the URI registry globally now
+    // Global state
     let uriRegistry = {};
-    // Store load error status
+    let plotData = { // Structure for Plotly sunburst
+        ids: [],
+        labels: [],
+        parents: [],
+        // values: [], // Optional: Can be used for sizing segments
+        meta: {}, // Store original URI and type { uri: '...', type: 'class'/'individual' }
+        loadedChildren: new Set() // Track which class nodes have had children loaded
+    };
     let loadError = null;
 
-    // --- Fetch Initial Hierarchy Data ---
-    async function fetchInitialHierarchy() {
-        hierarchyContainer.innerHTML = '<div class="loader"></div>'; // Show loader
-        detailsContainer.innerHTML = '<div class="info-box">Loading ontology hierarchy...</div>';
+    // --- Fetch Initial Plot Data ---
+    async function fetchInitialPlotData() {
+        plotContainer.innerHTML = '<div class="loader"></div>'; // Show loader
+        detailsContainer.innerHTML = '<div class="info-box">Loading ontology structure...</div>';
+        detailsChartContainer.innerHTML = ''; // Clear charts
+
         try {
             const response = await fetch('/api/hierarchy');
             if (!response.ok) {
@@ -37,20 +48,49 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             uriRegistry = data.uriRegistry; // Store the registry
 
-            // Render the top level and setup search
-            renderInitialHierarchy(data.topClasses);
-            setupSearch(); // Search will be limited initially
-            detailsContainer.innerHTML = '<div class="info-box">Select an item from the explorer to view its details.</div>';
+            // --- Prepare Initial Plotly Data ---
+            plotData = { ids: [], labels: [], parents: [], meta: {}, loadedChildren: new Set() }; // Reset
+            const rootId = 'ontology_root'; // Artificial root for Plotly
+            plotData.ids.push(rootId);
+            plotData.labels.push('Ontology Root');
+            plotData.parents.push(''); // Root has no parent
+            plotData.meta[rootId] = { uri: null, type: 'root' };
+
+            if (data.topClasses.length === 0) {
+                 plotContainer.innerHTML = '<div class="info-box">No top-level classes found.</div>';
+                 detailsContainer.innerHTML = '<div class="info-box">Select an item to view details.</div>';
+                 return;
+            }
+
+            data.topClasses.forEach(classInfo => {
+                const nodeId = `class_${getLocalName(classInfo.id)}`; // Create a unique ID for Plotly
+                plotData.ids.push(nodeId);
+                plotData.labels.push(classInfo.label);
+                plotData.parents.push(rootId); // Parent is the artificial root
+                plotData.meta[nodeId] = {
+                    uri: classInfo.id,
+                    type: 'class',
+                    hasSubClasses: classInfo.hasSubClasses,
+                    hasInstances: classInfo.hasInstances
+                };
+                // Mark if children need loading (only if it has potential children)
+                if (classInfo.hasSubClasses || classInfo.hasInstances) {
+                    // Don't add to loadedChildren yet
+                } else {
+                    plotData.loadedChildren.add(classInfo.id); // Mark as having no children to load
+                }
+            });
+
+            renderSunburstPlot();
+            setupSearch(); // Search will be very basic now
+            detailsContainer.innerHTML = '<div class="info-box">Click on a segment in the explorer to view details.</div>';
 
         } catch (error) {
-            console.error("Error loading initial hierarchy:", error);
-            loadError = error.message; // Store error message
-            hierarchyContainer.innerHTML = `
-                <div class="error-box">
-                    <p>Could not load ontology hierarchy:</p>
-                    <p>${error.message}</p>
-                </div>`;
-            detailsContainer.innerHTML = ''; // Clear details on error
+            console.error("Error loading initial plot data:", error);
+            loadError = error.message;
+            plotContainer.innerHTML = `<div class="error-box"><p>Could not load ontology structure:</p><p>${error.message}</p></div>`;
+            detailsContainer.innerHTML = '';
+            detailsChartContainer.innerHTML = '';
         }
     }
 
@@ -77,135 +117,166 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Rendering Functions ---
 
-    function renderInitialHierarchy(topClasses) {
-        hierarchyContainer.innerHTML = ''; // Clear loader/error
-        const treeUl = document.createElement('ul');
-        treeUl.className = 'tree';
+    function renderSunburstPlot() {
+        plotContainer.innerHTML = ''; // Clear loader/error
 
-        if (!topClasses || topClasses.length === 0) {
-             hierarchyContainer.innerHTML = '<div class="info-box">No top-level classes found.</div>';
+        if (plotData.ids.length <= 1) { // Only root node
+             plotContainer.innerHTML = '<div class="info-box">No data to display in plot.</div>';
              return;
         }
 
-        // topClasses are already sorted by label from the server
-        topClasses.forEach(classInfo => {
-            // classInfo contains { id, label, hasSubClasses, hasInstances }
-            const classItem = createTreeItem(classInfo, 'class');
-            treeUl.appendChild(classItem);
-        });
-
-        hierarchyContainer.appendChild(treeUl);
-        // Toggles are added dynamically when children are loaded
-    }
-
-    // Generic function to create a tree list item (li)
-    function createTreeItem(itemInfo, itemType) {
-        // itemInfo expected structure:
-        // For class: { id, label, hasSubClasses, hasInstances }
-        // For instance: { id, label }
-        const li = document.createElement('li');
-        li.dataset.itemId = itemInfo.id; // Store ID on the LI for easy access
-        li.dataset.itemType = itemType;
-        li.dataset.childrenLoaded = 'false'; // Track if children have been fetched
-
-        const hasChildren = itemType === 'class' && (itemInfo.hasSubClasses || itemInfo.hasInstances);
-
-        // Add caret if it has children
-        if (hasChildren) {
-            const caret = document.createElement('span');
-            caret.className = 'caret';
-            caret.onclick = handleCaretClick; // Assign click handler
-            li.appendChild(caret);
-        }
-
-        // Create the item name span
-        const itemSpan = document.createElement('span');
-        itemSpan.textContent = itemInfo.label; // Already fetched
-        itemSpan.dataset.itemId = itemInfo.id; // Redundant but useful for querySelector
-        itemSpan.dataset.itemType = itemType;
-        if (itemType === 'individual') {
-            itemSpan.classList.add('individual-node');
-        }
-        itemSpan.onclick = (event) => {
-            event.stopPropagation();
-            if (itemType === 'class') {
-                showClassDetails(itemInfo.id);
-            } else {
-                showIndividualDetails(itemInfo.id);
-            }
+        const trace = {
+            type: "sunburst",
+            ids: plotData.ids,
+            labels: plotData.labels,
+            parents: plotData.parents,
+            // values: plotData.values, // Optional: size segments
+            // branchvalues: "total", // How to calculate size if values are used
+            outsidetextfont: { size: 16, color: "#377eb8" },
+            leaf: { opacity: 0.6 },
+            marker: { line: { width: 1.5 } },
+            // textinfo: 'label', // Show labels on segments
+            hoverinfo: 'label', // Show label on hover
+            maxdepth: 3 // Initially show only top levels + 1? Adjust as needed
         };
-        li.appendChild(itemSpan);
 
-        // Placeholder for nested list (will be populated on demand)
-        if (hasChildren) {
-            const nestedUl = document.createElement('ul');
-            nestedUl.className = 'nested';
-            // Add a temporary loading indicator inside
-            nestedUl.innerHTML = '<li><span class="loading-placeholder">Loading...</span></li>';
-            li.appendChild(nestedUl);
-        }
+        const layout = {
+            margin: { l: 10, r: 10, b: 10, t: 10 }, // Reduced margins
+            sunburstcolorway: ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#19D3F3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52"], // Color scheme
+            // height: plotContainer.clientHeight, // Try to fit container height
+            // width: plotContainer.clientWidth
+        };
 
-        return li;
+        Plotly.newPlot(plotContainer, [trace], layout, { responsive: true });
+
+        // --- Add Click Handler ---
+        plotContainer.on('plotly_click', handlePlotClick);
     }
+
+    function updateSunburstPlot(newIds, newLabels, newParents, newMeta) {
+         // Append new data
+         plotData.ids.push(...newIds);
+         plotData.labels.push(...newLabels);
+         plotData.parents.push(...newParents);
+         Object.assign(plotData.meta, newMeta); // Merge new meta info
+
+         // Use Plotly.react for efficient updates
+         const traceUpdate = {
+             ids: [plotData.ids],
+             labels: [plotData.labels],
+             parents: [plotData.parents]
+             // values: [plotData.values] // Update values if used
+         };
+
+         Plotly.react(plotContainer, traceUpdate); // React redraws efficiently
+         console.log("Plot updated with new data.");
+    }
+
 
     // --- Event Handlers ---
 
-    async function handleCaretClick(event) {
-        event.stopPropagation();
-        const caret = event.target;
-        const li = caret.closest('li');
-        const nestedUl = li.querySelector(':scope > .nested');
-        const itemId = li.dataset.itemId;
-        const childrenLoaded = li.dataset.childrenLoaded === 'true';
+    async function handlePlotClick(data) {
+        if (!data.points || data.points.length === 0) return;
 
-        if (!nestedUl) return; // Should not happen if caret exists
+        const clickedPoint = data.points[0];
+        const nodeId = clickedPoint.id; // The unique ID we created (e.g., 'class_MyClassName')
+        const nodeMeta = plotData.meta[nodeId];
 
-        // Toggle display
-        caret.classList.toggle('caret-down');
-        nestedUl.classList.toggle('active');
+        if (!nodeMeta || !nodeMeta.uri) {
+            console.log("Clicked on root or unknown node:", nodeId);
+            // Optionally zoom out or reset view if root is clicked
+            // Plotly.restyle(plotContainer, { 'marker.root.color': 'red' }); // Example interaction
+            return;
+        }
 
-        // Fetch children only if expanding for the first time
-        if (nestedUl.classList.contains('active') && !childrenLoaded) {
-            li.dataset.childrenLoaded = 'true'; // Mark as loading/loaded
-            nestedUl.innerHTML = '<li><span class="loading-placeholder">Loading...</span></li>'; // Show loading indicator
+        const itemUri = nodeMeta.uri;
+        const itemType = nodeMeta.type;
 
-            try {
-                // Encode URI component for safe transfer in URL path
-                const encodedUri = encodeURIComponent(itemId);
-                const response = await fetch(`/api/children/${encodedUri}`);
+        console.log(`Clicked plot segment: ID=${nodeId}, Type=${itemType}, URI=${itemUri}`);
 
-                if (!response.ok) {
-                    throw new Error(`Error fetching children: ${response.statusText}`);
-                }
-                const childrenData = await response.json();
-
-                // Clear loading indicator
-                nestedUl.innerHTML = '';
-
-                // Add subclasses
-                if (childrenData.subClasses && childrenData.subClasses.length > 0) {
-                    childrenData.subClasses.forEach(subClassInfo => {
-                        const subClassItem = createTreeItem(subClassInfo, 'class');
-                        nestedUl.appendChild(subClassItem);
-                    });
-                }
-
-                // Add instances
-                if (childrenData.instances && childrenData.instances.length > 0) {
-                    childrenData.instances.forEach(instanceInfo => {
-                        const instanceItem = createTreeItem(instanceInfo, 'individual');
-                        nestedUl.appendChild(instanceItem);
-                    });
-                }
-
-                if (nestedUl.innerHTML === '') {
-                     nestedUl.innerHTML = '<li><span class="info-box-small">No subclasses or instances found.</span></li>';
-                }
-
-            } catch (error) {
-                console.error(`Error loading children for ${itemId}:`, error);
-                nestedUl.innerHTML = `<li><span class="error-box-small">Error loading children.</span></li>`;
+        // Show details for the clicked item
+        if (itemType === 'class') {
+            showClassDetails(itemUri); // Show details pane content
+            // Check if children need to be loaded for the plot
+            if (!plotData.loadedChildren.has(itemUri) && (nodeMeta.hasSubClasses || nodeMeta.hasInstances)) {
+                await loadChildrenForPlot(itemUri, nodeId); // Fetch and update plot
+            } else {
+                 console.log("Children already loaded or node has no children.");
+                 // Optional: Zoom into the clicked segment using Plotly layout updates
+                 // Plotly.relayout(plotContainer, {'sunburst.level': nodeId}); // Example, might need adjustment
             }
+        } else if (itemType === 'individual') {
+            showIndividualDetails(itemUri);
+        }
+    }
+
+    async function loadChildrenForPlot(parentUri, parentNodeId) {
+        console.log(`Fetching children for plot node: ${parentNodeId} (URI: ${parentUri})`);
+        // Optional: Add a visual loading indicator near the clicked segment? (Complex)
+
+        try {
+            const encodedUri = encodeURIComponent(parentUri);
+            const response = await fetch(`/api/children/${encodedUri}`);
+            if (!response.ok) throw new Error(`Error fetching children: ${response.statusText}`);
+            const childrenData = await response.json();
+
+            const newIds = [];
+            const newLabels = [];
+            const newParents = [];
+            const newMeta = {};
+
+            // Add subclasses
+            if (childrenData.subClasses && childrenData.subClasses.length > 0) {
+                childrenData.subClasses.forEach(subClassInfo => {
+                    const childNodeId = `class_${getLocalName(subClassInfo.id)}`;
+                    if (!plotData.ids.includes(childNodeId)) { // Avoid duplicates if loaded via another path
+                        newIds.push(childNodeId);
+                        newLabels.push(subClassInfo.label);
+                        newParents.push(parentNodeId); // Link to the clicked plot node ID
+                        newMeta[childNodeId] = {
+                            uri: subClassInfo.id,
+                            type: 'class',
+                            hasSubClasses: subClassInfo.hasSubClasses,
+                            hasInstances: subClassInfo.hasInstances
+                        };
+                        // Mark if children need loading
+                        if (!subClassInfo.hasSubClasses && !subClassInfo.hasInstances) {
+                            plotData.loadedChildren.add(subClassInfo.id);
+                        }
+                    }
+                });
+            }
+
+            // Add instances
+            if (childrenData.instances && childrenData.instances.length > 0) {
+                childrenData.instances.forEach(instanceInfo => {
+                    const childNodeId = `indiv_${getLocalName(instanceInfo.id)}`;
+                     if (!plotData.ids.includes(childNodeId)) {
+                        newIds.push(childNodeId);
+                        newLabels.push(instanceInfo.label);
+                        newParents.push(parentNodeId);
+                        newMeta[childNodeId] = {
+                            uri: instanceInfo.id,
+                            type: 'individual'
+                            // Individuals don't have further children in this hierarchy model
+                        };
+                        plotData.loadedChildren.add(instanceInfo.id); // Mark instances as leaves
+                    }
+                });
+            }
+
+            if (newIds.length > 0) {
+                updateSunburstPlot(newIds, newLabels, newParents, newMeta);
+            } else {
+                 console.log("No new children found to add to the plot.");
+            }
+
+            // Mark the parent as loaded regardless of whether children were found
+            plotData.loadedChildren.add(parentUri);
+
+        } catch (error) {
+            console.error(`Error loading children for plot node ${parentNodeId}:`, error);
+            // Optional: Display error message to user (e.g., in details pane)
         }
     }
 
@@ -213,61 +284,74 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Detail Display Functions ---
 
     function clearSelection() {
-        const allSpans = hierarchyContainer.querySelectorAll('ul.tree li span[data-item-id]');
-        allSpans.forEach(span => span.classList.remove('selected'));
+        // Plotly doesn't have a direct 'selected' state like the tree.
+        // We might visually indicate selection by changing color or outline in the plot,
+        // or simply rely on the details pane showing the current selection.
+        // For now, just clear the details pane styling if any was applied.
+        detailsContainer.classList.remove('selected-item-details'); // Example class
     }
 
     function highlightSelectedItem(itemId) {
         clearSelection();
-        const selectedSpan = hierarchyContainer.querySelector(`span[data-item-id="${CSS.escape(itemId)}"]`);
-        if (selectedSpan) {
-            selectedSpan.classList.add('selected');
-            // Ensure the selected item is visible (expand parents)
-            let currentLi = selectedSpan.closest('li');
-            while (currentLi) {
-                const parentUl = currentLi.parentElement;
-                if (parentUl && parentUl.classList.contains('nested') && !parentUl.classList.contains('active')) {
-                     parentUl.classList.add('active');
-                     const parentLi = parentUl.closest('li');
-                     if (parentLi) {
-                         const parentCaret = parentLi.querySelector(':scope > .caret');
-                         if (parentCaret) parentCaret.classList.add('caret-down');
-                     }
-                }
-                // Move up only if parent is not the root tree
-                 if (parentUl && parentUl.classList.contains('tree')) break;
-                 currentLi = parentUl ? parentUl.closest('li') : null;
+        // Instead of highlighting in a tree, we now rely on the details pane
+        // being updated. Optionally, interact with the plot here.
+        console.log("Highlight requested for:", itemId);
+        detailsContainer.classList.add('selected-item-details'); // Example
 
-            }
-             // Scroll into view (optional)
-             selectedSpan.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        // --- Optional: Plot Interaction ---
+        // Find the corresponding plot node ID
+        const targetNodeId = Object.keys(plotData.meta).find(nodeId => plotData.meta[nodeId].uri === itemId);
+        if (targetNodeId) {
+            console.log("Found corresponding plot node:", targetNodeId);
+            // Example: Slightly change marker line color (subtle)
+            // This requires more complex Plotly update logic, potentially storing original styles.
+            // Plotly.restyle(plotContainer, { 'marker.line.color': ['red'] }, [plotData.ids.indexOf(targetNodeId)]);
+            // Or zoom/focus on the node (might be disruptive)
+            // Plotly.relayout(plotContainer, {'sunburst.level': targetNodeId});
         }
     }
 
     function renderUriLink(uri) {
-        // Use the globally stored registry
         const info = uriRegistry ? uriRegistry[uri] : null;
-        const label = info ? info.label : getLocalName(uri); // Use registry label or parse
-        const title = uri; // Always show full URI on hover
+        const label = info ? info.label : getLocalName(uri);
+        const title = uri;
 
         if (info && (info.type === 'class' || info.type === 'individual')) {
-            // Known class or individual - make clickable to show details
-            // Use CSS.escape on the itemId for the selector
-            // We need to find the item in the tree and simulate a click on the *span*
-            return `<a href="#" title="${title}" onclick="event.preventDefault(); document.querySelector('span[data-item-id=\\'${CSS.escape(uri)}\\']')?.click();">${label}</a>`;
+            // Find the plot node ID corresponding to this URI
+            const targetNodeId = Object.keys(plotData.meta).find(nodeId => plotData.meta[nodeId].uri === uri);
+            if (targetNodeId) {
+                // If found, make it clickable to trigger plot interaction + details view
+                // We need a global function or event listener to handle these clicks
+                // For simplicity, let's just call the detail function directly for now
+                 return `<a href="#" title="${title}" onclick="event.preventDefault(); handleInternalLinkClick('${uri}', '${info.type}');">${label}</a>`;
+            } else {
+                 // If not found in the *current* plot data (might not be loaded yet)
+                 // provide a link that just tries to load details directly.
+                 return `<a href="#" title="${title}" onclick="event.preventDefault(); handleInternalLinkClick('${uri}', '${info.type}');">${label} (details only)</a>`;
+            }
         } else if (info && info.type === 'property') {
-             // Known property - maybe just display label, link opens in new tab?
-             return `<a href="${uri}" target="_blank" title="${title}">${label}</a>`;
-        }
-        else {
-            // Other URI (external link, datatype, etc.) - make it a link opening in new tab
+            return `<a href="${uri}" target="_blank" title="${title}">${label}</a>`;
+        } else {
             return `<a href="${uri}" target="_blank" title="${title}">${label}</a>`;
         }
     }
 
+    // Make detail loading functions globally accessible for internal links
+    window.handleInternalLinkClick = (uri, type) => {
+        console.log("Internal link clicked:", uri, type);
+        if (type === 'class') {
+            showClassDetails(uri);
+            // Try to find and potentially expand plot - more complex
+        } else if (type === 'individual') {
+            showIndividualDetails(uri);
+        }
+    };
+
+
     async function showClassDetails(classId) {
         highlightSelectedItem(classId);
         detailsContainer.innerHTML = '<div class="loader"></div>'; // Show loader
+        detailsChartContainer.innerHTML = ''; // Clear previous charts
 
         try {
             const encodedUri = encodeURIComponent(classId);
@@ -280,6 +364,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const classObj = result.details;
 
+            // --- Render Text Details ---
             let html = `
                 <h3>Class: ${classObj.label}</h3>
                 <p class="class-uri"><strong>URI:</strong> ${classObj.id}</p>
@@ -336,15 +421,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             detailsContainer.innerHTML = html;
 
+            // --- Render Bar Chart ---
+            renderDetailsBarChart(classObj.subClasses.length, classObj.instances.length);
+
         } catch (error) {
              console.error(`Error fetching details for ${classId}:`, error);
              detailsContainer.innerHTML = `<div class="error-box">Could not load details for ${getLocalName(classId)}. ${error.message}</div>`;
+             detailsChartContainer.innerHTML = ''; // Clear chart on error
         }
     }
 
     async function showIndividualDetails(individualId) {
         highlightSelectedItem(individualId);
         detailsContainer.innerHTML = '<div class="loader"></div>'; // Show loader
+        detailsChartContainer.innerHTML = ''; // Clear charts for individuals
 
          try {
             const encodedUri = encodeURIComponent(individualId);
@@ -357,7 +447,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const indObj = result.details;
 
-
+            // --- Render Text Details ---
             let html = `
                 <h3>Individual: ${indObj.label}</h3>
                 <p class="class-uri"><strong>URI:</strong> ${indObj.id}</p>
@@ -417,6 +507,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
              console.error(`Error fetching details for ${individualId}:`, error);
              detailsContainer.innerHTML = `<div class="error-box">Could not load details for ${getLocalName(individualId)}. ${error.message}</div>`;
+             detailsChartContainer.innerHTML = ''; // Clear chart on error
         }
     }
 
@@ -439,39 +530,74 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // --- New Function: Render Details Bar Chart ---
+    function renderDetailsBarChart(subClassCount, instanceCount) {
+        detailsChartContainer.innerHTML = ''; // Clear previous
 
+        if (subClassCount === 0 && instanceCount === 0) {
+            detailsChartContainer.innerHTML = '<div class="info-box-small">No direct subclasses or instances.</div>';
+            return;
+        }
+
+        const trace = {
+            x: ['Direct Subclasses', 'Direct Instances'],
+            y: [subClassCount, instanceCount],
+            type: 'bar',
+            marker: {
+                color: [var(--secondary-color), '#FFA15A'] // Colors for bars
+            },
+            text: [subClassCount, instanceCount], // Show values on bars
+            textposition: 'auto',
+            hoverinfo: 'x+y'
+        };
+
+        const layout = {
+            title: 'Class Contents',
+            font: { size: 12 },
+            yaxis: { title: 'Count', automargin: true, zeroline: true, showgrid: true },
+            xaxis: { automargin: true },
+            margin: { l: 40, r: 20, b: 30, t: 40 }, // Adjust margins
+            height: 200 // Fixed height for the bar chart
+        };
+
+        Plotly.newPlot(detailsChartContainer, [trace], layout, { responsive: true, displayModeBar: false }); // Hide Plotly mode bar
+    }
+
+
+    // --- Search Functionality (Basic) ---
     function setupSearch() {
-        // --- Basic Search (Client-side, only searches loaded nodes) ---
-        // NOTE: This search is now limited as not all data is loaded initially.
-        // A server-side search endpoint would be much more effective.
+        // NOTE: Client-side search on the plot is difficult.
+        // Highlighting segments based on search requires complex Plotly updates.
+        // A server-side search endpoint would be better for large ontologies.
         searchInput.addEventListener('input', debounce(function() {
             const searchTerm = this.value.toLowerCase().trim();
-            const allVisibleSpans = hierarchyContainer.querySelectorAll('ul.tree li span[data-item-id]'); // Only search visible items
 
-            // Reset highlights if search term is short
+            // Basic idea: Filter plotData and re-render (can be slow)
+            // Or: Use Plotly transforms (more advanced)
+            // Or: Just log a message for now.
             if (searchTerm.length < 2) {
-                 allVisibleSpans.forEach(span => span.style.backgroundColor = ''); // Clear background highlight
-                 // Maybe add a message indicating search is limited?
+                // Maybe reset plot view or remove highlights if implemented
+                console.log("Search cleared or too short.");
+                // Potentially re-render the original plot if it was filtered
+                // renderSunburstPlot(); // Re-render might reset loaded children state
                 return;
             }
 
-            // Simple highlight matching visible items
-            allVisibleSpans.forEach(span => {
-                const label = span.textContent.toLowerCase();
-                const name = getLocalName(span.dataset.itemId).toLowerCase(); // Get name for matching
+            console.warn("Client-side plot search not fully implemented. Searching labels only for logging.");
 
-                if (label.includes(searchTerm) || name.includes(searchTerm)) {
-                    span.style.backgroundColor = 'yellow'; // Simple highlight
-                } else {
-                    span.style.backgroundColor = ''; // Clear highlight
-                }
+            // Find matching nodes (just logging)
+            const matchingNodes = plotData.ids.filter(id => {
+                const label = plotData.labels[plotData.ids.indexOf(id)]?.toLowerCase();
+                const meta = plotData.meta[id];
+                const name = meta?.uri ? getLocalName(meta.uri).toLowerCase() : '';
+                return (label && label.includes(searchTerm)) || (name && name.includes(searchTerm));
             });
-             // NOTE: This doesn't hide/show or expand nodes. It only highlights.
-             // A full client-side search with lazy loading is complex.
-             console.warn("Search is currently limited to highlighting already loaded/visible items.");
 
+            console.log("Potential matches (not highlighted):", matchingNodes.map(id => plotData.meta[id]));
 
-        }, 300));
+            // TODO: Implement actual plot highlighting or filtering if needed.
+
+        }, 500)); // Increased debounce time
     }
 
     // Utility function for debouncing (Unchanged)
@@ -488,6 +614,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Initial Load ---
-    fetchInitialHierarchy(); // Start by fetching only the top level
+    fetchInitialPlotData(); // Start by fetching data for the plot
+
+    // Add access to variables/functions for Plotly `onclick` if needed
+    // window.plotData = plotData; // Expose if necessary (use with caution)
+    // window.showClassDetails = showClassDetails;
+    // window.showIndividualDetails = showIndividualDetails;
 
 }); // End DOMContentLoaded 
