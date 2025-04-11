@@ -9,7 +9,7 @@ import logging
 # --- rdflib Imports ---
 from rdflib import Graph, ConjunctiveGraph, Literal, URIRef, Namespace
 from rdflib.namespace import RDF, RDFS, OWL, XSD # Common namespaces
-from rdflib.plugins.store.sqlalchemy import SQLAlchemy as SQLAlchemyStore # Store plugin
+from rdflib.plugins.stores.sqlalchemy import SQLAlchemy as SQLAlchemyStore # Fix: stores not store
 
 # --- Configuration ---
 ONTOLOGY_FILENAME = "panres_v2.owl" # Source OWL file
