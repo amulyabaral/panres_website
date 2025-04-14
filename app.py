@@ -5,6 +5,10 @@ import urllib.parse # Needed for decoding URIs from path
 
 app = Flask(__name__)
 DATABASE = os.environ.get('RENDER_DISK_PATH', 'panres_ontology.db')
+OWL_THING_URI = "http://www.w3.org/2002/07/owl#Thing" # Define owl:Thing URI
+# Define URIs relevant to the logic
+DATABASE_CLASS_URI = "http://myonto.com/PanResOntology.owl#Database"
+IS_FROM_DATABASE_PROP_URI = "http://myonto.com/PanResOntology.owl#is_from_database"
 
 def get_db():
     """Connects to the specific database."""
@@ -53,15 +57,16 @@ def index():
 
 @app.route('/api/toplevel-classes')
 def get_toplevel_classes():
-    """Gets classes that are not children in the ClassHierarchy table."""
+    """Gets classes that are not children in the ClassHierarchy table, excluding owl:Thing."""
     # Find classes in Classes that do NOT appear as child_uri in ClassHierarchy
     classes = query_db('''
         SELECT c.class_uri, c.label
         FROM Classes c
         LEFT JOIN ClassHierarchy ch ON c.class_uri = ch.child_uri
         WHERE ch.child_uri IS NULL
+          AND c.class_uri != ? -- Exclude owl:Thing
         ORDER BY c.label COLLATE NOCASE
-    ''')
+    ''', [OWL_THING_URI]) # Add owl:Thing URI as parameter
     if classes is None:
         return jsonify({"error": "Database query failed"}), 500
     # Use helper for fallback labels
@@ -101,7 +106,6 @@ def get_class_details(class_uri):
     class_info = query_db('SELECT class_uri, label FROM Classes WHERE class_uri = ?', [decoded_uri], one=True)
 
     if class_info is None:
-        # Check if DB query failed or class not found
         conn = get_db()
         if not conn: return jsonify({"error": "Database connection failed"}), 500
         conn.close()
@@ -112,11 +116,11 @@ def get_class_details(class_uri):
         SELECT p.class_uri, p.label
         FROM ClassHierarchy ch
         JOIN Classes p ON ch.parent_uri = p.class_uri
-        WHERE ch.child_uri = ?
+        WHERE ch.child_uri = ? AND p.class_uri != ? -- Exclude owl:Thing as parent
         ORDER BY p.label COLLATE NOCASE
-    ''', [decoded_uri])
+    ''', [decoded_uri, OWL_THING_URI])
 
-    # Find direct children (subclasses) - reusing the children endpoint logic
+    # Find direct children (subclasses)
     children = query_db('''
         SELECT c.class_uri, c.label
         FROM ClassHierarchy ch
@@ -125,8 +129,8 @@ def get_class_details(class_uri):
         ORDER BY c.label COLLATE NOCASE
     ''', [decoded_uri])
 
-    # Find individuals belonging to this class
-    individuals = query_db('''
+    # Find individuals DIRECTLY belonging to this class (rdf:type)
+    direct_individuals = query_db('''
         SELECT i.individual_uri, i.label
         FROM IndividualTypes it
         JOIN Individuals i ON it.individual_uri = i.individual_uri
@@ -134,8 +138,23 @@ def get_class_details(class_uri):
         ORDER BY i.label COLLATE NOCASE
     ''', [decoded_uri])
 
+    # --- New Logic: Find associated individuals for specific class types ---
+    associated_individuals = []
+    # Check if the current class is a Database or its subclass
+    if is_subclass_of(decoded_uri, DATABASE_CLASS_URI):
+        # Find individuals (genes) linked via 'is_from_database' property
+        associated_individuals = query_db('''
+            SELECT DISTINCT opa.subject_uri as individual_uri, i.label
+            FROM ObjectPropertyAssertions opa
+            JOIN Individuals i ON opa.subject_uri = i.individual_uri
+            WHERE opa.property_uri = ? AND opa.object_uri = ?
+            ORDER BY i.label COLLATE NOCASE
+        ''', [IS_FROM_DATABASE_PROP_URI, decoded_uri])
+        if associated_individuals is None: # Check for query error
+             return jsonify({"error": "Database query failed while fetching associated individuals"}), 500
+
     # Handle potential DB errors during sub-queries
-    if parents is None or children is None or individuals is None:
+    if parents is None or children is None or direct_individuals is None:
          return jsonify({"error": "Database query failed while fetching class details"}), 500
 
     return jsonify({
@@ -151,11 +170,14 @@ def get_class_details(class_uri):
             "uri": row['class_uri'],
             "label": get_label_or_uri_end(row['class_uri'], row['label'])
             } for row in children],
-        "individuals": [{
+        "direct_individuals": [{ # Renamed for clarity
             "uri": row['individual_uri'],
             "label": get_label_or_uri_end(row['individual_uri'], row['label'])
-            } for row in individuals]
-        # Properties/relationships directly on classes are less common, focus on individuals
+            } for row in direct_individuals],
+        "associated_individuals": [{ # Added associated individuals
+            "uri": row['individual_uri'],
+            "label": get_label_or_uri_end(row['individual_uri'], row['label'])
+            } for row in associated_individuals]
     })
 
 @app.route('/api/individual/<path:individual_uri>')
@@ -237,6 +259,42 @@ def get_individual_details(individual_uri):
             "object_type": row['object_type']
             } for row in object_props]
     })
+
+# Helper function to check if a class is a subclass of another (including self)
+def is_subclass_of(child_uri, parent_uri, max_depth=10):
+    """Checks ancestry using the ClassHierarchy table."""
+    if child_uri == parent_uri:
+        return True
+    conn = get_db()
+    if not conn: return False # Cannot check if DB fails
+
+    q = "SELECT parent_uri FROM ClassHierarchy WHERE child_uri = ?"
+    current_uri = child_uri
+    visited = {current_uri}
+    queue = [(current_uri, 0)] # Store (uri, depth)
+
+    try:
+        cur = conn.cursor()
+        while queue:
+            curr_uri, depth = queue.pop(0)
+            if depth >= max_depth: continue
+
+            cur.execute(q, (curr_uri,))
+            parents = cur.fetchall()
+            for row in parents:
+                p_uri = row['parent_uri']
+                if p_uri == parent_uri:
+                    conn.close()
+                    return True
+                if p_uri not in visited:
+                    visited.add(p_uri)
+                    queue.append((p_uri, depth + 1))
+        conn.close()
+        return False
+    except sqlite3.Error as e:
+        print(f"Error checking subclass: {e}")
+        if conn: conn.close()
+        return False
 
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):

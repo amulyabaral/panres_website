@@ -1,6 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
     const ontologyTree = document.getElementById('ontology-tree');
     const detailsView = document.getElementById('details-view');
+    // Define URIs used in rendering logic
+    const IS_FROM_DATABASE_PROP_URI = "http://myonto.com/PanResOntology.owl#is_from_database";
+    const CARD_LINK_PROP_URI = "http://myonto.com/PanResOntology.owl#card_link"; // Example, add others if needed
+    const PUBMED_PROP_URI = "http://myonto.com/PanResOntology.owl#pubmed"; // Example
 
     function showLoading(element) {
         element.innerHTML = '<div class="loading">Loading...</div>';
@@ -113,6 +117,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Details Management ---
 
+    // Helper function to check if a string is a valid URL
+    function isValidHttpUrl(string) {
+        let url;
+        try {
+            url = new URL(string);
+        } catch (_) {
+            return false;
+        }
+        return url.protocol === "http:" || url.protocol === "https:";
+    }
+
     // Function to fetch and display details
     async function fetchAndDisplayDetails(type, uri) {
         if (!type || !uri || type === 'uri') {
@@ -149,19 +164,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (type === 'class' && data.class) {
             const item = data.class;
             html += `<h3>Class: ${item.label}</h3>`;
-            html += `<p><strong>URI:</strong> ${item.uri}</p>`;
-            // Description might need to be fetched as a property if not in Classes table
-            // if (item.description) { html += `<p><strong>Description:</strong> ${item.description}</p>`; }
+            // html += `<p><strong>URI:</strong> ${item.uri}</p>`; // Hide URI by default
 
             // Display Parent Classes
             if (data.parents && data.parents.length > 0) {
-                html += `<h4>Parent Classes</h4><ul>`;
-                data.parents.forEach(p => {
-                    html += `<li><span class="class-item item-link" data-type="class" data-uri="${p.uri}">${p.label}</span></li>`;
-                });
-                html += `</ul>`;
+                 html += `<h4>Parent Classes (${data.parents.length})</h4><ul>`;
+                 data.parents.forEach(parent => {
+                     html += `<li><span class="class-item item-link" data-type="class" data-uri="${parent.uri}">${parent.label}</span></li>`;
+                 });
+                 html += `</ul>`;
             } else {
-                 html += `<h4>Parent Classes</h4><p>None (or owl:Thing)</p>`;
+                 html += `<h4>Parent Classes</h4><p>None</p>`;
             }
 
             // Display Child Classes (Subclasses)
@@ -175,44 +188,68 @@ document.addEventListener('DOMContentLoaded', () => {
                  html += `<h4>Subclasses</h4><p>None</p>`;
             }
 
-            // Display Individuals belonging to this class
-            if (data.individuals && data.individuals.length > 0) {
-                html += `<h4>Individuals (${data.individuals.length})</h4><ul>`;
-                data.individuals.forEach(ind => {
+            // Display Direct Individuals (Instances via rdf:type)
+            if (data.direct_individuals && data.direct_individuals.length > 0) {
+                html += `<h4>Direct Instances (${data.direct_individuals.length})</h4><ul>`;
+                data.direct_individuals.forEach(ind => {
                     html += `<li><span class="individual-item item-link" data-type="individual" data-uri="${ind.uri}">${ind.label}</span></li>`;
                 });
                 html += `</ul>`;
             } else {
-                 html += `<h4>Individuals</h4><p>None</p>`;
+                 html += `<h4>Direct Instances</h4><p>None</p>`;
             }
+
+            // Display Associated Individuals (e.g., Genes for Databases)
+            if (data.associated_individuals && data.associated_individuals.length > 0) {
+                // Customize heading based on class type? Maybe just generic.
+                html += `<h4>Associated Genes/Individuals (${data.associated_individuals.length})</h4><ul>`;
+                data.associated_individuals.forEach(ind => {
+                    html += `<li><span class="individual-item item-link" data-type="individual" data-uri="${ind.uri}">${ind.label}</span></li>`;
+                });
+                html += `</ul>`;
+            }
+             // Optionally add a message if associated_individuals is empty but expected (e.g., for Databases)
+             // else if (data.class.uri.includes("Database")) { // Simple check
+             //    html += `<h4>Associated Genes/Individuals</h4><p>None found via 'is_from_database'.</p>`;
+             // }
+
 
         } else if (type === 'individual' && data.individual) {
             const item = data.individual;
             html += `<h3>Individual: ${item.label}</h3>`;
-            html += `<p><strong>URI:</strong> ${item.uri}</p>`;
-            // Description might be a datatype property
+            // html += `<p><strong>URI:</strong> ${item.uri}</p>`; // Hide URI
 
             // Display Class Types
-             if (data.classes && data.classes.length > 0) {
-                 html += `<h4>Types (Classes)</h4><ul>`;
-                 data.classes.forEach(cls => {
-                     html += `<li><span class="class-item item-link" data-type="class" data-uri="${cls.uri}">${cls.label}</span></li>`;
-                 });
-                 html += `</ul>`;
-             } else {
-                  html += `<h4>Types (Classes)</h4><p>None specified</p>`;
-             }
+            if (data.classes && data.classes.length > 0) {
+                html += `<h4>Types (Classes) (${data.classes.length})</h4><ul>`;
+                data.classes.forEach(cls => {
+                    html += `<li><span class="class-item item-link" data-type="class" data-uri="${cls.uri}">${cls.label}</span></li>`;
+                });
+                html += `</ul>`;
+            } else {
+                 html += `<h4>Types (Classes)</h4><p>None specified</p>`;
+            }
 
             // Display Datatype Properties
             if (data.datatype_properties && data.datatype_properties.length > 0) {
                 html += `<h4>Properties (${data.datatype_properties.length})</h4><ul class="property-list">`;
                 data.datatype_properties.forEach(prop => {
-                    // Check if property is description to display it prominently?
-                    // if (prop.property_uri === 'http://purl.org/dc/terms/description' || prop.property_uri === 'http://www.w3.org/2000/01/rdf-schema#comment') { ... }
-                    html += `<li><strong>${prop.property_label}:</strong> ${prop.value}`;
-                    if (prop.datatype) {
-                        html += ` <em>(${prop.datatype.split('#').pop()})</em>`; // Show datatype fragment
+                    html += `<li><strong>${prop.property_label}:</strong> `;
+                    // Check if value is a URL
+                    if (isValidHttpUrl(prop.value)) {
+                        html += `<a href="${prop.value}" target="_blank" rel="noopener noreferrer">${prop.value}</a>`;
                     }
+                    // Check if it's a PubMed ID (assuming value is just the ID)
+                    else if (prop.property_uri === PUBMED_PROP_URI && /^\d+$/.test(prop.value)) {
+                         html += `<a href="https://pubmed.ncbi.nlm.nih.gov/${prop.value}/" target="_blank" rel="noopener noreferrer">${prop.value}</a>`;
+                    }
+                    else {
+                        html += prop.value; // Display plain value
+                    }
+                    // Optionally show datatype
+                    // if (prop.datatype) {
+                    //     html += ` <em>(${prop.datatype.split('#').pop()})</em>`;
+                    // }
                     html += `</li>`;
                 });
                 html += `</ul>`;
@@ -229,8 +266,9 @@ document.addEventListener('DOMContentLoaded', () => {
                      if ((rel.object_type === 'class' || rel.object_type === 'individual') && rel.object_uri) {
                          html += `<span class="item-link ${rel.object_type}-item" data-type="${rel.object_type}" data-uri="${rel.object_uri}">${rel.object_label}</span>`;
                      } else {
-                         // Display as plain URI if type is unknown or it's just a URI
-                         html += `${rel.object_label} (URI: ${rel.object_uri})`;
+                         // Display as plain text/URI if not linkable
+                         html += `${rel.object_label}`; // Display label only
+                         // html += ` (URI: ${rel.object_uri})`; // Optionally show URI if needed
                      }
                      html += `</li>`;
                 });
