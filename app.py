@@ -57,16 +57,17 @@ def index():
 
 @app.route('/api/toplevel-classes')
 def get_toplevel_classes():
-    """Gets classes that are not children in the ClassHierarchy table, excluding owl:Thing."""
-    # Find classes in Classes that do NOT appear as child_uri in ClassHierarchy
+    """Gets classes that are not children of any class other than owl:Thing."""
+    # Find classes 'c' such that 'c' is not owl:Thing, and there exists no parent 'p' for 'c'
+    # in ClassHierarchy where 'p' is not owl:Thing.
     classes = query_db('''
         SELECT c.class_uri, c.label
         FROM Classes c
-        LEFT JOIN ClassHierarchy ch ON c.class_uri = ch.child_uri
-        WHERE ch.child_uri IS NULL
-          AND c.class_uri != ? -- Exclude owl:Thing
+        LEFT JOIN ClassHierarchy ch ON c.class_uri = ch.child_uri AND ch.parent_uri != ? -- Join only on non-owl:Thing parents
+        WHERE c.class_uri != ? -- Exclude owl:Thing itself
+          AND ch.parent_uri IS NULL -- Keep only those classes that have no non-owl:Thing parent found in the join
         ORDER BY c.label COLLATE NOCASE
-    ''', [OWL_THING_URI]) # Add owl:Thing URI as parameter
+    ''', [OWL_THING_URI, OWL_THING_URI]) # Pass owl:Thing URI for both placeholders
     if classes is None:
         return jsonify({"error": "Database query failed"}), 500
     # Use helper for fallback labels
