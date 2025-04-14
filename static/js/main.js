@@ -10,20 +10,121 @@ document.addEventListener('DOMContentLoaded', () => {
         element.innerHTML = `<div class="error">Error: ${message}</div>`;
     }
 
+    // --- Tree Management ---
+
+    // Function to create a tree node (LI element)
+    function createTreeNode(item, type) {
+        const li = document.createElement('li');
+        li.dataset.uri = item.uri;
+        li.dataset.type = type;
+        li.classList.add(`${type}-item`);
+
+        // Add toggle only for classes
+        if (type === 'class') {
+            const toggle = document.createElement('span');
+            toggle.classList.add('toggle');
+            toggle.textContent = '+'; // Start collapsed
+            li.appendChild(toggle);
+        }
+
+        const link = document.createElement('span');
+        link.classList.add('item-link');
+        link.textContent = item.label || item.uri.split('#').pop(); // Display label or URI fragment
+        link.dataset.uri = item.uri; // Store URI on the clickable part too
+        link.dataset.type = type;
+        li.appendChild(link);
+
+        // Add a placeholder for children (for classes)
+        if (type === 'class') {
+            const childrenUl = document.createElement('ul');
+            childrenUl.style.display = 'none'; // Initially hidden
+            li.appendChild(childrenUl);
+        }
+        return li;
+    }
+
+    // Function to fetch and display children for a class node
+    async function fetchAndDisplayChildren(liElement, classUri) {
+        const childrenUl = liElement.querySelector('ul');
+        const toggle = liElement.querySelector('.toggle');
+        if (!childrenUl || !toggle) return; // Should not happen
+
+        // Avoid refetching if already loaded
+        if (liElement.classList.contains('loaded')) {
+            childrenUl.style.display = 'block';
+            toggle.textContent = '-';
+            liElement.classList.add('expanded');
+            return;
+        }
+
+        // Show loading state on toggle? Maybe just change cursor
+        toggle.style.cursor = 'wait';
+
+        try {
+            const response = await fetch(`/api/class-children/${encodeURIComponent(classUri)}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const children = await response.json();
+
+            childrenUl.innerHTML = ''; // Clear any previous content (e.g., error)
+            if (children.length > 0) {
+                children.forEach(child => {
+                    childrenUl.appendChild(createTreeNode(child, 'class'));
+                });
+            } else {
+                // Optional: Indicate no children visually if desired, or just leave empty
+                // childrenUl.innerHTML = '<li>(No subclasses)</li>';
+                toggle.textContent = ''; // No toggle needed if no children
+                toggle.classList.remove('toggle'); // Remove toggle functionality
+            }
+
+            childrenUl.style.display = 'block';
+            toggle.textContent = '-';
+            liElement.classList.add('loaded', 'expanded'); // Mark as loaded and expanded
+
+        } catch (error) {
+            console.error(`Error fetching children for ${classUri}:`, error);
+            childrenUl.innerHTML = '<li class="error">Could not load children.</li>';
+            childrenUl.style.display = 'block'; // Show the error
+            toggle.textContent = '?'; // Indicate error state
+        } finally {
+             toggle.style.cursor = 'pointer';
+        }
+    }
+
+    // Function to toggle visibility of children
+    function toggleChildren(liElement) {
+        const childrenUl = liElement.querySelector('ul');
+        const toggle = liElement.querySelector('.toggle');
+        if (!childrenUl || !toggle || !liElement.classList.contains('loaded')) return;
+
+        if (childrenUl.style.display === 'none') {
+            childrenUl.style.display = 'block';
+            toggle.textContent = '-';
+            liElement.classList.add('expanded');
+        } else {
+            childrenUl.style.display = 'none';
+            toggle.textContent = '+';
+            liElement.classList.remove('expanded');
+        }
+    }
+
+
+    // --- Details Management ---
+
     // Function to fetch and display details
-    async function fetchAndDisplayDetails(type, name) {
-        // Basic validation
-        if (!type || !name || type === 'uri' || type === 'auto') {
-             console.warn(`Invalid type or name provided for fetching details: type=${type}, name=${name}`);
-             showError(detailsView, `Cannot load details for ${name || 'unknown item'} with type ${type}.`);
+    async function fetchAndDisplayDetails(type, uri) {
+        if (!type || !uri || type === 'uri') {
+             console.warn(`Invalid type or URI for fetching details: type=${type}, uri=${uri}`);
+             showError(detailsView, `Cannot load details for ${uri || 'unknown item'} with type ${type}.`);
              return;
         }
-        console.log(`Fetching details for ${type}: ${name}`); // Log clicks
+        console.log(`Fetching details for ${type}: ${uri}`);
         showLoading(detailsView);
         try {
-            // Ensure name is properly encoded for URLs
-            const encodedName = encodeURIComponent(name);
-            const response = await fetch(`/api/${type}/${encodedName}`);
+            const encodedUri = encodeURIComponent(uri);
+            const response = await fetch(`/api/${type}/${encodedUri}`); // Use URI in path
 
             if (!response.ok) {
                 let errorMsg = `HTTP error! status: ${response.status}`;
@@ -36,8 +137,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             renderDetails(type, data);
         } catch (error) {
-            console.error(`Error fetching ${type} details for ${name}:`, error);
-            showError(detailsView, `Could not load details for ${name}. ${error.message}`);
+            console.error(`Error fetching ${type} details for ${uri}:`, error);
+            showError(detailsView, `Could not load details for ${uri}. ${error.message}`);
         }
     }
 
@@ -47,111 +148,97 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = '';
         if (type === 'class' && data.class) {
             const item = data.class;
-            html += `<h3>Class: ${item.label || item.name}</h3>`;
+            html += `<h3>Class: ${item.label}</h3>`;
             html += `<p><strong>URI:</strong> ${item.uri}</p>`;
-            if (item.description) {
-                html += `<p><strong>Description:</strong> ${item.description}</p>`;
-            }
-            // Display Parent Class Info (using data.parent from API)
-            if (data.parent && data.parent.uri) {
-                 html += `<p><strong>Parent Class:</strong> <span class="class-item item-link" data-type="class" data-name="${data.parent.name}">${data.parent.label || data.parent.name}</span> (URI: ${data.parent.uri})</p>`;
-            } else if (item.parent_uri) {
-                 // Fallback if parent info wasn't joined correctly but URI exists
-                 html += `<p><strong>Parent Class URI:</strong> ${item.parent_uri}</p>`;
+            // Description might need to be fetched as a property if not in Classes table
+            // if (item.description) { html += `<p><strong>Description:</strong> ${item.description}</p>`; }
+
+            // Display Parent Classes
+            if (data.parents && data.parents.length > 0) {
+                html += `<h4>Parent Classes</h4><ul>`;
+                data.parents.forEach(p => {
+                    html += `<li><span class="class-item item-link" data-type="class" data-uri="${p.uri}">${p.label}</span></li>`;
+                });
+                html += `</ul>`;
             } else {
-                 html += `<p><strong>Parent Class:</strong> None</p>`;
+                 html += `<h4>Parent Classes</h4><p>None (or owl:Thing)</p>`;
             }
 
-
-            if (data.subclasses && data.subclasses.length > 0) {
-                html += `<h4>Subclasses (${data.subclasses.length})</h4><ul>`;
-                data.subclasses.forEach(sub => {
-                    html += `<li><span class="class-item item-link" data-type="class" data-name="${sub.name}">${sub.label || sub.name}</span></li>`;
+            // Display Child Classes (Subclasses)
+            if (data.children && data.children.length > 0) {
+                html += `<h4>Subclasses (${data.children.length})</h4><ul>`;
+                data.children.forEach(sub => {
+                    html += `<li><span class="class-item item-link" data-type="class" data-uri="${sub.uri}">${sub.label}</span></li>`;
                 });
                 html += `</ul>`;
             } else {
                  html += `<h4>Subclasses</h4><p>None</p>`;
             }
 
+            // Display Individuals belonging to this class
             if (data.individuals && data.individuals.length > 0) {
                 html += `<h4>Individuals (${data.individuals.length})</h4><ul>`;
                 data.individuals.forEach(ind => {
-                    html += `<li><span class="individual-item item-link" data-type="individual" data-name="${ind.name}">${ind.label || ind.name}</span></li>`;
+                    html += `<li><span class="individual-item item-link" data-type="individual" data-uri="${ind.uri}">${ind.label}</span></li>`;
                 });
                 html += `</ul>`;
             } else {
                  html += `<h4>Individuals</h4><p>None</p>`;
             }
 
-             // Display properties/relationships of the class itself if any (might be empty)
-            if (data.properties && data.properties.length > 0) {
-                html += `<h4>Class Properties</h4><ul class="property-list">`;
-                data.properties.forEach(prop => {
-                    html += `<li><strong>${prop.predicate_name}:</strong> ${prop.value_literal} <em>(${prop.value_type})</em></li>`;
-                });
-                html += `</ul>`;
-            }
-            if (data.relationships && data.relationships.length > 0) {
-                html += `<h4>Class Relationships</h4><ul class="relationship-list">`;
-                data.relationships.forEach(rel => {
-                     // Use object_type and object_name provided by the API
-                     const linkType = rel.object_type || 'uri'; // Default to 'uri' if type unknown
-                     const linkName = rel.object_name || rel.object_uri;
-                     // Only make it a link if we have a valid type and name
-                     if ((linkType === 'class' || linkType === 'individual') && rel.object_name) {
-                         html += `<li><strong>${rel.predicate_name}:</strong> <span class="item-link ${linkType}-item" data-type="${linkType}" data-name="${rel.object_name}">${linkName}</span></li>`;
-                     } else {
-                         html += `<li><strong>${rel.predicate_name}:</strong> ${linkName} (URI: ${rel.object_uri})</li>`; // Display as plain text/URI if not linkable
-                     }
-                });
-                html += `</ul>`;
-            }
-
-
         } else if (type === 'individual' && data.individual) {
             const item = data.individual;
-            html += `<h3>Individual: ${item.label || item.name}</h3>`;
+            html += `<h3>Individual: ${item.label}</h3>`;
             html += `<p><strong>URI:</strong> ${item.uri}</p>`;
-             if (data.class) {
-                 html += `<p><strong>Type (Class):</strong> <span class="class-item item-link" data-type="class" data-name="${data.class.name}">${data.class.label || data.class.name}</span></p>`;
-             } else if (item.class_uri) {
-                 html += `<p><strong>Type (Class URI):</strong> ${item.class_uri}</p>`; // Fallback
-             }
-            if (item.description) {
-                html += `<p><strong>Description:</strong> ${item.description}</p>`;
-            }
+            // Description might be a datatype property
 
-            if (data.properties && data.properties.length > 0) {
-                html += `<h4>Properties (${data.properties.length})</h4><ul class="property-list">`;
-                data.properties.forEach(prop => {
-                    html += `<li><strong>${prop.predicate_name || prop.predicate_uri}:</strong> ${prop.value_literal} <em>(${prop.value_type})</em></li>`;
+            // Display Class Types
+             if (data.classes && data.classes.length > 0) {
+                 html += `<h4>Types (Classes)</h4><ul>`;
+                 data.classes.forEach(cls => {
+                     html += `<li><span class="class-item item-link" data-type="class" data-uri="${cls.uri}">${cls.label}</span></li>`;
+                 });
+                 html += `</ul>`;
+             } else {
+                  html += `<h4>Types (Classes)</h4><p>None specified</p>`;
+             }
+
+            // Display Datatype Properties
+            if (data.datatype_properties && data.datatype_properties.length > 0) {
+                html += `<h4>Properties (${data.datatype_properties.length})</h4><ul class="property-list">`;
+                data.datatype_properties.forEach(prop => {
+                    // Check if property is description to display it prominently?
+                    // if (prop.property_uri === 'http://purl.org/dc/terms/description' || prop.property_uri === 'http://www.w3.org/2000/01/rdf-schema#comment') { ... }
+                    html += `<li><strong>${prop.property_label}:</strong> ${prop.value}`;
+                    if (prop.datatype) {
+                        html += ` <em>(${prop.datatype.split('#').pop()})</em>`; // Show datatype fragment
+                    }
+                    html += `</li>`;
                 });
                 html += `</ul>`;
             } else {
                  html += `<h4>Properties</h4><p>None</p>`;
             }
 
-
-            if (data.relationships && data.relationships.length > 0) {
-                html += `<h4>Relationships (${data.relationships.length})</h4><ul class="relationship-list">`;
-                data.relationships.forEach(rel => {
-                    // Use object_type and object_name provided by the API
-                    const linkType = rel.object_type || 'uri'; // Default to 'uri' if type unknown
-                    const linkName = rel.object_name || rel.object_uri;
-                    const predicateName = rel.predicate_name || rel.predicate_uri;
-                    // Only make it a link if we have a valid type and name
-                    if ((linkType === 'class' || linkType === 'individual') && rel.object_name) {
-                         html += `<li><strong>${predicateName}:</strong> <span class="item-link ${linkType}-item" data-type="${linkType}" data-name="${rel.object_name}">${linkName}</span></li>`;
-                    } else {
-                         html += `<li><strong>${predicateName}:</strong> ${linkName} (URI: ${rel.object_uri})</li>`; // Display as plain text/URI if not linkable
-                    }
+            // Display Object Properties (Relationships)
+            if (data.object_properties && data.object_properties.length > 0) {
+                html += `<h4>Relationships (${data.object_properties.length})</h4><ul class="relationship-list">`;
+                data.object_properties.forEach(rel => {
+                     html += `<li><strong>${rel.property_label}:</strong> `;
+                     // Make the object clickable if it's a known class or individual
+                     if ((rel.object_type === 'class' || rel.object_type === 'individual') && rel.object_uri) {
+                         html += `<span class="item-link ${rel.object_type}-item" data-type="${rel.object_type}" data-uri="${rel.object_uri}">${rel.object_label}</span>`;
+                     } else {
+                         // Display as plain URI if type is unknown or it's just a URI
+                         html += `${rel.object_label} (URI: ${rel.object_uri})`;
+                     }
+                     html += `</li>`;
                 });
                 html += `</ul>`;
             } else {
                  html += `<h4>Relationships</h4><p>None</p>`;
             }
         } else {
-             // Handle cases where data might be missing after a successful fetch (shouldn't happen often)
              console.warn("RenderDetails called with unexpected data structure:", type, data);
              html = '<p>Details could not be displayed for this item.</p>';
         }
@@ -160,76 +247,100 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // Function to load and display the initial tree structure
+    // Function to load and display the initial tree structure (top-level classes)
     async function loadInitialTree() {
         showLoading(ontologyTree);
         try {
             const response = await fetch('/api/toplevel-classes');
             if (!response.ok) {
                  let errorMsg = `HTTP error! status: ${response.status}`;
-                 try {
-                     const errorData = await response.json();
-                     errorMsg = errorData.description || errorData.error || errorMsg;
-                 } catch (e) { /* Ignore */ }
+                 try { const errorData = await response.json(); errorMsg = errorData.error || errorMsg; } catch (e) {}
                 throw new Error(errorMsg);
             }
             const classes = await response.json();
 
             if (!Array.isArray(classes)) {
-                 console.error("API response for top-level classes is not an array:", classes);
                  throw new Error("Invalid data format received from server.");
             }
 
-            if (classes.length === 0) {
-                 ontologyTree.innerHTML = '<p>No top-level classes found in the database.</p>';
-                 // Optionally show a message in details view too
-                 detailsView.innerHTML = '<p>Select an item from the left (if any appear) to see details.</p>';
-                 return;
-            }
+            ontologyTree.innerHTML = ''; // Clear loading message
+            const rootUl = document.createElement('ul');
+            rootUl.id = 'root-ontology-list'; // Add ID for styling/selection
 
-            let treeHtml = '<ul>';
-            classes.forEach(cls => {
-                // Ensure cls.name exists before creating the item
-                if (cls.name) {
-                    treeHtml += `<li><span class="class-item item-link" data-type="class" data-name="${cls.name}">${cls.label || cls.name}</span></li>`;
-                } else {
-                    console.warn("Top-level class found without a name:", cls);
-                }
-            });
-            treeHtml += '</ul>';
-            ontologyTree.innerHTML = treeHtml;
-             // Clear details view on initial load
-             detailsView.innerHTML = '<p>Select an item from the left to see details.</p>';
+            if (classes.length === 0) {
+                 rootUl.innerHTML = '<p>No top-level classes found.</p>';
+                 detailsView.innerHTML = '<p>Ontology structure could not be loaded.</p>';
+            } else {
+                classes.forEach(cls => {
+                    if (cls.uri) {
+                        rootUl.appendChild(createTreeNode(cls, 'class'));
+                    } else {
+                        console.warn("Top-level class found without a URI:", cls);
+                    }
+                });
+                 detailsView.innerHTML = '<p>Select an item from the left to see details.</p>';
+            }
+            ontologyTree.appendChild(rootUl);
 
         } catch (error) {
             console.error('Error fetching top-level classes:', error);
             showError(ontologyTree, `Could not load ontology structure. ${error.message}`);
-            // Also show error in main view
-             showError(detailsView, `Failed to load initial data. ${error.message}`);
+            showError(detailsView, `Failed to load initial data. ${error.message}`);
         }
     }
 
-    // Event delegation for clicking on items in the tree or details view
-    document.body.addEventListener('click', (event) => {
-        if (event.target.classList.contains('item-link')) {
-            const type = event.target.dataset.type;
-            const name = event.target.dataset.name;
-            // const uri = event.target.dataset.uri; // URI not needed directly for fetching if name+type is used
+    // --- Event Delegation ---
 
-            // Remove the old 'auto' logic, rely on specific type/name from API data
-            if (type && name && type !== 'uri' && type !== 'auto') {
-                fetchAndDisplayDetails(type, name);
-                 // Optional: Highlight selected item
-                 document.querySelectorAll('.item-link.selected').forEach(el => el.classList.remove('selected'));
-                 event.target.classList.add('selected');
-            } else {
-                 console.warn("Clicked item-link without sufficient data:", event.target.dataset);
-                 // Optionally show a message if a link is somehow unclickable
-                 // showError(detailsView, "Cannot navigate from this link.");
+    // Click handler for the ontology tree (sidebar)
+    ontologyTree.addEventListener('click', (event) => {
+        const target = event.target;
+
+        // Handle clicks on the toggle (+/-)
+        if (target.classList.contains('toggle')) {
+            const li = target.closest('li');
+            if (li && li.dataset.type === 'class') {
+                if (li.classList.contains('expanded')) {
+                    toggleChildren(li); // Collapse
+                } else if (li.classList.contains('loaded')) {
+                     toggleChildren(li); // Expand already loaded
+                } else {
+                    fetchAndDisplayChildren(li, li.dataset.uri); // Fetch and expand
+                }
+            }
+        }
+        // Handle clicks on the item link itself (for details view)
+        else if (target.classList.contains('item-link')) {
+            const li = target.closest('li');
+            const type = li.dataset.type;
+            const uri = li.dataset.uri;
+            if (type && uri) {
+                fetchAndDisplayDetails(type, uri);
+                // Optional: Highlight selected item in tree
+                ontologyTree.querySelectorAll('.item-link.selected').forEach(el => el.classList.remove('selected'));
+                target.classList.add('selected');
             }
         }
     });
 
-    // Initial load
+    // Click handler for links within the details view
+    detailsView.addEventListener('click', (event) => {
+         if (event.target.classList.contains('item-link')) {
+            const type = event.target.dataset.type;
+            const uri = event.target.dataset.uri;
+            if (type && uri) {
+                fetchAndDisplayDetails(type, uri);
+                 // Optional: Highlight selected item in details view (might be redundant)
+                 // detailsView.querySelectorAll('.item-link.selected').forEach(el => el.classList.remove('selected'));
+                 // event.target.classList.add('selected');
+
+                 // Optional: Try to find and expand/highlight the item in the tree? (More complex)
+            } else {
+                 console.warn("Clicked item-link in details view without sufficient data:", event.target.dataset);
+            }
+        }
+    });
+
+
+    // --- Initial Load ---
     loadInitialTree();
 }); 
