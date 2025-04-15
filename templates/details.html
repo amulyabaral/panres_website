@@ -1,77 +1,101 @@
 {% extends "base.html" %}
 
-{% block title %}Details: {{ item_id }} - PanRes Ontology Explorer{% endblock %}
+{% block title %}Details for {{ item_id }} - PanRes Ontology Explorer{% endblock %}
 
 {% block content %}
-    <h2>Details for: <code>{{ item_id }}</code></h2>
+    <h2>Details for <code>{{ item_id }}</code></h2>
 
-    {% if not outgoing and not incoming %}
-        <p><em>No information found for this item ID in the database.</em></p>
-    {% else %}
+    <div class="details-section">
+        <h3>Key Information</h3>
+        {% if details.primary_type %}
+            <p><strong>Primary Type:</strong>
+                {% if details.primary_type_display %}
+                    <a href="{{ url_for('list_items', item_type_id=details.primary_type) }}">{{ details.primary_type_display }}</a>
+                    (<code>{{ details.primary_type }}</code>)
+                {% else %}
+                    <code>{{ details.primary_type }}</code>
+                {% endif %}
+            </p>
+        {% else %}
+             <p><strong>Primary Type:</strong> Not specified or found.</p>
+        {% endif %}
+
+        {% if details.label %}
+            <p><strong>Label:</strong> {{ details.label }}</p>
+        {% endif %}
+
+         {% if details.comment %}
+            <p><strong>Description:</strong> {{ details.comment }}</p>
+        {% endif %}
+    </div>
+
+
+    <div class="details-section">
         <h3>Properties / Relationships (Outgoing)</h3>
-        {% if outgoing %}
-            <table>
+        {% if details.other_properties %}
+            <table class="details-table">
                 <thead>
                     <tr>
                         <th>Predicate (Relationship/Property)</th>
-                        <th>Object (Value/Target)</th>
-                        <th>Object Type</th>
-                        <th>Datatype (if Literal)</th>
+                        <th>Object (Value / Target Item)</th>
+                        <th>Type</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for triple in outgoing %}
-                        <tr>
-                            <td>
-                                <!-- Make predicates linkable too, if they are resources -->
-                                <a href="{{ url_for('details', item_id=triple.predicate) }}">{{ triple.predicate }}</a>
-                            </td>
-                            <td>
-                                {% if triple.object_is_literal == 0 %}
-                                    <!-- Object is a Resource/Link -->
-                                    <a href="{{ url_for('details', item_id=triple.object) }}">{{ triple.object }}</a>
-                                {% else %}
-                                    <!-- Object is a Literal -->
-                                    {{ triple.object }}
-                                {% endif %}
-                            </td>
-                            <td>{{ 'Literal' if triple.object_is_literal == 1 else 'Resource' }}</td>
-                            <td>{{ triple.object_datatype if triple.object_datatype else 'N/A' }}</td>
-                        </tr>
-                    {% endfor %}
+                {% for prop in details.other_properties %}
+                    <tr>
+                        <td><code>{{ prop.predicate }}</code></td>
+                        <td>
+                            {% if prop.object_is_literal %}
+                                {{ prop.object }}
+                            {% else %}
+                                <a href="{{ url_for('details', item_id=prop.object) }}"><code>{{ prop.object }}</code></a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if prop.object_is_literal %}
+                                Literal {% if prop.object_datatype %}(<code>{{ prop.object_datatype }}</code>){% endif %}
+                            {% else %}
+                                Resource/Link
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
                 </tbody>
             </table>
         {% else %}
-            <p><em>This item has no outgoing properties or relationships defined.</em></p>
+            <p>No other outgoing properties or relationships found for this item (besides type, label, comment if shown above).</p>
         {% endif %}
+    </div>
 
-        <h3>Referenced By (Incoming Links)</h3>
-        {% if incoming %}
-             <table>
-                <thead>
+    <div class="details-section">
+        <h3>Referenced By (Incoming Relationships)</h3>
+         {% if references %}
+            <table class="details-table">
+                 <thead>
                     <tr>
-                        <th>Subject (Source)</th>
+                        <th>Subject (Source Item)</th>
                         <th>Predicate (Relationship)</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for triple in incoming %}
-                        <tr>
-                            <td>
-                                <a href="{{ url_for('details', item_id=triple.subject) }}">{{ triple.subject }}</a>
-                            </td>
-                            <td>
-                                 <a href="{{ url_for('details', item_id=triple.predicate) }}">{{ triple.predicate }}</a>
-                            </td>
-                        </tr>
-                    {% endfor %}
+                {% for ref in references %}
+                    <tr>
+                        <td><a href="{{ url_for('details', item_id=ref.subject) }}"><code>{{ ref.subject }}</code></a></td>
+                        <td><code>{{ ref.predicate }}</code></td>
+                    </tr>
+                {% endfor %}
                 </tbody>
             </table>
         {% else %}
-            <p><em>This item is not referenced as an object by any other resource.</em></p>
+            <p>This item is not the target of any known relationships from other items.</p>
         {% endif %}
-    {% endif %}
+    </div>
 
-    <p><a href="{{ url_for('index') }}">Back to Home</a></p>
+
+    <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
+    {% if details.primary_type_display %}
+         <p class="back-link"><a href="{{ url_for('list_items', item_type_id=details.primary_type) }}">&laquo; Back to {{ details.primary_type_display }} list</a></p>
+    {% endif %}
 
 {% endblock %} 

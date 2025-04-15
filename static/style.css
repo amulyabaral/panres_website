@@ -1,84 +1,255 @@
+/* General Styles */
 body {
-    font-family: sans-serif;
+    font-family: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
     line-height: 1.6;
-    margin: 20px;
-    background-color: #f4f4f4;
-    color: #333;
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9fa; /* Light grey background */
+    color: #212529; /* Dark text */
+    font-size: 16px; /* Base font size */
 }
 
-header, footer {
-    background-color: #333;
-    color: #fff;
-    padding: 10px 20px;
-    margin-bottom: 20px;
+.container {
+    max-width: 1000px; /* Slightly wider */
+    margin: 2rem auto;
+    padding: 1.5rem 2rem;
+    background-color: #ffffff; /* White content background */
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* Softer shadow */
 }
 
-header a {
-    color: #fff;
+/* Header */
+header {
+    border-bottom: 1px solid #dee2e6; /* Light border */
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    text-align: center;
+}
+
+header h1 a {
+    color: #1a5f7a; /* Darker teal */
+    text-decoration: none;
+    font-size: 2.8rem; /* Larger title */
+    font-weight: 500; /* Slightly less bold */
+}
+header h1 a:hover {
+    color: #159895; /* Lighter teal on hover */
     text-decoration: none;
 }
 
-h1, h2, h3 {
-    color: #333;
+header .subtitle {
+    color: #576F72; /* Muted teal/grey */
+    font-size: 1.2rem;
+    margin-top: 0.5rem;
 }
 
-main {
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 5px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+/* Main Content Headings */
+main h2 {
+    color: #1a5f7a;
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+    font-weight: 500;
+    border-bottom: 2px solid #57C5B6; /* Accent color underline */
+    padding-bottom: 0.6rem;
 }
 
-ul {
-    list-style: square;
-    padding-left: 20px;
+main h3 {
+    color: #34495e; /* Dark blue-grey */
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    font-size: 1.4rem;
+    font-weight: 500;
 }
 
-li {
-    margin-bottom: 5px;
-}
-
+/* Links */
 a {
-    color: #007bff;
+    color: #159895; /* Teal links */
     text-decoration: none;
+    transition: color 0.2s ease;
 }
 
 a:hover {
+    color: #1a5f7a; /* Darker teal on hover */
     text-decoration: underline;
 }
 
-code {
-    background-color: #e9e9e9;
-    padding: 2px 5px;
-    border-radius: 3px;
-    font-family: monospace;
+/* Code styling */
+code, pre {
+    font-family: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    background-color: #eef1f3; /* Lighter code background */
+    padding: 0.2em 0.5em;
+    border-radius: 4px;
+    font-size: 0.95em; /* Slightly larger code font */
+    color: #333;
+    border: 1px solid #d6dbdf; /* Subtle border */
+}
+pre {
+    padding: 1em;
+    overflow-x: auto; /* Allow horizontal scroll for long code */
 }
 
-table {
+/* Index Page Grid */
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Responsive grid */
+    gap: 1.8rem;
+    margin-top: 2rem;
+}
+
+.category-card {
+    border: 1px solid #d6dbdf;
+    border-radius: 6px;
+    padding: 1.8rem;
+    text-align: center;
+    background-color: #fff;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    display: flex; /* Use flexbox for alignment */
+    flex-direction: column; /* Stack items vertically */
+    justify-content: space-between; /* Push button to bottom */
+}
+
+.category-card:hover {
+    transform: translateY(-3px); /* Slight lift on hover */
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+}
+
+.category-card h4 {
+    margin-top: 0;
+    margin-bottom: 0.8rem;
+    color: #1a5f7a; /* Match header link */
+    font-size: 1.25rem;
+    font-weight: 500;
+}
+
+.category-card .count {
+    font-size: 1.5rem; /* Larger count */
+    font-weight: bold;
+    color: #28a745; /* Green count */
+    margin-bottom: 1.2rem;
+    flex-grow: 1; /* Allow count to take up space */
+}
+
+.category-card .count .error-count {
+    color: #dc3545; /* Red for error */
+    font-weight: normal;
+    font-size: 0.9rem;
+}
+
+/* Buttons */
+.button, a.button {
+    display: inline-block;
+    background-color: #159895; /* Teal button */
+    color: white;
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    font-weight: 500;
+    font-size: 1rem;
+    align-self: center; /* Center button horizontally */
+}
+
+.button:hover, a.button:hover {
+    background-color: #1a5f7a; /* Darker teal */
+    color: white;
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
+/* List Page */
+.item-list {
+    list-style: none;
+    padding-left: 0;
+    margin-top: 1rem;
+}
+
+.item-list li {
+    margin-bottom: 0.6rem;
+    padding: 0.5rem 0.8rem;
+    border-bottom: 1px solid #eef1f3; /* Lighter separator */
+    transition: background-color 0.2s ease;
+}
+.item-list li:hover {
+    background-color: #f8f9fa; /* Subtle hover background */
+}
+
+.item-list li a {
+    font-size: 1.1em;
+    display: block; /* Make the whole list item clickable area */
+}
+.item-list li a code { /* Style code within list items */
+    font-size: 1em;
+    background-color: #e0e6eb;
+}
+
+/* Details Page */
+.details-section {
+    margin-bottom: 2.5rem;
+}
+
+.details-section p {
+    margin-bottom: 0.8rem;
+}
+.details-section p strong {
+    color: #34495e; /* Darker label for strong text */
+    margin-right: 0.5em;
+}
+
+.details-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 15px;
-    margin-bottom: 15px;
+    margin-top: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Subtle shadow on tables */
+    border-radius: 4px;
+    overflow: hidden; /* Ensures border radius applies to table */
 }
 
-th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
+.details-table th, .details-table td {
+    border: 1px solid #e0e6eb;
+    padding: 0.8rem 1rem;
     text-align: left;
     vertical-align: top; /* Align content to top */
 }
 
-th {
-    background-color: #f2f2f2;
-    font-weight: bold;
+.details-table thead th {
+    background-color: #f1f4f6; /* Very light grey header */
+    font-weight: 600; /* Bolder header */
+    color: #495057;
+    font-size: 1.05em;
 }
 
-tr:nth-child(even) {
-    background-color: #f9f9f9;
+.details-table tbody tr:nth-child(odd) {
+    background-color: #fcfdfe; /* Very subtle zebra striping */
+}
+.details-table tbody tr:hover {
+    background-color: #f0f4f8; /* Hover effect for rows */
 }
 
+.details-table td:first-child { /* Predicate/Subject column */
+    font-weight: 500;
+    color: #1a5f7a;
+    /* width: 30%; */ /* Adjust width as needed */
+}
+.details-table td code { /* Code within tables */
+     font-size: 0.9em;
+}
+
+/* Footer */
 footer {
-    margin-top: 30px;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #dee2e6;
     text-align: center;
     font-size: 0.9em;
+    color: #6c757d;
+}
+
+/* Utility */
+.back-link {
+    display: inline-block;
+    margin-top: 1.5rem;
+    font-size: 1rem;
 } 

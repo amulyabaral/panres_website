@@ -8,21 +8,19 @@
     <!-- Add links to CSS frameworks like Bootstrap here if desired -->
 </head>
 <body>
-    <header>
-        <h1><a href="{{ url_for('index') }}">PanRes Ontology Explorer</a></h1>
-        <nav>
-            <!-- Basic navigation could go here -->
-        </nav>
-    </header>
-
-    <main>
-        {% block content %}
-        <!-- Page-specific content will go here -->
-        {% endblock %}
-    </main>
-
-    <footer>
-        <p>PanRes Ontology Visualizer</p>
-    </footer>
+    <div class="container">
+        <header>
+            <h1><a href="{{ url_for('index') }}">PanRes Ontology Explorer</a></h1>
+            <p class="subtitle">Exploring Pangenome Antibiotic Resistance Data</p>
+        </header>
+        <main>
+            {% block content %}
+            <!-- Page-specific content will go here -->
+            {% endblock %}
+        </main>
+        <footer>
+            PanRes Ontology Visualizer & Explorer
+        </footer>
+    </div>
 </body>
 </html> 

@@ -1,17 +1,50 @@
 {% extends "base.html" %}
 
-{% block title %}Home - PanRes Ontology Explorer{% endblock %}
+{% block title %}Welcome - PanRes Ontology Explorer{% endblock %}
 
 {% block content %}
     <h2>Welcome!</h2>
-    <p>This tool allows you to explore the PanRes Ontology data stored in the SQLite database.</p>
-    <p>Select a category to browse:</p>
-    <ul>
-        {% for display_name, type_id in browse_types.items() %}
-            <li><a href="{{ url_for('list_items', item_type_id=type_id) }}">{{ display_name }}</a></li>
+    <p>
+        This tool allows you to explore the PanRes Ontology, which integrates data about
+        pangenome genes (PanGenes), original source genes, antibiotic resistance mechanisms,
+        phenotypes, and related concepts defined within the ontology.
+    </p>
+    <p>
+        The data is parsed from the <code>panres_v2.owl</code> file during deployment and stored
+        in a queryable SQLite database (<code>panres_ontology.db</code>).
+    </p>
+
+    <h3>Browse Ontology Categories</h3>
+    <p>Select a category below to view the items defined within it:</p>
+
+    <div class="category-grid">
+        {# Check if browseable_types exists and is not empty #}
+        {% if browseable_types %}
+            {% for display_name, type_id in browseable_types.items() %}
+            <div class="category-card">
+                {# Card content wrapper #}
+                <div>
+                    <h4>{{ display_name }}</h4>
+                    <p class="count">
+                        {# Check if counts exist and the key is present #}
+                        {% if counts and display_name in counts %}
+                            {% if counts[display_name] == 'Error' %}
+                                <span class="error-count">Error loading count</span>
+                            {% else %}
+                                {{ "{:,}".format(counts[display_name]) }} item(s) {# Format count with commas #}
+                            {% endif %}
+                        {% else %}
+                            <span class="error-count">Count unavailable</span> {# Handle missing count #}
+                        {% endif %}
+                    </p>
+                </div>
+                {# Button is outside the content wrapper to be pushed down by flexbox #}
+                <a href="{{ url_for('list_items', item_type_id=type_id) }}" class="button">Browse</a>
+            </div>
+            {% endfor %}
         {% else %}
-            <li>No browseable types defined in app.py</li>
-        {% endfor %}
-    </ul>
-    <p>You can also directly access details by constructing the URL, e.g., <code>/details/YourItemID</code>.</p>
+            <p>No browseable categories defined or found. Check application configuration.</p>
+        {% endif %}
+    </div>
+
 {% endblock %} 
