@@ -549,7 +549,6 @@ a:hover code {
     padding: 0;
 }
 
-/* --- Details Page --- */
 .details-header {
     margin-bottom: 1.5rem; /* Reduced margin */
     padding-bottom: 0.8rem;
@@ -619,28 +618,25 @@ a:hover code {
     margin-bottom: 0;
 }
 
-/* Styling for lists within dd */
 .details-list dd ul {
     list-style: none;
     padding: 0;
-    margin: 0.3rem 0 0 0; /* Add slight top margin */
+    margin: 0.3rem 0 0 0; 
 }
 .details-list dd ul li {
     margin-bottom: 0.3rem;
-    padding: 0.2rem 0; /* Add slight padding */
-    border-bottom: 1px dotted var(--color-border); /* Dotted separator */
+    padding: 0.2rem 0;
+    border-bottom: 1px dotted var(--color-border); 
 }
 .details-list dd ul li:last-child {
     margin-bottom: 0;
     border-bottom: none;
 }
 
-/* Value Styling */
 .value-literal {
     color: var(--color-text);
 }
 .value-link code {
-    /* Code within links already handled */
 }
 .extra-info {
     font-size: 0.85em;
@@ -648,7 +644,6 @@ a:hover code {
     margin-left: 0.5em;
 }
 
-/* Tag/Pill Styling for specific types */
 .value-database code,
 .value-resistance-class code,
 .value-phenotype code {
@@ -660,7 +655,6 @@ a:hover code {
     line-height: 1.4;
     margin: 0.1em 0;
     border: none; /* Override default code border */
-    /* Ensure colors are applied */
 }
 
 .value-database code {
@@ -682,8 +676,6 @@ a.value-phenotype:hover code {
     opacity: 0.85;
 }
 
-
-/* --- Footer --- */
 footer {
     margin-top: 2.5rem; /* Reduced margin */
     padding-top: 1rem;
