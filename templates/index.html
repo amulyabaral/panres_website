@@ -31,20 +31,21 @@
                 <h4>Panres 2.0 contains ARGs from the following databases</h4>
                 <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button">Browse Sources</a>
             </div>
-            <div class="db-vbarplot-container">
+            <div class="v-barplot-container">
                 {% for row in source_db_counts %}
-                {% set bar_height = (row.gene_count / max_db_count * 100) if max_db_count else 0 %}
-                {% set bar_height = [0, bar_height] | max %}
-                {% set bar_height = [100, bar_height] | min %}
-                {% set db_link = url_for('genes_related_to', predicate='is_from_database', object_value=row.database_name) %}
+                    {% set bar_height_percent = (row.gene_count / max_db_count * 100) if max_db_count else 0 %}
+                    {% set bar_height_percent = [0, bar_height_percent] | max %}
+                    {% set bar_height_percent = [100, bar_height_percent] | min %}
+                    {% set formatted_count = "{:,}".format(row.gene_count) %}
 
-                <div class="db-vbarplot-item" title="{{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
-                    <div class="db-vbarplot-bar-wrapper">
-                        <div class="db-vbarplot-bar" data-target-height="{{ bar_height }}%" style="height: 0%;">
+                    <div class="v-barplot-item" title="{{ row.database_name }} ({{ formatted_count }} genes)">
+                        <div class="v-barplot-count">{{ formatted_count }}</div>
+                        <div class="v-barplot-bar-wrapper">
+                            <div class="v-barplot-bar" data-target-height="{{ bar_height_percent }}%" style="height: 0%;">
+                            </div>
                         </div>
+                        <div class="v-barplot-label">{{ row.database_name }}</div>
                     </div>
-                    <span class="db-vbarplot-label">{{ row.database_name }}</span>
-                </div>
                 {% endfor %}
             </div>
         </div>
@@ -112,7 +113,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
-            const bars = document.querySelectorAll('.db-vbarplot-bar');
+            const bars = document.querySelectorAll('.v-barplot-bar');
             bars.forEach(bar => {
                 const targetHeight = bar.dataset.targetHeight;
                 setTimeout(() => {

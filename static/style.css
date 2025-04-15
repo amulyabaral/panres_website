@@ -203,100 +203,99 @@ a:hover code {
     padding-bottom: 0.5rem;
 }
 
-/* --- NEW: Vertical Bar Plot Styles --- */
+/* --- NEW REFACTORED: Vertical Bar Plot Styles --- */
 .source-db-chart {
-    /* Ensure the section can contain the chart properly */
-    min-height: 450px; /* Adjust as needed */
+    /* Ensures the section takes necessary height */
     display: flex;
     flex-direction: column;
+    min-height: 400px; /* Adjust minimum height as needed */
 }
 
-.db-vbarplot-container {
-    display: flex; /* Arrange items (bar+label) horizontally */
-    justify-content: space-around; /* Distribute space */
-    align-items: flex-end; /* Align bars to the bottom */
-    gap: 5px; /* Space between bars */
-    padding: 1rem 0.5rem; /* Padding top/bottom */
-    flex-grow: 1; /* Allow container to fill space */
-    overflow-x: auto; /* Add horizontal scroll if too many bars */
-    min-height: 300px; /* Ensure minimum height for bars */
-    border-top: 1px solid var(--color-border); /* Optional separator */
-    margin-top: 1rem; /* Space from header */
+.v-barplot-container {
+    display: flex; /* Use flexbox to lay out bars horizontally */
+    justify-content: space-around; /* Distribute space between bars */
+    align-items: flex-end; /* CRITICAL: Aligns items (count+bar+label) to the bottom */
+    gap: 8px; /* Space between each bar item */
+    padding: 1rem 0.5rem 0.5rem 0.5rem; /* Padding: top right bottom left */
+    flex-grow: 1; /* Allow container to fill vertical space in section */
+    overflow-x: auto; /* Enable horizontal scroll if bars overflow */
+    overflow-y: hidden; /* Prevent vertical scroll */
+    min-height: 280px; /* Minimum height for the chart area itself */
+    border-top: 1px solid var(--color-border);
+    margin-top: 1rem;
 }
 
-.db-vbarplot-item {
+.v-barplot-item {
     display: flex;
-    flex-direction: column; /* Stack bar and label vertically */
+    flex-direction: column; /* Stack count, bar, label vertically */
     align-items: center; /* Center items horizontally */
     text-align: center;
-    min-width: 50px; /* Minimum width for each item */
+    min-width: 45px; /* Minimum width for each bar item */
     flex-shrink: 0; /* Prevent items from shrinking too much */
+    /* align-self: flex-end; */ /* This should not be needed if container uses align-items: flex-end */
 }
 
-.db-vbarplot-bar-wrapper {
-    width: 30px; /* Fixed width for the bars */
-    height: 250px; /* Fixed height for the track (adjust as needed) */
-    background-color: var(--color-code-bg); /* Track background */
-    border-radius: var(--border-radius) var(--border-radius) 0 0; /* Rounded top */
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end; /* Bar grows from bottom */
-    overflow: hidden; /* Hide overflow */
-    border: 1px solid var(--color-border);
-    border-bottom: none; /* Remove bottom border */
-    margin-bottom: 0.5rem; /* Space between bar and label */
-}
-
-.db-vbarplot-bar {
-    width: 100%;
-    height: 0; /* Start at height 0 for animation */
-    border-radius: var(--border-radius) var(--border-radius) 0 0; /* Match wrapper */
-    transition: height 1.5s ease-out; /* Animate height */
-    display: flex;
-    align-items: flex-end; /* Content at bottom */
-    justify-content: center; /* Center content */
-    box-sizing: border-box;
-    position: relative; /* For potential count positioning */
-}
-
-.db-vbarplot-label {
-    font-size: 0.75rem; /* Smaller label font */
+.v-barplot-count {
+    font-size: 0.75rem;
+    font-weight: bold;
     color: var(--color-text-muted);
-    writing-mode: vertical-rl; /* Rotate label text */
-    transform: rotate(180deg); /* Correct orientation after rotation */
-    white-space: nowrap; /* Prevent wrapping */
-    max-height: 80px; /* Limit label height */
+    margin-bottom: 4px; /* Space between count and bar */
+    height: 1.2em; /* Reserve space for the count */
+    line-height: 1.2em;
+    white-space: nowrap;
+}
+
+.v-barplot-bar-wrapper {
+    width: 35px; /* Width of the bar track */
+    height: 200px; /* Maximum height of the bar track - Adjust as needed */
+    background-color: var(--color-code-bg); /* Background of the track */
+    border-radius: var(--border-radius) var(--border-radius) 0 0; /* Rounded top corners */
+    display: flex; /* Needed to align the bar inside */
+    flex-direction: column; /* Align bar vertically */
+    justify-content: flex-end; /* Bar grows from the bottom */
+    overflow: hidden; /* Hide bar overflow if calculation exceeds 100% */
+    border: 1px solid var(--color-border);
+    border-bottom: none;
+}
+
+.v-barplot-bar {
+    width: 100%; /* Bar fills the wrapper horizontally */
+    height: 0; /* Initial height for animation */
+    background-color: var(--color-primary); /* Default bar color (overridden by nth-child) */
+    border-radius: var(--border-radius) var(--border-radius) 0 0; /* Match wrapper rounding */
+    transition: height 1.5s ease-out; /* Animation for height */
+    box-sizing: border-box;
+}
+
+.v-barplot-label {
+    font-size: 0.8rem; /* Slightly larger label */
+    font-weight: bold; /* Make label bold */
+    color: var(--color-text); /* Darker label text */
+    margin-top: 6px; /* Space between bar and label */
+    writing-mode: vertical-rl; /* Vertical text */
+    transform: rotate(180deg); /* Orient text correctly */
+    white-space: nowrap;
+    max-height: 100px; /* Max height for label before overflow */
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* Optional: Style for count inside/above bar */
-.db-vbarplot-count {
-    position: absolute;
-    top: -1.5em; /* Position above the bar */
-    font-size: 0.7em;
-    color: var(--color-text);
-    font-weight: bold;
-    /* Add background/padding if needed */
-}
-
-/* Apply :nth-child colors to the new vertical bars */
-.db-vbarplot-container .db-vbarplot-item:nth-child(10n+1) .db-vbarplot-bar { background-color: var(--color-pastel-blue); }
-.db-vbarplot-container .db-vbarplot-item:nth-child(10n+2) .db-vbarplot-bar { background-color: var(--color-pastel-green); }
-.db-vbarplot-container .db-vbarplot-item:nth-child(10n+3) .db-vbarplot-bar { background-color: var(--color-pastel-yellow); }
-.db-vbarplot-container .db-vbarplot-item:nth-child(10n+4) .db-vbarplot-bar { background-color: var(--color-pastel-purple); }
-.db-vbarplot-container .db-vbarplot-item:nth-child(10n+5) .db-vbarplot-bar { background-color: var(--color-pastel-pink); }
-.db-vbarplot-container .db-vbarplot-item:nth-child(10n+6) .db-vbarplot-bar { background-color: var(--color-pastel-cyan); }
-.db-vbarplot-container .db-vbarplot-item:nth-child(10n+7) .db-vbarplot-bar { background-color: var(--color-pastel-orange); }
-.db-vbarplot-container .db-vbarplot-item:nth-child(10n+8) .db-vbarplot-bar { background-color: var(--color-pastel-lime); }
-.db-vbarplot-container .db-vbarplot-item:nth-child(10n+9) .db-vbarplot-bar { background-color: var(--color-pastel-indigo); }
-.db-vbarplot-container .db-vbarplot-item:nth-child(10n+10) .db-vbarplot-bar { background-color: var(--color-pastel-teal); }
+/* --- Apply nth-child colors to the new vertical bars --- */
+.v-barplot-container .v-barplot-item:nth-child(10n+1) .v-barplot-bar { background-color: var(--color-pastel-blue); }
+.v-barplot-container .v-barplot-item:nth-child(10n+2) .v-barplot-bar { background-color: var(--color-pastel-green); }
+.v-barplot-container .v-barplot-item:nth-child(10n+3) .v-barplot-bar { background-color: var(--color-pastel-yellow); }
+.v-barplot-container .v-barplot-item:nth-child(10n+4) .v-barplot-bar { background-color: var(--color-pastel-purple); }
+.v-barplot-container .v-barplot-item:nth-child(10n+5) .v-barplot-bar { background-color: var(--color-pastel-pink); }
+.v-barplot-container .v-barplot-item:nth-child(10n+6) .v-barplot-bar { background-color: var(--color-pastel-cyan); }
+.v-barplot-container .v-barplot-item:nth-child(10n+7) .v-barplot-bar { background-color: var(--color-pastel-orange); }
+.v-barplot-container .v-barplot-item:nth-child(10n+8) .v-barplot-bar { background-color: var(--color-pastel-lime); }
+.v-barplot-container .v-barplot-item:nth-child(10n+9) .v-barplot-bar { background-color: var(--color-pastel-indigo); }
+.v-barplot-container .v-barplot-item:nth-child(10n+10) .v-barplot-bar { background-color: var(--color-pastel-teal); }
 /* --- End Vertical Bar Plot Styles --- */
 
-/* Adjust grid container if needed */
+/* Adjust grid container alignment if needed */
 .viz-grid-container {
-    /* Ensure columns can accommodate the vertical chart height */
-    align-items: start; /* Align items to the top */
+    align-items: stretch; /* Make grid items stretch vertically */
 }
 
 /* --- Antibiotic Class Pie/Donut Chart --- */
