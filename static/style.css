@@ -297,7 +297,13 @@ a:hover code {
 /* These rules remain the same, targeting the .v-barplot-bar */
 .v-barplot-container .v-barplot-item:nth-child(10n+1) .v-barplot-bar { background-color: var(--color-pastel-blue); }
 .v-barplot-container .v-barplot-item:nth-child(10n+2) .v-barplot-bar { background-color: var(--color-pastel-green); }
-/* ... keep all other nth-child rules ... */
+.v-barplot-container .v-barplot-item:nth-child(10n+3) .v-barplot-bar { background-color: var(--color-pastel-yellow); }
+.v-barplot-container .v-barplot-item:nth-child(10n+4) .v-barplot-bar { background-color: var(--color-pastel-purple); }
+.v-barplot-container .v-barplot-item:nth-child(10n+5) .v-barplot-bar { background-color: var(--color-pastel-pink); }
+.v-barplot-container .v-barplot-item:nth-child(10n+6) .v-barplot-bar { background-color: var(--color-pastel-cyan); }
+.v-barplot-container .v-barplot-item:nth-child(10n+7) .v-barplot-bar { background-color: var(--color-pastel-orange); }
+.v-barplot-container .v-barplot-item:nth-child(10n+8) .v-barplot-bar { background-color: var(--color-pastel-lime); }
+.v-barplot-container .v-barplot-item:nth-child(10n+9) .v-barplot-bar { background-color: var(--color-pastel-indigo); }
 .v-barplot-container .v-barplot-item:nth-child(10n+10) .v-barplot-bar { background-color: var(--color-pastel-teal); }
 /* --- End Horizontal Bar Plot Styles --- */
 
@@ -319,19 +325,19 @@ a:hover code {
     /* Default padding is applied in .visualization-section rule */
 }
 
-/* --- NEW: Remove padding specifically from the pie chart section (second child) --- */
+/* --- MODIFIED: Remove padding specifically from the pie chart section (second child) --- */
 .viz-grid-container > .visualization-section:nth-child(2) {
-    padding: 0.5rem; /* Reduce padding significantly, or use 0 */
+    padding: 0.5rem; /* Reduced padding significantly, adjust as needed (or use 0) */
 }
 
 /* Ensure the bar plot container can grow */
-.viz-grid-container .db-barplot-container {
+.viz-grid-container .v-barplot-container {
     flex-grow: 1;
 }
 
 /* Ensure the pie chart container can grow and center */
 .viz-grid-container .chart-container {
-    margin: 1rem auto; /* Default margin */
+    margin: 1rem auto;
     flex-grow: 1;
     display: flex;
     align-items: center;
@@ -340,10 +346,10 @@ a:hover code {
     max-width: 350px; /* Reduced max width here too */
 }
 
-/* --- NEW: Remove margin from the chart container inside the second viz section --- */
+/* --- MODIFIED: Remove margin from the chart container inside the second viz section --- */
 .viz-grid-container > .visualization-section:nth-child(2) .chart-container {
     margin: 0; /* Remove margin to allow filling the space */
-    /* Max width/height still apply to prevent excessive size */
+    /* Max width/height still apply to prevent excessive size if needed, but rely on flex centering */
 }
 
 /* Optional: Placeholder styling if you added the placeholder class */
@@ -408,20 +414,23 @@ a:hover code {
 /* --- End Visualization Section Header Styles --- */
 
 /* --- Antibiotic Class Pie/Donut Chart --- */
-.chart-container {
-    position: relative;
-    max-height: 350px; /* Reduced max height */
-    max-width: 350px; /* Reduced max width */
-    margin: 1rem auto; /* Center chart with some margin */
-    aspect-ratio: 1 / 1; /* Make it square-ish */
-    min-height: 250px; /* Reduced min height */
-}
+/* .chart-container { */ /* Base styles moved into the grid-specific rules above */
+    /* position: relative; */
+    /* max-height: 350px; */
+    /* max-width: 350px; */
+    /* margin: 1rem auto; */
+    /* aspect-ratio: 1 / 1; */
+    /* min-height: 250px; */
+/* } */
 
 /* Ensure canvas takes up container size */
 #antibioticClassChart {
     display: block;
-    width: 100%;
-    height: 100%;
+    /* Let the container size the canvas via responsive options */
+    /* width: 100%; */
+    /* height: 100%; */
+    max-width: 100%; /* Ensure it doesn't overflow container */
+    max-height: 400px; /* Optional: Set a max pixel height for the canvas itself */
 }
 
 /* --- Index Page Grid --- */
@@ -966,7 +975,7 @@ footer {
 }
 
 /* Ensure the bar plot container can grow */
-.viz-grid-container .db-barplot-container {
+.viz-grid-container .v-barplot-container {
     flex-grow: 1;
 }
 
