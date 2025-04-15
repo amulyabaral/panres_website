@@ -329,7 +329,7 @@ a:hover code {
     display: grid;
     grid-template-columns: repeat(2, 1fr); /* Keep 2 columns */
     gap: 0.8rem; /* Reduced gap */
-    margin-bottom: 1.5rem; /* Reduced margin */
+    margin-bottom: 2rem; /* <-- INCREASED: Add more space below the grid */
     align-items: stretch; /* Important: Make columns equal height */
 }
 
@@ -931,7 +931,7 @@ footer {
     align-items: center;
     justify-content: center;
     width: 100%;
-    padding: 0; /* <-- Keep padding 0 */
+    padding: 0.5rem; /* <-- RE-ADD some padding for breathing room when legend is bottom */
     margin: 0; /* <-- Keep margin 0 */
 }
 
