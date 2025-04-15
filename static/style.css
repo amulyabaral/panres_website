@@ -931,7 +931,10 @@ footer {
     align-items: center;
     justify-content: center;
     width: 100%;
-    padding: 0.5rem; /* <-- RE-ADD some padding for breathing room when legend is bottom */
+    padding-top: 0.5rem;    /* <-- ADD: Keep top padding */
+    padding-left: 0.5rem;   /* <-- ADD: Keep left padding */
+    padding-right: 0.5rem;  /* <-- ADD: Keep right padding */
+    padding-bottom: 0;      /* <-- ADD: Remove bottom padding */
     margin: 0; /* <-- Keep margin 0 */
 }
 
