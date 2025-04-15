@@ -31,8 +31,8 @@
             {% set total_source_genes = source_db_counts | sum(attribute='gene_count') %}
             {% for row in source_db_counts %}
             {% set bar_width = (row.gene_count / total_source_genes * 100) if total_source_genes else 0 %}
-            {# Generate the link URL #}
-            {% set db_link = url_for('related_genes', predicate='is_from_database', object_value=row.database_name) %}
+            {# Generate the link URL - FIX: Use correct endpoint name #}
+            {% set db_link = url_for('genes_related_to', predicate='is_from_database', object_value=row.database_name) %}
             <li class="db-barplot-item">
                 {# Link the label #}
                 <a href="{{ db_link }}" class="db-barplot-label-link" title="{{ row.database_name }}">
