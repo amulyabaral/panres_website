@@ -182,9 +182,15 @@ a:hover code {
     border-radius: var(--border-radius);
     padding: 1.5rem;
     /* Removed margin-bottom as gap is handled by grid */
+    margin-bottom: 1.5rem; /* Add spacing between sections */
     display: flex; /* Allow vertical stretching if needed */
     flex-direction: column;
     transition: background-color 0.2s ease;
+}
+
+/* Add margin-top specifically to the class buttons section */
+.visualization-section.antibiotic-classes-buttons {
+    margin-top: 1.5rem; /* Add space above this section */
 }
 
 .visualization-section h4 {
@@ -219,15 +225,18 @@ a:hover code {
 }
 
 .db-barplot-label {
-    /* width: 120px; */ /* REMOVE fixed width */
+    /* --- MODIFICATION: Set fixed width and prevent shrinking --- */
+    width: 150px; /* Adjust width as needed */
+    flex-shrink: 0; /* Prevent label from shrinking */
+    /* --- End Modification --- */
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--color-text-muted);
-    flex-shrink: 0; /* Keep shrinking disabled */
+    /* flex-shrink: 0; */ /* Keep shrinking disabled - moved above */
     /* Let flexbox determine the width needed */
-    min-width: 80px; /* Optional: Set a minimum width if desired */
+    /* min-width: 80px; */ /* Optional: Set a minimum width if desired - removed */
 }
 
 .db-barplot-bar-wrapper {
@@ -315,7 +324,10 @@ a:hover code {
 .category-card h4 {
     margin-top: 0;
     margin-bottom: 0.5rem;
-    color: var(--color-primary-dark);
+    /* --- MODIFICATION: Change color to black/default text --- */
+    color: var(--color-text);
+    /* color: var(--color-primary-dark); */
+    /* --- End Modification --- */
     font-size: 1.05rem; /* Slightly smaller */
     font-weight: 600;
 }
@@ -757,7 +769,10 @@ footer {
 .category-card h4 {
     margin-top: 0;
     margin-bottom: 0.5rem;
-    color: var(--color-primary-dark);
+    /* --- MODIFICATION: Change color to black/default text --- */
+    color: var(--color-text);
+    /* color: var(--color-primary-dark); */
+    /* --- End Modification --- */
     font-size: 1.05rem; /* Slightly smaller */
     font-weight: 600;
 }
@@ -831,17 +846,25 @@ footer {
 .class-button {
     /* Inherits .button styles */
     /* Add specific overrides if needed */
-    padding: 0.4rem 0.8rem; /* Slightly smaller padding */
-    font-size: 0.85rem;
+    /* --- MODIFICATION: Adjust padding and font size --- */
+    padding: 0.3rem 0.7rem; /* Smaller padding */
+    font-size: 0.8rem; /* Smaller font */
+    /* --- End Modification --- */
     text-decoration: none !important;
-    color: var(--color-text) !important; /* Darker text */
+    /* --- MODIFICATION: Change default text color --- */
+    color: var(--color-text-muted) !important; /* Muted grey text */
+    /* color: var(--color-text) !important; */ /* Darker text */
+    /* --- End Modification --- */
     border: 1px solid var(--color-primary);
-    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease, filter 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease, filter 0.2s ease, color 0.2s ease; /* Added color transition */
 }
 
 .class-button:hover {
     filter: brightness(90%);
-    color: var(--color-text) !important;
+    /* --- MODIFICATION: Ensure text color changes on hover if needed, or keep it muted --- */
+    /* color: var(--color-text) !important; */ /* Optional: Darken text on hover */
+    color: var(--color-text-muted) !important; /* Keep text muted on hover */
+    /* --- End Modification --- */
     transform: translateY(-1px);
 }
 
