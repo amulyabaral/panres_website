@@ -21,16 +21,16 @@
         </p>
     </div>
 
-    {# --- Introductory Paragraph --- #}
-    <p>
-        Take a quick look at what has been collected in the PanRes database.
-    </p>
-
     {# --- Grid Container for Side-by-Side Visualizations --- #}
     <div class="viz-grid-container">
 
         {# --- Wrapper Div for Left Column (Source DB + Phenotypes) --- #}
         <div class="viz-column-left">
+
+            {# --- ADD Paragraph here with a class --- #}
+            <p class="intro-paragraph">
+                Take a quick look at what has been collected in the PanRes database.
+            </p>
 
             {# --- Source Database Visualization --- #}
             {% if source_db_counts %}

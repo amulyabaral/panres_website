@@ -155,6 +155,16 @@ a:hover code {
      text-decoration: underline;
 }
 
+/* --- NEW: Style for intro paragraph in viz column --- */
+.intro-paragraph {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    margin-bottom: 0rem; /* Adjust spacing below the paragraph */
+    padding: 0 0.5rem; /* Add slight horizontal padding */
+    line-height: 1.4;
+}
+/* --- End NEW --- */
+
 .viz-grid-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
