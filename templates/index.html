@@ -214,12 +214,13 @@
                             maintainAspectRatio: false,
                             plugins: {
                                 legend: {
-                                    position: 'bottom',
+                                    position: 'right',
                                     labels: {
-                                        boxWidth: 8, // Smaller box
-                                        padding: 8, // Reduced padding
+                                        boxWidth: 8,
+                                        padding: 8,
+                                        color: getComputedStyle(document.body).getPropertyValue('--color-text').trim(),
                                         font: {
-                                            size: 9 // Smaller legend font
+                                            size: 10
                                         }
                                     }
                                 },
@@ -235,11 +236,9 @@
                                         }
                                     }
                                 },
-                                // --- Explicitly disable datalabels ---
                                 datalabels: {
-                                    display: false // Ensure labels are off for this chart
+                                    display: false
                                 }
-                                // --- End datalabels config ---
                             }
                         }
                     });
