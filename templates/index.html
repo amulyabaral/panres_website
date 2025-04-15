@@ -40,8 +40,8 @@
                 </a>
                 {# Bar wrapper is NOT linked anymore #}
                 <div class="db-barplot-bar-wrapper" title="{{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
-                    {# Apply width inline. Use max(bar_width, 1) for slightly better visibility #}
-                    <div class="db-barplot-bar" style="width: {{ [bar_width, 1] | max }}%;" >
+                    {# Apply width inline, store target width in data attribute for JS animation #}
+                    <div class="db-barplot-bar" data-target-width="{{ [bar_width, 1] | max }}%" style="width: 0%;" > {# Start at 0% width #}
                          {# Only show count if bar is wide enough #}
                          {% if bar_width > 10 %} {# Adjust threshold as needed #}
                             <span style="padding: 0 0.5em;">{{ "{:,}".format(row.gene_count) }}</span>
@@ -54,19 +54,13 @@
     </div>
     {% endif %}
 
-    {# --- NEW: Antibiotic Class Buttons Section --- #}
-    {% if antibiotic_class_counts %}
-    <div class="visualization-section antibiotic-classes-buttons">
-        <h4>PanRes 2.0 has resistance genes from following classes:</h4>
-        <div class="class-buttons-container">
-            {% for row in antibiotic_class_counts %}
-                {% set class_link = url_for('genes_related_to', predicate='has_resistance_class', object_value=row.class_name) %}
-                <a href="{{ class_link }}" class="button class-button" title="View genes for {{ row.class_name }}">
-                    {{ row.class_name }}
-                    {# Span to hold the animated count #}
-                    (<span class="count-number" data-count="{{ row.gene_count }}">0</span>)
-                </a>
-            {% endfor %}
+    {# --- NEW: Antibiotic Class Pie Chart Section --- #}
+    {# Assumes antibiotic_chart_data = {'labels': [...], 'data': [...], 'colors': [...]} is passed from Flask #}
+    {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
+    <div class="visualization-section">
+        <h4>Top Antibiotic Classes by Gene Count</h4>
+        <div class="chart-container">
+            <canvas id="antibioticClassChart"></canvas>
         </div>
     </div>
     {% else %}
@@ -75,7 +69,7 @@
              <p>No data available to display antibiotic class counts.</p>
         </div>
     {% endif %}
-    {# --- End Antibiotic Class Buttons Section --- #}
+    {# --- End Antibiotic Class Pie Chart Section --- #}
 
 
     <h3>Browse Categories</h3>
@@ -112,34 +106,107 @@
         {% endif %}
     </div>
 
-    {# --- NEW: JavaScript for Count Animation --- #}
+    {# --- JavaScript for Charts and Animations --- #}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const counters = document.querySelectorAll('.count-number');
-            const animationDuration = 1000; // Duration in milliseconds (e.g., 1 second)
 
-            counters.forEach(counter => {
-                const targetCount = parseInt(counter.dataset.count, 10);
-                let currentCount = 0;
-                const increment = targetCount / (animationDuration / 16); // Calculate increment per frame (approx 60fps)
-
-                const updateCount = () => {
-                    currentCount += increment;
-                    if (currentCount < targetCount) {
-                        // Format with commas while animating
-                        counter.textContent = Math.ceil(currentCount).toLocaleString();
-                        requestAnimationFrame(updateCount);
-                    } else {
-                        // Ensure final count is exact and formatted
-                        counter.textContent = targetCount.toLocaleString();
-                    }
-                };
-
-                // Start the animation
-                requestAnimationFrame(updateCount);
+            // --- 1. Animate Source DB Bars ---
+            const bars = document.querySelectorAll('.db-barplot-bar');
+            bars.forEach(bar => {
+                const targetWidth = bar.dataset.targetWidth;
+                // Use setTimeout to allow the initial state (width: 0) to render before transitioning
+                setTimeout(() => {
+                    bar.style.width = targetWidth;
+                }, 50); // Small delay
             });
+
+            // --- 2. Render Antibiotic Class Pie Chart ---
+            const ctx = document.getElementById('antibioticClassChart');
+            {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
+                // Data passed from Flask view
+                const chartLabels = {{ antibiotic_chart_data.labels | tojson }};
+                const chartDataPoints = {{ antibiotic_chart_data.data | tojson }};
+                const chartColors = {{ antibiotic_chart_data.colors | tojson }};
+
+                if (ctx) {
+                    // Register the datalabels plugin globally
+                    Chart.register(ChartDataLabels);
+
+                    new Chart(ctx, {
+                        type: 'pie', // Or 'doughnut'
+                        data: {
+                            labels: chartLabels,
+                            datasets: [{
+                                label: 'Gene Count',
+                                data: chartDataPoints,
+                                backgroundColor: chartColors,
+                                // borderColor: '#ffffff', // Optional: Add border to segments
+                                // borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false, // Allow chart to fill container
+                            plugins: {
+                                legend: {
+                                    position: 'bottom', // Or 'right', 'left', 'top'
+                                    labels: {
+                                        boxWidth: 12,
+                                        font: {
+                                            size: 11 // Smaller font for legend
+                                        }
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            if (context.parsed !== null) {
+                                                // Format number with commas
+                                                label += context.parsed.toLocaleString();
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                },
+                                datalabels: { // Configure datalabels plugin
+                                    formatter: (value, ctx) => {
+                                        let sum = 0;
+                                        let dataArr = ctx.chart.data.datasets[0].data;
+                                        dataArr.map(data => {
+                                            sum += data;
+                                        });
+                                        let percentage = (value*100 / sum).toFixed(1) + "%";
+                                        // Only show percentage if it's reasonably large (e.g., > 3%)
+                                        return (value*100 / sum) > 3 ? percentage : '';
+                                    },
+                                    color: '#fff', // Color of the percentage text
+                                    font: {
+                                        weight: 'bold',
+                                        size: 10
+                                    },
+                                    // Add a background to the label for better visibility
+                                    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                                    borderRadius: 4,
+                                    padding: 3
+                                }
+                            }
+                        }
+                    });
+                }
+            {% endif %}
+
+            // --- REMOVE: Old Count Animation for Buttons ---
+            /*
+            const counters = document.querySelectorAll('.count-number');
+            // ... rest of the old counter animation code ...
+            */
+           // --- End Removed Code ---
         });
     </script>
-    {# --- End JavaScript for Count Animation --- #}
+    {# --- End JavaScript --- #}
 
 {% endblock %} 
