@@ -33,6 +33,14 @@
     --color-pastel-lime: #d4f8d4;
     --color-pastel-indigo: #dbe4ff;
     --color-pastel-teal: #a0e9e5;
+    /* Add more if needed, matching the JS array */
+    --color-pastel-red: #ffb3ba;
+    --color-pastel-sky: #bae1ff;
+    --color-pastel-mint: #baffc9;
+    --color-pastel-cream: #ffffba;
+    --color-pastel-lavender: #f1cbff;
+    --color-pastel-peach: #ffdfba;
+    --color-pastel-aqua: #ace5ee;
 
     /* --- MONO FONT --- */
     --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* Keep sans for fallback/UI elements if needed */
@@ -90,6 +98,7 @@ header h1 a {
     max-height: 50px; /* Adjust height as needed */
     width: auto;      /* Maintain aspect ratio */
     vertical-align: middle; /* Align nicely if there were text next to it */
+    display: inline-block; /* Ensure it behaves like an inline block */
 }
 
 header .subtitle {
@@ -259,28 +268,25 @@ a:hover code {
     filter: brightness(95%);
 }
 
-/* --- Antibiotic Class Pie Chart --- */
+/* --- Antibiotic Class Pie/Donut Chart --- */
 .chart-container {
     position: relative;
     /* Adjust height/aspect ratio as needed */
     /* height: 40vh; */
-    /* max-height: 400px; */
+    max-height: 450px; /* Limit max height */
     /* width: 100%; */
-    /* max-width: 450px; */ /* Limit max width if desired */
-    margin: 0 auto; /* Center if max-width is set */
+    max-width: 450px; /* Limit max width if desired */
+    margin: 1rem auto; /* Center chart with some margin */
     aspect-ratio: 1 / 1; /* Make it square-ish */
     min-height: 300px; /* Ensure minimum height */
 }
 
-/* --- REMOVE Old/Unused Class Bar Plot Styles --- */
-/* .class-barplot-container { ... } */
-/* .class-barplot-item { ... } */
-/* .class-barplot-label { ... } */
-/* .class-barplot-label code { ... } */
-/* .class-barplot-bar-wrapper { ... } */
-/* .class-barplot-bar { ... } */
-/* .class-barplot-container .class-barplot-bar { ... } */
-/* .class-barplot-bar:hover { ... } */
+/* Ensure canvas takes up container size */
+#antibioticClassChart {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
 
 /* --- Index Page Grid --- */
 .category-grid {

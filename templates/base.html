@@ -5,21 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}PanRes Database Explorer{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- Add favicon link -->
+    <!-- Favicon link - looks correct -->
     <link rel="icon" href="{{ url_for('static', filename='panres_logo.png') }}" type="image/png">
 </head>
 <body>
     <div class="container">
         <header>
-            {# Replace H1 text with linked logo, remove subtitle #}
+            {# H1 with linked logo - looks correct #}
             <h1>
                 <a href="{{ url_for('index') }}">
                     <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="header-logo">
-                    {# Optionally keep text next to logo, or remove if logo is sufficient #}
-                    {# PanRes Database Explorer #}
+                    {# Text removed, only logo remains #}
                 </a>
             </h1>
-            {# <p class="subtitle">Browse Antimicrobial Resistance Gene Data</p> #}
         </header>
         <main>
             {% block content %}
