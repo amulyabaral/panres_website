@@ -499,8 +499,8 @@ a:hover code {
     transition: background-color 0.2s ease, transform 0.1s ease;
     font-weight: 500;
     font-size: 0.9rem;
-    align-self: flex-start;
-    margin-top: auto;
+    align-self: flex-start; /* Keep this for category card layout */
+    margin-top: auto; /* Keep this for category card layout */
     font-family: var(--font-sans); /* Use Sans Serif for buttons? Optional */
 }
 .button:hover, a.button:hover {
@@ -508,6 +508,28 @@ a:hover code {
     color: white;
     text-decoration: none !important;
     transform: translateY(-1px);
+}
+
+/* --- Specific Button Style for Category Cards --- */
+/* Override the general .button style for category cards to match header browse buttons */
+.category-card .button, .category-card a.button {
+    background-color: var(--color-background); /* Match header button bg */
+    color: var(--color-primary-dark) !important; /* Match header button text color */
+    border: 1px solid var(--color-border); /* Add border */
+    padding: 0.3rem 0.8rem; /* Match header button padding */
+    font-size: 0.8rem; /* Match header button font size */
+    font-weight: normal; /* Adjust font weight if needed */
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease; /* Adjusted transition */
+    /* Remove transform from general button hover if desired */
+    transform: none;
+}
+
+.category-card .button:hover, .category-card a.button:hover {
+    background-color: var(--color-code-bg); /* Match header button hover bg */
+    border-color: var(--color-primary); /* Match header button hover border */
+    color: var(--color-primary) !important; /* Match header button hover text */
+    /* Remove transform from general button hover if desired */
+    transform: none;
 }
 
 /* --- List Page --- */
