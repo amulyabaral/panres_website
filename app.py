@@ -5,18 +5,19 @@ from flask import Flask, render_template, g, abort
 DATABASE = 'panres_ontology.db' # Make sure this file is in the same directory or provide the correct path
 # Define the 'types' we want to be able to browse easily from the index page.
 # The 'key' is the display name, the 'value' is the exact identifier used in the 'object'
-# column for 'rdf:type' predicates in your database. Double-check these values
-# match what your owl2sqlite.py script produces.
+# column for 'rdf:type' predicates in your database.
+# IMPORTANT: Double-check these values match the output of owl2sqlite.py exactly!
+# Example: If your script outputs 'myonto:PanGene', use that instead of 'PanGene'.
 BROWSEABLE_TYPES = {
-    "Pan Genes": "PanGene",
-    "Original Genes": "OriginalGene",
-    "Databases": "Database",
-    "Antibiotic Classes": "AntibioticResistanceClass",
-    "Antibiotic Phenotypes": "AntibioticResistancePhenotype",
-    "Antibiotic Mechanisms": "AntibioticResistanceMechanism",
-    "Metals": "Metal",
-    "Biocides": "Biocide",
-    # Add more types from your model.md as needed
+    "Pan Genes": "PanGene", # Verify this matches the DB output
+    "Original Genes": "OriginalGene", # Verify this matches the DB output
+    "Databases": "Database", # Verify this matches the DB output
+    "Antibiotic Classes": "AntibioticResistanceClass", # Verify this matches the DB output
+    "Antibiotic Phenotypes": "AntibioticResistancePhenotype", # Verify this matches the DB output
+    "Antibiotic Mechanisms": "AntibioticResistanceMechanism", # Verify this matches the DB output
+    "Metals": "Metal", # Verify this matches the DB output
+    "Biocides": "Biocide", # Verify this matches the DB output
+    # Add/modify types based on your model.md and owl2sqlite.py output
 }
 
 # --- Flask App Setup ---
