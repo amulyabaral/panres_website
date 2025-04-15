@@ -35,22 +35,20 @@
             {# Generate the link URL #}
             {% set db_link = url_for('genes_related_to', predicate='is_from_database', object_value=row.database_name) %}
             <li class="db-barplot-item">
-                {# Link the label #}
-                <a href="{{ db_link }}" class="db-barplot-label-link" title="{{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
+                {# Link the label ONLY #}
+                <a href="{{ db_link }}" class="db-barplot-label-link" title="View genes from {{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
                     <span class="db-barplot-label">{{ row.database_name }}</span>
                 </a>
-                {# Link the bar wrapper #}
-                <a href="{{ db_link }}" class="db-barplot-bar-link" title="{{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
-                    <div class="db-barplot-bar-wrapper">
-                        {# Apply width inline. Use max(bar_width, 1) for visibility of small bars #}
-                        <div class="db-barplot-bar" style="width: {{ [bar_width, 0.5] | max }}%;" title="{{ "{:,}".format(row.gene_count) }} genes">
-                             {# Only show count if bar is wide enough #}
-                             {% if bar_width > 10 %} {# Adjust threshold as needed #}
-                                <span style="padding: 0 0.5em;">{{ "{:,}".format(row.gene_count) }}</span>
-                             {% endif %}
-                        </div>
+                {# Bar wrapper is NOT linked anymore #}
+                <div class="db-barplot-bar-wrapper" title="{{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
+                    {# Apply width inline. Use max(bar_width, 1) for slightly better visibility #}
+                    <div class="db-barplot-bar" style="width: {{ [bar_width, 1] | max }}%;" >
+                         {# Only show count if bar is wide enough #}
+                         {% if bar_width > 10 %} {# Adjust threshold as needed #}
+                            <span style="padding: 0 0.5em;">{{ "{:,}".format(row.gene_count) }}</span>
+                         {% endif %}
                     </div>
-                </a>
+                </div>
             </li>
             {% endfor %}
         </ul>

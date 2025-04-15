@@ -267,10 +267,6 @@ a:hover code {
 .db-barplot-container .db-barplot-item:nth-child(10n+9) .db-barplot-bar { background-color: var(--color-pastel-indigo); }
 .db-barplot-container .db-barplot-item:nth-child(10n+10) .db-barplot-bar { background-color: var(--color-pastel-teal); }
 
-.db-barplot-bar:hover {
-    filter: brightness(95%);
-}
-
 /* --- Antibiotic Class Pie/Donut Chart --- */
 .chart-container {
     position: relative;
@@ -630,32 +626,41 @@ footer {
     text-decoration: none;
     color: inherit; /* Use default text color */
     display: inline-block; /* Allow hover effect */
+    /* Ensure it doesn't interfere with flex alignment */
+    line-height: 1; /* Adjust if needed based on font */
 }
 .db-barplot-label-link:hover .db-barplot-label {
      color: var(--color-primary-dark);
      text-decoration: underline;
 }
 
-/* Make bars clickable */
+/* REMOVE styles related to linking the bar */
+/*
 .db-barplot-bar-link {
     text-decoration: none;
-    display: block; /* Make the link take up the bar wrapper space */
+    display: block;
 }
+*/
 
 .db-barplot-bar-wrapper {
     flex-grow: 1;
     background-color: var(--color-code-bg); /* Light background for the track */
     border-radius: 4px;
     overflow: hidden; /* Ensure bar stays within rounded corners */
-    cursor: pointer; /* Indicate clickability */
-    transition: box-shadow 0.2s ease;
+    /* cursor: pointer; */ /* REMOVE cursor pointer */
+    /* transition: box-shadow 0.2s ease; */ /* REMOVE transition */
+    border: 1px solid #dee2e6; /* Keep border */
+    height: 20px; /* Keep height */
 }
+/* REMOVE hover effect for the wrapper */
+/*
 .db-barplot-bar-link:hover .db-barplot-bar-wrapper {
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); /* Add subtle shadow on hover */
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
 }
+*/
 
 .db-barplot-bar {
-    height: 20px;
+    height: 100%; /* Keep height */
     border-radius: var(--border-radius);
     width: 0; /* Start at 0 for animation */
     transition: width 1s ease-out;
@@ -669,6 +674,18 @@ footer {
     white-space: nowrap;
     box-sizing: border-box;
 }
+
+/* Source DB: Cycle through pastel colors (using more colors) */
+/* (Keep the :nth-child background color rules) */
+.db-barplot-container .db-barplot-item:nth-child(10n+1) .db-barplot-bar { background-color: var(--color-pastel-blue); }
+/* ... other color rules ... */
+
+/* REMOVE hover effect for the bar itself if it exists */
+/*
+.db-barplot-bar:hover {
+    filter: brightness(95%);
+}
+*/
 
 /* --- Chart Containers --- */
 .chart-container {
