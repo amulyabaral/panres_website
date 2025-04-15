@@ -329,16 +329,16 @@ a:hover code {
 .viz-grid-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.8rem; /* Keep consistent gap between all widgets */
+    gap: 0.8rem; 
     margin-bottom: 2rem;
-    align-items: stretch; /* Ensure columns stretch to match each other */
+    align-items: stretch; /* This makes grid items in a row equal height */
 }
 
 /* Make left column a flex container to stack widgets */
 .viz-column-left {
     display: flex;
     flex-direction: column;
-    gap: 0.8rem; /* Same gap as the main grid for consistency */
+    gap: 0.8rem; 
 }
 
 /* Remove all internal padding from visualization sections */
@@ -349,54 +349,30 @@ a:hover code {
 
 /* Modify pie chart container to not stretch */
 .visualization-section.antibiotic-class-chart {
-    display: flex;
-    flex-direction: column;
-    /* Remove height: 100% to prevent stretching */
+    /* Inherits display:flex, flex-direction:column */
+    /* Let align-items: stretch handle the height */
 }
 
 .visualization-section.antibiotic-class-chart .chart-container {
-    /* Remove flex-grow to prevent stretching */
-    flex-grow: 0; 
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto; /* Center horizontally */
-    padding: 1rem; /* Add padding around the chart */
-    height: 320px; /* Set a standard height */
-    width: 100%; /* Use full width of container */
+    flex-grow: 1; /* Allow container to fill vertical space within the section */
+    display: flex; /* Use flexbox to center the canvas */
+    align-items: center; /* Center vertically */
+    justify-content: center; /* Center horizontally */
+    position: relative; /* Keep for potential absolute positioning inside */
+    padding: 0.5rem; /* Reduced padding around the canvas */
+    margin: 0; /* Remove auto margins */
+    /* Remove fixed height and width constraints from previous edits */
+    /* max-width: 450px; /* Keep max-width if desired */
+    /* max-height: 450px; /* Keep max-height if desired */
 }
 
-/* Remove extra padding from the bar chart widgets */
-.visualization-section.source-db-chart,
-.visualization-section.phenotype-stacked-bar {
-    padding: 0.2rem;
-}
-
-/* Add a bit more padding to the antibiotic class chart container */
-.visualization-section.antibiotic-class-chart {
-    padding: 0.5rem 1rem;
-}
-
-/* Ensure all visualization sections have consistent internal spacing */
-.viz-grid-container > .visualization-section,
-.viz-column-left > .visualization-section {
-    padding: 0.5rem; /* Reduce overall padding */
-}
-
-/* Ensure the pie chart container fills the entire height */
-.visualization-section.antibiotic-class-chart {
-    display: flex;
-    flex-direction: column;
-    height: 100%; /* Take full height of grid cell */
-}
-
-.visualization-section.antibiotic-class-chart .chart-container {
-    flex-grow: 1; /* Make chart grow to fill available space */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0;
-    padding: 0; /* Remove padding that could cause misalignment */
+/* Ensure canvas respects container and doesn't overflow */
+#antibioticClassChart {
+    display: block;
+    max-width: 100%;
+    max-height: 100%; 
+    /* Optional: Set an absolute max height for the canvas itself */
+    /* max-height: 400px; */ 
 }
 
 /* Ensure bar charts don't have extra space */
@@ -422,7 +398,7 @@ a:hover code {
     display: flex;
     flex-direction: column;
     flex-grow: 1; /* Allow sections to grow */
-    padding: 1rem 1.2rem; /* Consistent reduced padding */
+    padding: 0.8rem 1rem; /* Consistent padding */
 }
 
 /* Specific adjustments for chart containers */
