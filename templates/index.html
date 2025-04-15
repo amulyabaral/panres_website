@@ -111,7 +111,7 @@
 
             const ctxClass = document.getElementById('antibioticClassChart').getContext('2d');
             const antibioticClassChart = new Chart(ctxClass, {
-                type: 'doughnut',
+                type: 'pie',
                 data: {
                     labels: classLabels,
                     datasets: [{
@@ -125,7 +125,6 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false, // Allow container to control aspect ratio
-                    cutout: '50%', // Adjust donut hole size
                     plugins: {
                         legend: {
                             display: false // Hide legend as labels are shown directly
