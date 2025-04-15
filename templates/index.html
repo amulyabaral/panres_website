@@ -72,7 +72,8 @@
                 <div class="stacked-bar-container">
                     {% for segment in phenotype_chart_data.segments %}
                         <span class="stacked-bar-segment"
-                              style="width: {{ segment.percentage }}%; background-color: {{ segment.color }};"
+                              data-target-width="{{ segment.percentage }}%"
+                              style="width: 0%; background-color: {{ segment.color }};"
                               title="{{ segment.name }} ({{ '{:,}'.format(segment.count) }} genes, {{ '%.1f'|format(segment.percentage) }}%)">
                         </span>
                     {% endfor %}
@@ -177,6 +178,17 @@
                 }, 50); // Short delay
             });
 
+            // --- NEW: Stacked Bar Animation ---
+            const stackedSegments = document.querySelectorAll('.stacked-bar-segment');
+            stackedSegments.forEach(segment => {
+                const targetWidth = segment.dataset.targetWidth;
+                // Use a slightly longer delay to let the page settle
+                setTimeout(() => {
+                    segment.style.width = targetWidth;
+                }, 100);
+            });
+            // --- END NEW ---
+
             // --- Antibiotic Class Pie Chart ---
             const ctxAntibiotic = document.getElementById('antibioticClassChart');
             {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
@@ -185,7 +197,7 @@
                 const antibioticColors = {{ antibiotic_chart_data.colors | tojson }};
 
                 if (ctxAntibiotic) {
-                    Chart.register(ChartDataLabels);
+                    // Chart.register(ChartDataLabels); // Keep registered globally if needed elsewhere
 
                     new Chart(ctxAntibiotic, {
                         type: 'pie',
@@ -222,7 +234,12 @@
                                             return label;
                                         }
                                     }
+                                },
+                                // --- Explicitly disable datalabels ---
+                                datalabels: {
+                                    display: false // Ensure labels are off for this chart
                                 }
+                                // --- End datalabels config ---
                             }
                         }
                     });

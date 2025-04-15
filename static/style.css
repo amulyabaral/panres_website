@@ -353,7 +353,7 @@ a:hover code {
 
 /* Specific adjustments for chart containers */
 .chart-container {
-    padding: 0.1rem;
+    /* padding: 0.1rem; */ /* <-- REMOVE padding */
     flex-grow: 1; /* Allow pie chart to take space */
     display: flex;
     align-items: center;
@@ -1067,7 +1067,8 @@ footer {
 .stacked-bar-segment {
     display: block;
     height: 100%;
-    transition: filter 0.2s ease; /* Add hover effect */
+    transition: filter 0.2s ease, width 1s ease-out; /* <-- ADD width transition */
+    width: 0; /* <-- ADD initial width (redundant with inline style but good practice) */
 }
 .stacked-bar-segment:hover {
     filter: brightness(90%);
