@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ item_type_display }} - PanRes Ontology Explorer{% endblock %}
+
+{% block content %}
+    {# Use code tag for the type ID #}
+    <h2>{{ item_type_display }} (Type: <code>{{ item_type_id }}</code>)</h2>
+
+    {% if items %}
+        <p>Found {{ "{:,}".format(items|length) }} item(s):</p> {# Format count #}
+        <ul class="item-list">
+            {% for item in items %}
+                {# Use code tag for item IDs if they look like code #}
+                <li><a href="{{ url_for('details', item_id=item) }}"><code>{{ item }}</code></a></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No items found for this type (<code>{{ item_type_id }}</code>).</p>
+        <p>This could mean the type exists in the ontology but has no instances, or there might be an issue matching the type ID.</p>
+    {% endif %}
+
+    <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
+{% endblock %} 
