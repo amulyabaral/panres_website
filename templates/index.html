@@ -21,80 +21,90 @@
         (Based on the work: <i>"ARGfinder - a pipeline for large-scale analysis of antimicrobial resistance genes and their flanking regions in metagenomic datasets" (Unpublished, submitted)</i>).
     </p> #}
 
-    {# --- Source Database Visualization --- #}
-    {% if source_db_counts %}
-    <div class="visualization-section">
-        <h4>Gene Counts by Source Database</h4>
-        <ul class="db-barplot-container">
-            {% for row in source_db_counts %}
-            <li class="db-barplot-item">
-                <span class="db-barplot-label" title="{{ row.database_name }}">{{ row.database_name }}</span>
-                <div class="db-barplot-bar-wrapper">
-                    {# Calculate percentage width for the bar #}
-                    {% set bar_width = (row.gene_count / max_db_count * 100) | round(2) %}
-                    {# Apply width inline for CSS animation target #}
-                    {# Add a minimum width for visibility of small bars #}
-                    <div class="db-barplot-bar" 
-                         data-width="{{ [bar_width, 1] | max }}" 
-                         title="{{ "{:,}".format(row.gene_count) }} genes">
-                         {# Only show count if bar is wide enough #}
-                         {% if bar_width > 10 %}
-                            <span>{{ "{:,}".format(row.gene_count) }}</span>
-                         {% endif %}
-                    </div>
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
-        {# Simple script to trigger animation - place in base.html or separate JS file is better #}
-        <script>
-          document.addEventListener('DOMContentLoaded', () => {
-            // Small delay to ensure styles are applied
-            setTimeout(() => {
-                const bars = document.querySelectorAll('.db-barplot-bar');
-                bars.forEach(bar => {
-                const targetWidth = bar.getAttribute('data-width') + '%'; // Get width from data attribute
-                if (targetWidth) { // Ensure width is set
-                    bar.style.width = '0'; // Reset to 0
-                    // Trigger reflow to restart animation if needed
-                    void bar.offsetWidth;
-                    // Apply target width to start animation
-                    bar.style.transition = 'width 1s ease-out'; // Ensure transition is set
-                    bar.style.width = targetWidth;
-                }
-                });
-            }, 100); // 100ms delay
-          });
-        </script>
-    </div>
-    {% endif %}
+    {# --- Visualization Grid --- #}
+    <div class="viz-grid">
 
-    {# --- Antibiotic Class Visualization Placeholder --- #}
-    {% if antibiotic_class_counts %}
-    <div class="visualization-section">
-        <h4>Gene Counts by Antibiotic Class</h4>
-        <div class="class-viz-container">
-            <p>Distribution of genes across {{ antibiotic_class_counts|length }} classes.</p>
-            {# --- Placeholder for JS Chart --- #}
-            {# <canvas id="antibioticClassChart" width="400" height="400"></canvas> #}
-            {# --- Fallback: Simple List --- #}
-            <p><i>(Visualization placeholder - showing data as list)</i></p>
-            <ul class="class-data-list">
-                {% for row in antibiotic_class_counts %}
-                    <li><code>{{ row.class_name }}</code>: {{ "{:,}".format(row.gene_count) }}</li>
+        {# --- Source Database Visualization --- #}
+        {% if source_db_counts %}
+        <div class="visualization-section">
+            <h4>Gene Counts by Source Database</h4>
+            <ul class="db-barplot-container">
+                {% for row in source_db_counts %}
+                <li class="db-barplot-item">
+                    <span class="db-barplot-label" title="{{ row.database_name }}">{{ row.database_name }}</span>
+                    <div class="db-barplot-bar-wrapper">
+                        {# Calculate percentage width for the bar #}
+                        {% set bar_width = (row.gene_count / max_db_count * 100) | round(2) %}
+                        {# Apply width inline for CSS animation target #}
+                        {# Add a minimum width for visibility of small bars #}
+                        <div class="db-barplot-bar"
+                             data-width="{{ [bar_width, 1] | max }}"
+                             title="{{ "{:,}".format(row.gene_count) }} genes">
+                             {# Only show count if bar is wide enough #}
+                             {% if bar_width > 10 %}
+                                <span>{{ "{:,}".format(row.gene_count) }}</span>
+                             {% endif %}
+                        </div>
+                    </div>
+                </li>
                 {% endfor %}
             </ul>
-            {# --- Data for JS (if using) --- #}
-            <!-- 
-            <script>
-                const classLabels = {{ antibiotic_class_counts | map(attribute='class_name') | list | tojson }};
-                const classData = {{ antibiotic_class_counts | map(attribute='gene_count') | list | tojson }};
-                // Add JS charting library code here to use classLabels and classData
-                // e.g., new Chart(document.getElementById('antibioticClassChart'), { ... });
-            </script>
-            -->
+            {# Script moved below both charts #}
         </div>
-    </div>
+        {% endif %}
+
+        {# --- Antibiotic Class Visualization --- #}
+        {% if antibiotic_class_counts %}
+        <div class="visualization-section">
+            <h4>Gene Counts by Antibiotic Class</h4>
+            {# Use a similar barplot structure #}
+            <ul class="class-barplot-container">
+                 {% for row in antibiotic_class_counts %}
+                 <li class="class-barplot-item">
+                     {# Use code tag for class names if desired #}
+                     <span class="class-barplot-label" title="{{ row.class_name }}"><code>{{ row.class_name }}</code></span>
+                     <div class="class-barplot-bar-wrapper">
+                         {# Calculate percentage width #}
+                         {% set bar_width = (row.gene_count / max_class_count * 100) | round(2) %}
+                         <div class="class-barplot-bar"
+                              data-width="{{ [bar_width, 1] | max }}"
+                              title="{{ "{:,}".format(row.gene_count) }} genes">
+                              {# Show count if bar is wide enough #}
+                              {% if bar_width > 10 %}
+                                 <span>{{ "{:,}".format(row.gene_count) }}</span>
+                              {% endif %}
+                         </div>
+                     </div>
+                 </li>
+                 {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+    </div> {# End viz-grid #}
+
+    {# --- Shared Animation Script --- #}
+    {% if source_db_counts or antibiotic_class_counts %}
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        // Small delay to ensure styles are applied
+        setTimeout(() => {
+            // Select bars from BOTH charts
+            const bars = document.querySelectorAll('.db-barplot-bar, .class-barplot-bar');
+            bars.forEach(bar => {
+            const targetWidth = bar.getAttribute('data-width') + '%'; // Get width from data attribute
+            if (targetWidth) { // Ensure width is set
+                bar.style.width = '0'; // Reset to 0
+                // Trigger reflow to restart animation if needed
+                void bar.offsetWidth;
+                // Apply target width to start animation
+                bar.style.transition = 'width 1s ease-out'; // Ensure transition is set
+                bar.style.width = targetWidth;
+            }
+            });
+        }, 100); // 100ms delay
+      });
+    </script>
     {% endif %}
 
 
