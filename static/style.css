@@ -173,7 +173,7 @@ a:hover code {
     background-color: var(--color-surface);
     border: var(--border-default);
     border-radius: var(--border-radius);
-    padding: 1rem 1.2rem;
+    padding: 0.5rem 1.2rem;
     display: flex;
     flex-direction: column;
     transition: background-color 0.2s ease;
@@ -184,8 +184,9 @@ a:hover code {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
     padding-bottom: 0.5rem;
+    padding-top: 0.5rem;
 }
 
 .visualization-header h4 {
@@ -200,6 +201,7 @@ a:hover code {
     flex-grow: 1;
     margin-right: 1rem;
     padding-bottom: 0.2rem;
+    margin-bottom: 0.5rem;
 }
 
 .visualization-header .browse-button {
@@ -223,17 +225,17 @@ a:hover code {
 }
 
 .visualization-section.source-db-chart {
-    height: 250px;
+    min-height: 200px;
     padding: 0.2rem 0.5rem;
 }
 
 .visualization-section.antibiotic-class-chart {
-    height: 400px;
+    min-height: 420px;
     padding: 0.2rem 0.5rem;
 }
 
 .visualization-section.phenotype-stacked-bar {
-    height: 150px;
+    min-height: 120px;
     padding: 0.2rem 0.5rem;
 }
 
@@ -401,7 +403,7 @@ a:hover code {
     margin-bottom: 0;
     overflow-y: auto;
     flex-grow: 1;
-    max-height: calc(100% - 18px - 0.2rem - 0.2rem - 1.2em - 1rem - 0.5rem);
+    max-height: 80px;
 }
 
 .legend-item {
