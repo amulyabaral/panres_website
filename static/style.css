@@ -347,6 +347,42 @@ a:hover code {
     padding-bottom: 0.2rem; /* Minimal bottom padding */
 }
 
+/* Modify pie chart container to not stretch */
+.visualization-section.antibiotic-class-chart {
+    display: flex;
+    flex-direction: column;
+    /* Remove height: 100% to prevent stretching */
+}
+
+.visualization-section.antibiotic-class-chart .chart-container {
+    /* Remove flex-grow to prevent stretching */
+    flex-grow: 0; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto; /* Center horizontally */
+    padding: 1rem; /* Add padding around the chart */
+    height: 320px; /* Set a standard height */
+    width: 100%; /* Use full width of container */
+}
+
+/* Remove extra padding from the bar chart widgets */
+.visualization-section.source-db-chart,
+.visualization-section.phenotype-stacked-bar {
+    padding: 0.2rem;
+}
+
+/* Add a bit more padding to the antibiotic class chart container */
+.visualization-section.antibiotic-class-chart {
+    padding: 0.5rem 1rem;
+}
+
+/* Ensure all visualization sections have consistent internal spacing */
+.viz-grid-container > .visualization-section,
+.viz-column-left > .visualization-section {
+    padding: 0.5rem; /* Reduce overall padding */
+}
+
 /* Ensure the pie chart container fills the entire height */
 .visualization-section.antibiotic-class-chart {
     display: flex;
