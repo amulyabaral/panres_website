@@ -2,39 +2,67 @@ import sqlite3
 from flask import Flask, render_template, g, abort, url_for
 import os
 import logging
+from urllib.parse import unquote # Needed for handling URL-encoded values
 
 # --- Configuration ---
 DATABASE = 'panres_ontology.db' # Make sure this file is in the same directory or provide the correct path
-# Define the 'types' we want to be able to browse easily from the index page.
-# The 'key' is the display name, the 'value' is the exact identifier used in the 'object'
-# column for 'rdf:type' predicates in your database.
-# IMPORTANT: Double-check these values match the output of owl2sqlite.py exactly!
-# Example: If your script outputs 'myonto:PanGene', use that instead of 'PanGene'.
-BROWSEABLE_TYPES = {
-    "Pan Genes": "PanGene", # Verify this matches the DB output
-    "Original Genes": "OriginalGene", # Verify this matches the DB output
-    "Databases": "Database", # Verify this matches the DB output
-    "Antibiotic Classes": "AntibioticResistanceClass", # Verify this matches the DB output
-    "Antibiotic Phenotypes": "AntibioticResistancePhenotype", # Verify this matches the DB output
-    "Antibiotic Mechanisms": "AntibioticResistanceMechanism", # Verify this matches the DB output
-    "Metals": "Metal", # Verify this matches the DB output
-    "Biocides": "Biocide", # Verify this matches the DB output
-    # Add/modify types based on your model.md and owl2sqlite.py output
+
+# Define how categories are presented and queried on the index page
+# 'query_type': 'type' -> count/list subjects with rdf:type = value
+# 'query_type': 'predicate_object' -> count/list distinct objects for predicate = value
+# 'query_type': 'predicate_subject' -> count/list distinct subjects for predicate = value (less common)
+INDEX_CATEGORIES = {
+    "PanRes Genes": {'query_type': 'type', 'value': 'PanGene', 'description': 'Unique gene sequences curated in PanRes.'},
+    "Source Genes": {'query_type': 'type', 'value': 'OriginalGene', 'description': 'Genes as found in their original source databases.'},
+    "Source Databases": {'query_type': 'predicate_object', 'value': 'is_from_database', 'description': 'Databases contributing genes to PanRes.'},
+    "Antibiotic Classes": {'query_type': 'predicate_object', 'value': 'has_resistance_class', 'description': 'Classes of antibiotics genes confer resistance to.'},
+    "Predicted Phenotypes": {'query_type': 'predicate_object', 'value': 'has_predicted_phenotype', 'description': 'Specific antibiotic resistances predicted for genes.'},
+    # Add more if needed, e.g., for Mechanisms, Metals, Biocides if predicates exist
+    # "Resistance Mechanisms": {'query_type': 'predicate_object', 'value': 'has_resistance_mechanism'},
+    # "Metal Resistance": {'query_type': 'predicate_object', 'value': 'confers_resistance_to_metal'},
+    # "Biocide Resistance": {'query_type': 'predicate_object', 'value': 'confers_resistance_to_biocide'},
 }
-# Define common predicates (adjust if your ontology uses different ones)
+
+# Define common predicates and a mapping for display names
 RDF_TYPE = 'rdf:type'
 RDFS_LABEL = 'rdfs:label'
 RDFS_COMMENT = 'rdfs:comment'
-# Add other potential description predicates if used in your OWL file
 DESCRIPTION_PREDICATES = [RDFS_COMMENT, 'description', 'dc:description', 'skos:definition']
+
+PREDICATE_DISPLAY_NAMES = {
+    RDF_TYPE: "Is Type Of",
+    RDFS_LABEL: "Label",
+    RDFS_COMMENT: "Description",
+    "is_from_database": "Source Database",
+    "has_resistance_class": "Resistance Class",
+    "has_predicted_phenotype": "Predicted Phenotype",
+    "has_resistance_mechanism": "Resistance Mechanism", # Example
+    "confers_resistance_to_metal": "Confers Resistance To Metal", # Example
+    "confers_resistance_to_biocide": "Confers Resistance To Biocide", # Example
+    "same_as": "Equivalent To / Also Known As",
+    "accession": "Accession",
+    "original_fasta_header": "Original FASTA Header",
+    "has_length": "Length (bp)",
+    "translates_to": "Translates To Protein", # Assuming this based on example
+    "card_link": "CARD Ontology Link", # Example
+    "member_of": "Member Of Cluster", # Assuming this based on example
+    # Add more mappings as needed based on your ontology predicates
+}
+
 
 # --- Flask App Setup ---
 app = Flask(__name__)
 app.config['DATABASE'] = DATABASE
+app.config['INDEX_CATEGORIES'] = INDEX_CATEGORIES # Make categories accessible
 
 # Configure logging
 logging.basicConfig(level=logging.INFO) # Log INFO level messages and above
 app.logger.setLevel(logging.INFO) # Ensure Flask's logger also respects INFO level
+
+# Make INDEX_CATEGORIES available to all templates
+@app.context_processor
+def inject_categories():
+    return dict(index_categories=app.config['INDEX_CATEGORIES'])
 
 # --- Database Helper Functions ---
 def get_db():
@@ -94,123 +122,234 @@ def query_db(query, args=(), one=False):
 # --- Flask Routes ---
 @app.route('/')
 def index():
-    """Shows the main index page with browseable types and their counts."""
+    """Shows the main index page with browseable categories and their counts."""
     db = get_db()
-    counts = {}
-    app.logger.info(f"Loading index page. Browseable types configured: {BROWSEABLE_TYPES}")
+    category_data = {}
+    app.logger.info(f"Loading index page. Categories configured: {list(INDEX_CATEGORIES.keys())}")
 
-    for display_name, type_id in BROWSEABLE_TYPES.items():
+    for display_name, config in INDEX_CATEGORIES.items():
+        query_type = config['query_type']
+        value = config['value']
+        count = 0
+        error_msg = None
+
         try:
-            # Query to count distinct subjects for each type_id
-            cursor = db.execute(
-                f"SELECT COUNT(DISTINCT subject) FROM Triples WHERE predicate = ? AND object = ?",
-                (RDF_TYPE, type_id) # Use constant
-            )
-            count_result = cursor.fetchone()
-            counts[display_name] = count_result[0] if count_result else 0
-            app.logger.debug(f"Count for {type_id} ({display_name}): {counts[display_name]}")
+            if query_type == 'type':
+                # Count distinct subjects for a given rdf:type
+                cursor = db.execute(
+                    "SELECT COUNT(DISTINCT subject) FROM Triples WHERE predicate = ? AND object = ?",
+                    (RDF_TYPE, value)
+                )
+            elif query_type == 'predicate_object':
+                # Count distinct non-literal objects for a given predicate
+                cursor = db.execute(
+                    "SELECT COUNT(DISTINCT object) FROM Triples WHERE predicate = ? AND object_is_literal = 0",
+                    (value,)
+                )
+            # Add elif for 'predicate_subject' if needed later
+            else:
+                 app.logger.warning(f"Unknown query_type '{query_type}' for category '{display_name}'")
+                 error_msg = "Config Error"
+
+            if error_msg is None:
+                count_result = cursor.fetchone()
+                count = count_result[0] if count_result else 0
+                app.logger.debug(f"Count for {display_name} ({query_type}={value}): {count}")
+
         except sqlite3.Error as e:
-            app.logger.error(f"Error counting items for type '{type_id}': {e}")
-            counts[display_name] = 'Error' # Indicate error on the page
+            app.logger.error(f"Error counting items for category '{display_name}' (value: {value}): {e}")
+            error_msg = "DB Error"
 
-    # Pass both BROWSEABLE_TYPES and counts to the template
-    return render_template('index.html', browseable_types=BROWSEABLE_TYPES, counts=counts)
+        category_data[display_name] = {
+            'config': config,
+            'count': count if error_msg is None else error_msg
+        }
 
-@app.route('/list/<item_type_id>')
-def list_items(item_type_id):
-    """Lists all items of a specific type."""
+    return render_template('index.html', category_data=category_data)
+
+
+@app.route('/list/<category_key>')
+def list_items(category_key):
+    """Lists items belonging to a specific category (e.g., PanGenes, Source Databases)."""
     db = get_db()
 
-    # Find the display name corresponding to the type_id for the title
-    display_name = "Unknown Type"
-    found_type = False
-    for name, type_val in BROWSEABLE_TYPES.items():
-        if type_val == item_type_id:
-            display_name = name
-            found_type = True
-            break
+    # Find the category config based on the key (display name)
+    if category_key not in INDEX_CATEGORIES:
+        app.logger.warning(f"Attempted to list items for an unrecognized category key: {category_key}")
+        abort(404, description=f"Category '{category_key}' not recognized.")
 
-    app.logger.info(f"Listing items for type ID: {item_type_id} (Display Name: {display_name})")
+    config = INDEX_CATEGORIES[category_key]
+    query_type = config['query_type']
+    value = config['value'] # This is the type_id or predicate depending on query_type
+    list_title = category_key
+    items = []
+    list_description = config.get('description', f"Items related to {category_key}")
+    link_target_template = 'details' # Default: links go to details page
+    link_params = {} # Default: item itself is the parameter
 
-    # Optional: Check if the type_id is even known before querying
-    if not found_type:
-         app.logger.warning(f"Attempted to list items for an unrecognized type_id: {item_type_id}")
-         # Abort with 404 if the type isn't in our browseable list
-         abort(404, description=f"Type '{item_type_id}' not recognized or configured for browsing.")
+    app.logger.info(f"Listing items for category: {category_key} (Query Type: {query_type}, Value: {value})")
+
+    try:
+        if query_type == 'type':
+            # List distinct subjects for the given rdf:type
+            cursor = db.execute(
+                "SELECT DISTINCT subject FROM Triples WHERE predicate = ? AND object = ? ORDER BY subject",
+                (RDF_TYPE, value)
+            )
+            items = [{'id': row['subject'], 'link': url_for('details', item_id=row['subject'])} for row in cursor.fetchall()]
+            list_description = f"Listing all {category_key} (Type: <code>{value}</code>)."
+
+        elif query_type == 'predicate_object':
+            # List distinct non-literal objects for the given predicate
+            cursor = db.execute(
+                "SELECT DISTINCT object FROM Triples WHERE predicate = ? AND object_is_literal = 0 ORDER BY object",
+                (value,)
+            )
+            # For these items (Databases, Classes, etc.), link to a page showing related genes
+            items = [{'id': row['object'], 'link': url_for('genes_related_to', predicate=value, object_value=row['object'])} for row in cursor.fetchall()]
+            list_description = f"Listing all {category_key} found in the data (via predicate <code>{value}</code>). Click an item to see associated genes."
+
+        # Add elif for 'predicate_subject' if needed
+
+        app.logger.info(f"Found {len(items)} items for category {category_key}")
+
+    except sqlite3.Error as e:
+        app.logger.error(f"Error fetching list for category '{category_key}': {e}")
+        abort(500, description=f"Error retrieving list for {category_key}")
+
+    return render_template('list.html',
+                           items=items,
+                           list_title=list_title,
+                           list_description=list_description,
+                           category_key=category_key)
+
+
+@app.route('/related/<predicate>/<path:object_value>')
+def genes_related_to(predicate, object_value):
+    """Lists genes (subjects) related to a specific predicate and object value."""
+    db = get_db()
+    # Decode the object_value which might contain URL-encoded characters like '/'
+    decoded_object_value = unquote(object_value)
+
+    app.logger.info(f"Fetching genes related to predicate='{predicate}', object='{decoded_object_value}'")
+
+    # Find a display name for the predicate
+    predicate_display = PREDICATE_DISPLAY_NAMES.get(predicate, predicate)
+    page_title = f"Genes related to {predicate_display}: {decoded_object_value}"
+    description = f"Showing genes where <code>{predicate}</code> is <code>{decoded_object_value}</code>."
 
     try:
         cursor = db.execute(
-            f"SELECT DISTINCT subject FROM Triples WHERE predicate = ? AND object = ? ORDER BY subject",
-            (RDF_TYPE, item_type_id) # Use constant
+            """SELECT DISTINCT T.subject
+               FROM Triples T
+               JOIN Triples type_t ON T.subject = type_t.subject
+               WHERE T.predicate = ?
+                 AND T.object = ?
+                 AND type_t.predicate = ?
+                 AND type_t.object IN (?, ?) -- Look for PanGene or OriginalGene types
+               ORDER BY T.subject""",
+            (predicate, decoded_object_value, RDF_TYPE, 'PanGene', 'OriginalGene') # Ensure we list actual genes
         )
-        # Use fetchall() which is fine for moderate lists, but consider pagination for very large ones
-        items = [row['subject'] for row in cursor.fetchall()]
-        app.logger.info(f"Found {len(items)} items for type {item_type_id}")
-    except sqlite3.Error as e:
-        app.logger.error(f"Error fetching list for type '{item_type_id}': {e}")
-        abort(500, description=f"Error retrieving list for {item_type_id}")
+        genes = [{'id': row['subject'], 'link': url_for('details', item_id=row['subject'])} for row in cursor.fetchall()]
+        app.logger.info(f"Found {len(genes)} related genes.")
 
-    return render_template('list.html', items=items, item_type_display=display_name, item_type_id=item_type_id)
+    except sqlite3.Error as e:
+        app.logger.error(f"Error fetching related genes for {predicate}={decoded_object_value}: {e}")
+        abort(500, description="Error retrieving related genes.")
+
+    # Use a different template for this specific view
+    return render_template('related_genes.html',
+                           genes=genes,
+                           page_title=page_title,
+                           description=description,
+                           predicate=predicate,
+                           object_value=decoded_object_value)
+
 
 @app.route('/details/<path:item_id>') # Use path converter to handle potential slashes in IDs
 def details(item_id):
     """Shows details (properties and references) for a specific item."""
     db = get_db()
-    app.logger.info(f"Fetching details for item ID: {item_id}")
+    # Decode item_id in case it contains URL-encoded characters
+    decoded_item_id = unquote(item_id)
+    app.logger.info(f"Fetching details for item ID: {decoded_item_id}")
 
     # Fetch outgoing properties (where item_id is the subject)
     try:
         cursor_props = db.execute(
             "SELECT predicate, object, object_is_literal, object_datatype FROM Triples WHERE subject = ?",
-            (item_id,)
+            (decoded_item_id,)
         )
         properties = cursor_props.fetchall()
-        app.logger.debug(f"Found {len(properties)} outgoing properties for {item_id}")
+        app.logger.debug(f"Found {len(properties)} outgoing properties for {decoded_item_id}")
     except sqlite3.Error as e:
-        app.logger.error(f"Error fetching properties for '{item_id}': {e}")
-        abort(500, description=f"Error retrieving properties for {item_id}")
+        app.logger.error(f"Error fetching properties for '{decoded_item_id}': {e}")
+        abort(500, description=f"Error retrieving properties for {decoded_item_id}")
 
     # Fetch incoming references (where item_id is the object and is not a literal)
     try:
         cursor_refs = db.execute(
             "SELECT subject, predicate FROM Triples WHERE object = ? AND object_is_literal = 0",
-            (item_id,)
+            (decoded_item_id,)
         )
         references = cursor_refs.fetchall()
-        app.logger.debug(f"Found {len(references)} incoming references for {item_id}")
+        app.logger.debug(f"Found {len(references)} incoming references for {decoded_item_id}")
     except sqlite3.Error as e:
-        app.logger.error(f"Error fetching references for '{item_id}': {e}")
-        abort(500, description=f"Error retrieving references for {item_id}")
+        app.logger.error(f"Error fetching references for '{decoded_item_id}': {e}")
+        abort(500, description=f"Error retrieving references for {decoded_item_id}")
 
     # Prepare data for template (e.g., extract common properties)
     item_details = {
         'label': None,
         'comment': None,
-        'primary_type': None,
-        'primary_type_display': None,
+        'types': [], # Store all found types
+        'primary_type_display': None, # Display name for the 'most important' type
+        'primary_type_category_key': None, # Key for linking back to list
         'other_properties': []
     }
     processed_predicates = set()
 
+    # Prioritize specific types like PanGene or OriginalGene
+    preferred_types = ['PanGene', 'OriginalGene']
+    found_preferred_type = None
+
     for prop in properties:
         predicate = prop['predicate']
-        # Find primary type
-        if predicate == RDF_TYPE and not item_details['primary_type']:
-             item_details['primary_type'] = prop['object']
-             # Find display name for the type
-             for name, type_val in BROWSEABLE_TYPES.items():
-                 if type_val == item_details['primary_type']:
-                     item_details['primary_type_display'] = name
-                     break
-             processed_predicates.add(predicate)
+        obj = prop['object']
+
+        # Collect all types
+        if predicate == RDF_TYPE:
+            item_details['types'].append(obj)
+            processed_predicates.add(predicate) # Process type predicate here
+
+            # Check if this type is one of our preferred ones
+            if obj in preferred_types and not found_preferred_type:
+                found_preferred_type = obj
+            # Check if this type matches any category display name key
+            for cat_key, cat_config in INDEX_CATEGORIES.items():
+                 if cat_config['query_type'] == 'type' and cat_config['value'] == obj:
+                     # Use the first matching category as primary display
+                     if not item_details['primary_type_display']:
+                         item_details['primary_type_display'] = cat_key
+                         item_details['primary_type_category_key'] = cat_key
+                     break # Stop after finding one match per type
+
         # Find label
         elif predicate == RDFS_LABEL and not item_details['label']:
-            item_details['label'] = prop['object']
+            item_details['label'] = obj
             processed_predicates.add(predicate)
-        # Find comment/description (first one found from the list)
+        # Find comment/description
         elif predicate in DESCRIPTION_PREDICATES and not item_details['comment']:
-            item_details['comment'] = prop['object']
+            item_details['comment'] = obj
             processed_predicates.add(predicate)
+
+    # If a preferred type (PanGene/OriginalGene) was found, ensure it's reflected
+    if found_preferred_type:
+         for cat_key, cat_config in INDEX_CATEGORIES.items():
+             if cat_config['query_type'] == 'type' and cat_config['value'] == found_preferred_type:
+                 item_details['primary_type_display'] = cat_key
+                 item_details['primary_type_category_key'] = cat_key
+                 break
 
     # Add remaining properties to 'other_properties'
     item_details['other_properties'] = [p for p in properties if p['predicate'] not in processed_predicates]
@@ -218,16 +357,16 @@ def details(item_id):
 
     # Check if item exists (at least has some properties or references)
     if not properties and not references:
-        app.logger.warning(f"No data found for item_id: {item_id}. Returning 404.")
-        abort(404, description=f"Item '{item_id}' not found in the ontology data.")
+        app.logger.warning(f"No data found for item_id: {decoded_item_id}. Returning 404.")
+        abort(404, description=f"Item '{decoded_item_id}' not found in the PanRes data.")
 
 
     return render_template(
         'details.html',
-        item_id=item_id,
+        item_id=decoded_item_id,
         details=item_details, # Pass the structured details
         references=references,
-        browseable_types_map=BROWSEABLE_TYPES # Pass map for potential back links
+        predicate_map=PREDICATE_DISPLAY_NAMES # Pass the display name map
     )
 
 

@@ -1,45 +1,51 @@
 {% extends "base.html" %}
 
-{% block title %}Welcome - PanRes Ontology Explorer{% endblock %}
+{% block title %}Welcome - PanRes Database Explorer{% endblock %}
 
 {% block content %}
-    <h2>Welcome!</h2>
+    <h2>Welcome to the PanRes Database Explorer!</h2>
     <p>
-        This tool allows you to explore the PanRes Ontology, which integrates data about
-        pangenome genes (PanGenes), original source genes, antibiotic resistance mechanisms,
-        phenotypes, and related concepts defined within the ontology.
+        The <strong>PanRes database</strong> aggregates antimicrobial resistance genes (ARGs)
+        from various established collections to facilitate large-scale analysis. Each unique
+        sequence is assigned a <code>pan_</code> identifier (PanRes Gene).
     </p>
     <p>
-        The data is parsed from the <code>panres_v2.owl</code> file during deployment and stored
-        in a queryable SQLite database (<code>panres_ontology.db</code>).
+        It integrates data from sources like:
+        ResFinder, ResFinderFG, CARD, MegaRes, AMRFinderPlus, ARGANNOT, the 'CsabaPal' collection, and BacMet.
+        This explorer allows you to browse the genes, their origins, associated resistance classes,
+        predicted phenotypes, and other relationships defined within the underlying data model.
+    </p>
+    <p>
+        (Based on the work: <i>"ARGfinder - a pipeline for large-scale analysis of antimicrobial resistance genes and their flanking regions in metagenomic datasets" (Unpublished, submitted)</i>).
     </p>
 
-    <h3>Browse Ontology Categories</h3>
-    <p>Select a category below to view the items defined within it:</p>
+
+    <h3>Explore PanRes Data</h3>
+    <p>Select a category below to view the items or concepts within it:</p>
 
     <div class="category-grid">
-        {# Check if browseable_types exists and is not empty #}
-        {% if browseable_types %}
-            {% for display_name, type_id in browseable_types.items() %}
+        {# Check if category_data exists and is not empty #}
+        {% if category_data %}
+            {% for display_name, data in category_data.items() %}
             <div class="category-card">
                 {# Card content wrapper #}
                 <div>
                     <h4>{{ display_name }}</h4>
+                     {% if data.config.description %}
+                        <p class="category-description">{{ data.config.description }}</p> {# Add description #}
+                     {% endif %}
                     <p class="count">
-                        {# Check if counts exist and the key is present #}
-                        {% if counts and display_name in counts %}
-                            {% if counts[display_name] == 'Error' %}
-                                <span class="error-count">Error loading count</span>
-                            {% else %}
-                                {{ "{:,}".format(counts[display_name]) }} item(s) {# Format count with commas #}
-                            {% endif %}
+                        {% if data.count is number %}
+                             {{ "{:,}".format(data.count) }} item(s) {# Format count with commas #}
+                        {% elif data.count == 0 %}
+                             0 items
                         {% else %}
-                            <span class="error-count">Count unavailable</span> {# Handle missing count #}
+                            <span class="error-count">{{ data.count }}</span> {# Show error message #}
                         {% endif %}
                     </p>
                 </div>
-                {# Button is outside the content wrapper to be pushed down by flexbox #}
-                <a href="{{ url_for('list_items', item_type_id=type_id) }}" class="button">Browse</a>
+                {# Button links to the generic list_items route, passing the display_name as the key #}
+                <a href="{{ url_for('list_items', category_key=display_name) }}" class="button">Browse</a>
             </div>
             {% endfor %}
         {% else %}

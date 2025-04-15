@@ -121,6 +121,14 @@ pre {
     font-weight: 500;
 }
 
+/* Add style for category description */
+.category-card .category-description {
+    font-size: 0.9rem;
+    color: #576F72; /* Muted color */
+    margin-bottom: 1rem;
+    min-height: 3em; /* Give some space even if description is short */
+}
+
 .category-card .count {
     font-size: 1.5rem; /* Larger count */
     font-weight: bold;
@@ -235,6 +243,13 @@ pre {
 }
 .details-table td code { /* Code within tables */
      font-size: 0.9em;
+}
+
+/* Style for datatype span in details table */
+.details-table .datatype {
+    font-size: 0.85em;
+    color: #6c757d;
+    margin-left: 0.5em;
 }
 
 /* Footer */
