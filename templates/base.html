@@ -5,13 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}PanRes Database Explorer{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- Optional: Add favicon links here -->
+    <!-- Add favicon link -->
+    <link rel="icon" href="{{ url_for('static', filename='panres_logo.png') }}" type="image/png">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1><a href="{{ url_for('index') }}">PanRes Database Explorer</a></h1>
-            <p class="subtitle">Browse Antimicrobial Resistance Gene Data</p>
+            {# Replace H1 text with linked logo, remove subtitle #}
+            <h1>
+                <a href="{{ url_for('index') }}">
+                    <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="header-logo">
+                    {# Optionally keep text next to logo, or remove if logo is sufficient #}
+                    {# PanRes Database Explorer #}
+                </a>
+            </h1>
+            {# <p class="subtitle">Browse Antimicrobial Resistance Gene Data</p> #}
         </header>
         <main>
             {% block content %}
@@ -22,5 +30,10 @@
             PanRes Database Explorer | Data derived from multiple sources.
         </footer>
     </div>
+
+    {# --- Add Chart.js and Datalabels Plugin --- #}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    {# --- End Chart.js --- #}
 </body>
 </html> 

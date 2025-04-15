@@ -28,8 +28,11 @@
     --color-pastel-yellow: #ffec99;
     --color-pastel-purple: #d0bfff;
     --color-pastel-pink: #ffc9c9;
-    --color-pastel-cyan: #a3 Mapped Types;
+    --color-pastel-cyan: #a3e1d4; /* Corrected cyan value */
     --color-pastel-orange: #ffd8a8;
+    --color-pastel-lime: #d4f8d4;
+    --color-pastel-indigo: #dbe4ff;
+    --color-pastel-teal: #a0e9e5;
 
     /* --- MONO FONT --- */
     --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* Keep sans for fallback/UI elements if needed */
@@ -64,22 +67,36 @@ header {
     margin-bottom: 2rem; /* Reduced margin */
     padding-bottom: 1rem;
     text-align: center;
+    /* Add flexbox for alignment if needed */
+    /* display: flex; */
+    /* justify-content: center; */
+    /* align-items: center; */
 }
 
 header h1 a {
-    color: var(--color-primary-dark);
+    /* Remove text-specific styles if only showing logo */
+    /* color: var(--color-primary-dark); */
     text-decoration: none;
-    font-size: 2.2rem; /* Slightly smaller */
-    font-weight: 600;
+    /* font-size: 2.2rem; */ /* Removed */
+    /* font-weight: 600; */ /* Removed */
+    display: inline-block; /* Allow centering */
 }
-header h1 a:hover {
-    color: var(--color-primary);
+/* header h1 a:hover { */
+    /* color: var(--color-primary); */ /* Remove if no text */
+/* } */
+
+/* Style for the header logo */
+.header-logo {
+    max-height: 50px; /* Adjust height as needed */
+    width: auto;      /* Maintain aspect ratio */
+    vertical-align: middle; /* Align nicely if there were text next to it */
 }
 
 header .subtitle {
-    color: var(--color-text-muted);
-    font-size: 1rem;
-    margin-top: 0.2rem;
+   /* This class is no longer used, can be removed */
+   /* color: var(--color-text-muted); */
+   /* font-size: 1rem; */
+   /* margin-top: 0.2rem; */
 }
 
 /* --- Main Content Headings --- */
@@ -170,109 +187,100 @@ a:hover code {
     padding-bottom: 0.5rem;
 }
 
-/* --- Shared Bar Plot Styles --- */
-.db-barplot-container,
-.class-barplot-container {
+/* --- Source DB Bar Plot Styles (Confirming :nth-child colors) --- */
+.db-barplot-container {
     list-style: none;
     padding: 0;
     margin: 0;
-    /* max-width: 600px; */ /* Remove max-width to allow grid sizing */
-    flex-grow: 1; /* Allow container to grow */
-    overflow-y: auto; /* Add scroll if content overflows */
-    max-height: 400px; /* Limit height to prevent excessive length */
+    flex-grow: 1;
+    overflow-y: auto;
+    max-height: 400px; /* Limit height */
 }
 
-.db-barplot-item,
-.class-barplot-item {
+.db-barplot-item {
     margin-bottom: 0.8rem;
     display: flex;
     align-items: center;
     gap: 1rem;
     font-size: 0.9rem;
 }
-.db-barplot-item:last-child,
-.class-barplot-item:last-child {
-    margin-bottom: 0; /* Remove margin from last item */
+.db-barplot-item:last-child {
+    margin-bottom: 0;
 }
 
-
-.db-barplot-label,
-.class-barplot-label {
-    width: 120px; /* Fixed width for labels */
+.db-barplot-label {
+    width: 120px;
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--color-text-muted);
-    flex-shrink: 0; /* Prevent label from shrinking */
-}
-.class-barplot-label code { /* Style code tag within class label */
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: inherit;
-    color: inherit;
+    flex-shrink: 0;
 }
 
-
-.db-barplot-bar-wrapper,
-.class-barplot-bar-wrapper {
+.db-barplot-bar-wrapper {
     flex-grow: 1;
     background-color: var(--color-code-bg);
     border-radius: var(--border-radius);
-    height: 20px; /* Bar height */
-    overflow: hidden; /* Needed for animation */
-    border: 1px solid #dee2e6; /* Subtle border */
+    height: 20px;
+    overflow: hidden;
+    border: 1px solid #dee2e6;
 }
 
-.db-barplot-bar,
-.class-barplot-bar {
+.db-barplot-bar {
     height: 100%;
-    /* background-color set below */
-    border-radius: var(--border-radius); /* Match wrapper */
+    border-radius: var(--border-radius);
     width: 0; /* Start at 0 for animation */
-    transition: width 1s ease-out; /* Animation */
+    transition: width 1s ease-out;
     display: flex;
     align-items: center;
-    justify-content: flex-end; /* Position count inside */
+    justify-content: flex-end;
     padding-right: 0.5em;
-    color: var(--color-text); /* Darker text for better contrast on pastels */
+    color: var(--color-text);
     font-size: 0.8em;
     font-weight: bold;
     white-space: nowrap;
-    box-sizing: border-box; /* Include padding in width */
+    box-sizing: border-box;
 }
 
-/* --- Specific Bar Colors --- */
+/* Source DB: Cycle through pastel colors (using more colors) */
+.db-barplot-container .db-barplot-item:nth-child(10n+1) .db-barplot-bar { background-color: var(--color-pastel-blue); }
+.db-barplot-container .db-barplot-item:nth-child(10n+2) .db-barplot-bar { background-color: var(--color-pastel-green); }
+.db-barplot-container .db-barplot-item:nth-child(10n+3) .db-barplot-bar { background-color: var(--color-pastel-yellow); }
+.db-barplot-container .db-barplot-item:nth-child(10n+4) .db-barplot-bar { background-color: var(--color-pastel-purple); }
+.db-barplot-container .db-barplot-item:nth-child(10n+5) .db-barplot-bar { background-color: var(--color-pastel-pink); }
+.db-barplot-container .db-barplot-item:nth-child(10n+6) .db-barplot-bar { background-color: var(--color-pastel-cyan); }
+.db-barplot-container .db-barplot-item:nth-child(10n+7) .db-barplot-bar { background-color: var(--color-pastel-orange); }
+.db-barplot-container .db-barplot-item:nth-child(10n+8) .db-barplot-bar { background-color: var(--color-pastel-lime); }
+.db-barplot-container .db-barplot-item:nth-child(10n+9) .db-barplot-bar { background-color: var(--color-pastel-indigo); }
+.db-barplot-container .db-barplot-item:nth-child(10n+10) .db-barplot-bar { background-color: var(--color-pastel-teal); }
 
-/* Source DB: Cycle through pastel colors */
-.db-barplot-container .db-barplot-bar:nth-child(7n+1) { background-color: var(--color-pastel-blue); }
-.db-barplot-container .db-barplot-bar:nth-child(7n+2) { background-color: var(--color-pastel-green); }
-.db-barplot-container .db-barplot-bar:nth-child(7n+3) { background-color: var(--color-pastel-yellow); }
-.db-barplot-container .db-barplot-bar:nth-child(7n+4) { background-color: var(--color-pastel-purple); }
-.db-barplot-container .db-barplot-bar:nth-child(7n+5) { background-color: var(--color-pastel-pink); }
-.db-barplot-container .db-barplot-bar:nth-child(7n+6) { background-color: var(--color-pastel-cyan); }
-.db-barplot-container .db-barplot-bar:nth-child(7n+7) { background-color: var(--color-pastel-orange); }
-
-/* Antibiotic Class: Use a single distinct pastel color */
-.class-barplot-container .class-barplot-bar {
-    background-color: var(--color-pastel-green); /* Use pastel green for this chart */
+.db-barplot-bar:hover {
+    filter: brightness(95%);
 }
 
-/* Hover effect (optional, make slightly darker/brighter) */
-.db-barplot-bar:hover,
-.class-barplot-bar:hover {
-    filter: brightness(95%); /* Slightly darken on hover */
+/* --- Antibiotic Class Pie Chart --- */
+.chart-container {
+    position: relative;
+    /* Adjust height/aspect ratio as needed */
+    /* height: 40vh; */
+    /* max-height: 400px; */
+    /* width: 100%; */
+    /* max-width: 450px; */ /* Limit max width if desired */
+    margin: 0 auto; /* Center if max-width is set */
+    aspect-ratio: 1 / 1; /* Make it square-ish */
+    min-height: 300px; /* Ensure minimum height */
 }
 
-
-/* --- REMOVE Old Class Visualization Placeholder Styles --- */
-/* .class-viz-container { ... } */
-/* .class-viz-container p { ... } */
-/* .class-data-list { ... } */
-/* .class-data-list li { ... } */
-/* .class-data-list code { ... } */
-
+/* --- REMOVE Old/Unused Class Bar Plot Styles --- */
+/* .class-barplot-container { ... } */
+/* .class-barplot-item { ... } */
+/* .class-barplot-label { ... } */
+/* .class-barplot-label code { ... } */
+/* .class-barplot-bar-wrapper { ... } */
+/* .class-barplot-bar { ... } */
+/* .class-barplot-container .class-barplot-bar { ... } */
+/* .class-barplot-bar:hover { ... } */
 
 /* --- Index Page Grid --- */
 .category-grid {

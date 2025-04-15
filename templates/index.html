@@ -57,40 +57,121 @@
         {% if antibiotic_class_counts %}
         <div class="visualization-section">
             <h4>Gene Counts by Antibiotic Class</h4>
-            {# Use a similar barplot structure #}
-            <ul class="class-barplot-container">
-                 {% for row in antibiotic_class_counts %}
-                 <li class="class-barplot-item">
-                     {# Use code tag for class names if desired #}
-                     <span class="class-barplot-label" title="{{ row.class_name }}"><code>{{ row.class_name }}</code></span>
-                     <div class="class-barplot-bar-wrapper">
-                         {# Calculate percentage width #}
-                         {% set bar_width = (row.gene_count / max_class_count * 100) | round(2) %}
-                         <div class="class-barplot-bar"
-                              data-width="{{ [bar_width, 1] | max }}"
-                              title="{{ "{:,}".format(row.gene_count) }} genes">
-                              {# Show count if bar is wide enough #}
-                              {% if bar_width > 10 %}
-                                 <span>{{ "{:,}".format(row.gene_count) }}</span>
-                              {% endif %}
-                         </div>
-                     </div>
-                 </li>
-                 {% endfor %}
-            </ul>
+            {# --- Canvas for Chart.js Pie Chart --- #}
+            <div class="chart-container">
+                <canvas id="antibioticClassChart"></canvas>
+            </div>
+            {# --- Data for JS (Hidden) --- #}
+            <script type="application/json" id="antibiotic-class-data">
+                {{ antibiotic_class_counts | list | tojson | safe }}
+            </script>
+            <script>
+                // Parse data from the separate JSON script tag
+                const rawClassData = JSON.parse(document.getElementById('antibiotic-class-data').textContent);
+                // Prepare data for Chart.js
+                const classLabels = rawClassData.map(item => item.class_name);
+                const classData = rawClassData.map(item => item.gene_count);
+
+                // Define pastel colors (add more if needed or generate dynamically)
+                const pastelColors = [
+                    '#a5d8ff', '#b2f2bb', '#ffec99', '#d0bfff', '#ffc9c9',
+                    '#a3e1d4', '#ffd8a8', '#ffb3e6', '#c1f0f6', '#e9d8fd',
+                    '#fde4cf', '#d4f8d4' // Add more colors as needed
+                ];
+
+                // Function to get colors, cycling if necessary
+                function getChartColors(dataLength) {
+                    const colors = [];
+                    for (let i = 0; i < dataLength; i++) {
+                        colors.push(pastelColors[i % pastelColors.length]);
+                    }
+                    return colors;
+                }
+
+                document.addEventListener('DOMContentLoaded', () => {
+                    const ctx = document.getElementById('antibioticClassChart').getContext('2d');
+                    // Register the datalabels plugin
+                    Chart.register(ChartDataLabels);
+
+                    new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: classLabels,
+                            datasets: [{
+                                label: 'Gene Count',
+                                data: classData,
+                                backgroundColor: getChartColors(classData.length),
+                                borderColor: '#ffffff', // White border for slices
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false, // Allow container to control aspect ratio
+                            plugins: {
+                                legend: {
+                                    position: 'top', // Or 'bottom', 'left', 'right'
+                                    labels: {
+                                        font: {
+                                            family: 'var(--font-mono)' // Use mono font
+                                        }
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            if (context.parsed !== null) {
+                                                // Format number with commas
+                                                label += context.parsed.toLocaleString();
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                },
+                                datalabels: {
+                                    formatter: (value, ctx) => {
+                                        // Optionally, show percentage or value
+                                        // let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                        // let percentage = (value * 100 / sum).toFixed(1) + '%';
+                                        // return percentage; // Show percentage
+                                        return ctx.chart.data.labels[ctx.dataIndex]; // Show label name
+                                    },
+                                    color: '#333', // Label color
+                                    anchor: 'end', // Position label end relative to anchor point
+                                    align: 'end', // Align text end relative to label anchor
+                                    offset: 8, // Distance from pie edge
+                                    font: {
+                                        size: 10, // Smaller font size for labels
+                                        family: 'var(--font-mono)'
+                                    },
+                                    // Basic line connector (Chart.js datalabels doesn't draw lines by default,
+                                    // this setup positions labels outside. True lines need custom drawing or different plugins)
+                                    // For simple external labels, this is often sufficient.
+                                }
+                            }
+                        }
+                    });
+                    // Unregister the plugin after creating the chart if no other charts use it globally
+                    // Chart.unregister(ChartDataLabels);
+                });
+            </script>
         </div>
         {% endif %}
 
     </div> {# End viz-grid #}
 
-    {# --- Shared Animation Script --- #}
-    {% if source_db_counts or antibiotic_class_counts %}
+    {# --- Animation Script for DB Bar Chart ONLY --- #}
+    {% if source_db_counts %}
     <script>
       document.addEventListener('DOMContentLoaded', () => {
         // Small delay to ensure styles are applied
         setTimeout(() => {
-            // Select bars from BOTH charts
-            const bars = document.querySelectorAll('.db-barplot-bar, .class-barplot-bar');
+            // Select bars from DB chart ONLY
+            const bars = document.querySelectorAll('.db-barplot-bar');
             bars.forEach(bar => {
             const targetWidth = bar.getAttribute('data-width') + '%'; // Get width from data attribute
             if (targetWidth) { // Ensure width is set
