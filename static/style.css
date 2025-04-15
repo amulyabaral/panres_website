@@ -699,9 +699,6 @@ footer {
     border-radius: var(--border-radius);
     width: 0; /* Start at 0 for animation */
     transition: width 2s ease-out;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
     padding-right: 0.5em;
     color: var(--color-text);
     font-size: 0.8em;
