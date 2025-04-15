@@ -177,12 +177,13 @@ a:hover code {
     background-color: var(--color-surface);
     border: var(--border-default);
     border-radius: var(--border-radius); /* Standard radius */
-    padding: 1.5rem;
+    padding: 1rem 1.2rem; /* Slightly reduced padding */
     /* Removed margin-bottom as gap is handled by grid */
     margin-bottom: 1.5rem; /* Add spacing between sections */
     display: flex; /* Allow vertical stretching if needed */
     flex-direction: column;
     transition: background-color 0.2s ease;
+    min-height: 150px; /* Add a base min-height for sections */
 }
 
 /* Add margin-top specifically to the class buttons section */
@@ -308,7 +309,7 @@ a:hover code {
 .viz-grid-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr); /* Keep 2 columns */
-    gap: 1.5rem;
+    gap: 1.2rem; /* Reduced gap */
     margin-bottom: 2rem;
     align-items: stretch; /* Important: Make columns equal height */
 }
@@ -317,7 +318,7 @@ a:hover code {
 .viz-column-left {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem; /* Space between the source DB and phenotype charts */
+    gap: 1.2rem; /* Reduced gap */
 }
 
 
@@ -325,10 +326,10 @@ a:hover code {
 .viz-grid-container > .visualization-section,
 .viz-column-left > .visualization-section { /* Apply to sections in both columns */
     margin-bottom: 0; /* Remove margin as gap handles spacing */
-    /* height: 100%; */ /* Remove fixed height, let flex/grid handle it */
     display: flex;
     flex-direction: column;
     flex-grow: 1; /* Allow sections to grow */
+    padding: 1rem 1.2rem; /* Consistent reduced padding */
 }
 
 /* Specific adjustments for chart containers */
@@ -339,14 +340,14 @@ a:hover code {
     justify-content: center;
     width: 100%;
     position: relative; /* Needed for canvas responsiveness */
-    min-height: 200px; /* Minimum height for chart areas */
-    padding: 0.5rem; /* Add some padding around canvas */
+    min-height: 180px; /* Reduced minimum height for chart areas */
+    padding: 0.2rem; /* Reduced padding around canvas */
 }
 
 /* Optional: Slightly smaller chart container for the phenotype donut */
 .chart-container.small-chart {
-    min-height: 180px; /* Slightly smaller min-height */
-    /* max-height: 250px; */ /* Optional max height */
+    min-height: 160px; /* Further reduced min-height */
+    /* max-height: 220px; */ /* Optional max height */
 }
 
 /* Ensure canvas elements are responsive within their container */
@@ -354,8 +355,6 @@ a:hover code {
     display: block;
     max-width: 100%;
     max-height: 100%; /* Let container control max height */
-    /* height: auto; */ /* Let aspect ratio work */
-    /* width: auto; */
 }
 
 
@@ -367,7 +366,8 @@ a:hover code {
 /* Ensure the bar plot container can grow */
 .v-barplot-container {
     flex-grow: 1;
-    min-height: 150px; /* Give bar plot some minimum space */
+    min-height: 120px; /* Reduced bar plot minimum space */
+    padding: 0.5rem 0.2rem 0.2rem 0.2rem; /* Reduced padding */
 }
 
 /* --- NEW: Styles for Visualization Section Header --- */
@@ -375,9 +375,9 @@ a:hover code {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem; /* Reduced margin */
     border-bottom: 1px dashed var(--color-border);
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.4rem; /* Reduced padding */
 }
 
 .visualization-header h4 {
@@ -389,7 +389,6 @@ a:hover code {
     color: var(--color-text);
     flex-grow: 1;
     margin-right: 1rem;
-    font-family: var(--font-mono);
 }
 
 /* Style for the new browse buttons in the viz headers */
@@ -404,7 +403,6 @@ a:hover code {
     white-space: nowrap;
     transition: background-color 0.2s ease, border-color 0.2s ease;
     flex-shrink: 0;
-    font-family: var(--font-mono);
 }
 
 .visualization-header .browse-button:hover {
@@ -437,46 +435,41 @@ a:hover code {
 /* --- Index Page Grid --- */
 .category-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Slightly smaller min */
-    gap: 1rem; /* Reduced gap */
-    margin-top: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); /* Slightly smaller min */
+    gap: 0.8rem; /* Reduced gap */
+    margin-top: 1.2rem; /* Reduced margin */
 }
 
 .category-card {
     border: var(--border-default);
     border-radius: var(--border-radius); /* Standard radius */
-    padding: 1rem 1.2rem; /* Reduced padding */
+    padding: 0.8rem 1rem; /* Reduced padding */
     background-color: var(--color-surface);
-    /* transition: transform 0.2s ease-in-out, border-color 0.2s ease-in-out; */ /* Simpler transition */
     transition: border-color 0.2s ease-in-out;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    /* box-shadow: var(--shadow-sm); */ /* REMOVED */
 }
 .category-card:hover {
-    /* transform: translateY(-2px); */ /* REMOVED */
     border-color: var(--color-primary); /* Highlight border on hover */
 }
 
 .category-card h4 {
     margin-top: 0;
-    margin-bottom: 0.5rem;
-    /* --- MODIFICATION: Change color to black/default text --- */
+    margin-bottom: 0.4rem; /* Reduced margin */
     color: var(--color-text);
-    /* color: var(--color-primary-dark); */
-    /* --- End Modification --- */
-    font-size: 1.05rem; /* Slightly smaller */
+    font-size: 1.0rem; /* Slightly smaller */
     font-weight: 600;
     font-family: var(--font-mono);
 }
 .category-card .category-description {
-    font-size: 0.85rem; /* Smaller description */
+    font-size: 0.8rem; /* Smaller description */
     color: var(--color-text-muted);
-    margin-bottom: 0.8rem; /* Reduced margin */
+    margin-bottom: 0.6rem; /* Reduced margin */
     flex-grow: 1;
-    min-height: 3em; /* Adjust if needed */
+    min-height: 2.5em; /* Reduced min-height */
     font-family: var(--font-mono);
+    line-height: 1.4; /* Slightly tighter line height */
 }
 .category-card .count {
     /* Style for count if you decide to show it again */
@@ -546,7 +539,6 @@ a:hover code {
     background-color: var(--color-surface);
     border: var(--border-default);
     border-radius: var(--border-radius); /* Standard radius */
-    /* box-shadow: var(--shadow-sm); */ /* REMOVED */
     overflow: hidden;
 }
 .item-list li {
@@ -618,7 +610,6 @@ a:hover code {
     padding: 1.2rem; /* Reduced padding */
     border-radius: var(--border-radius); /* Standard radius */
     border: var(--border-default);
-    /* box-shadow: var(--shadow-sm); */ /* REMOVED */
 }
 .details-section h3 {
     margin-top: 0;
@@ -994,31 +985,42 @@ footer {
     background-color: var(--color-surface);
     border: var(--border-default);
     border-radius: var(--border-radius); /* Standard radius */
-    padding: 1.5rem;
-    margin-top: 2.5rem; /* Spacing above the card */
-    margin-bottom: 2rem; /* Spacing below the card */
+    padding: 1.2rem 1.5rem; /* Reduced padding */
+    margin-top: 2rem; /* Reduced Spacing */
+    margin-bottom: 1.5rem; /* Reduced Spacing */
 }
 
 .content-card h3 {
-    margin-top: 0; /* Remove top margin from h3 inside the card */
-    /* Keep other h3 styles from main content */
-    color: var(--color-primary-dark);
-    margin-bottom: 1.2rem;
-    font-size: 1.6rem;
+    margin-top: 0;
+    /* --- MODIFICATION: Change color to default text color --- */
+    color: var(--color-text);
+    /* color: var(--color-primary-dark); */
+    /* --- End Modification --- */
+    margin-bottom: 0.8rem; /* Reduced margin */
+    font-size: 1.4rem; /* Slightly smaller */
     font-weight: 600;
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.4rem; /* Reduced padding */
     border-bottom: 2px solid var(--color-primary);
     display: inline-block;
     font-family: var(--font-mono);
 }
 
 .content-card p:first-of-type { /* Style the paragraph immediately after h3 */
-    margin-bottom: 1.5rem; /* Add space before the grid */
+    margin-bottom: 1rem; /* Reduced space before the grid */
     color: var(--color-text-muted);
     font-family: var(--font-mono);
+    font-size: 0.9rem; /* Slightly smaller */
 }
 
 .content-card .category-grid {
     margin-top: 0; /* Remove top margin from the grid itself */
 }
 /* --- End Browse Categories Card Style --- */
+
+/* Ensure buttons use the mono font */
+.button, a.button,
+.browse-button, a.browse-button,
+.class-button, a.class-button,
+.category-card .button /* Add category card button specifically */ {
+    font-family: var(--font-mono); /* Explicitly set for buttons */
+}
