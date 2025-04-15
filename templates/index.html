@@ -81,33 +81,36 @@
     </div> {# --- End viz-grid-container --- #}
 
 
-    <h3 style="margin-top: 2.5rem;">Browse Categories</h3>
-    <p>Select a category below to view the items or concepts within it:</p>
+    {# --- NEW: Wrap Browse Categories in a Card --- #}
+    <div class="content-card">
+        <h3>Browse Categories</h3>
+        <p>Select a category below to view the items or concepts within it:</p>
 
-    <div class="category-grid">
-        {% if category_data %}
-            {% for display_name, data in category_data.items() %}
-            <div class="category-card">
-                <div>
-                    <h4>{{ display_name }}</h4>
-                     {% if data.config.description %}
-                        <p class="category-description">{{ data.config.description }}</p>
-                     {% endif %}
+        <div class="category-grid">
+            {% if category_data %}
+                {% for display_name, data in category_data.items() %}
+                <div class="category-card">
+                    <div>
+                        <h4>{{ display_name }}</h4>
+                         {% if data.config.description %}
+                            <p class="category-description">{{ data.config.description }}</p>
+                         {% endif %}
+                    </div>
+                    <a href="{{ url_for('list_items', category_key=display_name) }}" class="button">
+                        Browse
+                        {% if data.count is number and data.count > 0 %}
+                           ({{ "{:,}".format(data.count) }})
+                        {% elif data.count is string %}
+                            (!)
+                        {% endif %}
+                    </a>
                 </div>
-                <a href="{{ url_for('list_items', category_key=display_name) }}" class="button">
-                    Browse
-                    {% if data.count is number and data.count > 0 %}
-                       ({{ "{:,}".format(data.count) }})
-                    {% elif data.count is string %}
-                        (!)
-                    {% endif %}
-                </a>
-            </div>
-            {% endfor %}
-        {% else %}
-            <p>No browseable categories defined or found. Check application configuration.</p>
-        {% endif %}
-    </div>
+                {% endfor %}
+            {% else %}
+                <p>No browseable categories defined or found. Check application configuration.</p>
+            {% endif %}
+        </div>
+    </div> {# --- End content-card --- #}
 
     {# --- JavaScript for Charts and Animations --- #}
     <script>
