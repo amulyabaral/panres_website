@@ -48,9 +48,6 @@
     --font-mono: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
     --font-family-sans-serif: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    /* --- REMOVE SHADOWS --- */
-    /* --shadow-sm: 0 1px 2px rgba(0,0,0,0.04); */
-    /* --shadow-md: 0 4px 6px rgba(0,0,0,0.06); */
     --border-radius: 4px; /* Slightly smaller radius */
     --border-default: 1px solid var(--color-border);
 }
@@ -711,43 +708,16 @@ footer {
     margin-right: 0;
 }
 
-/* --- Animations --- */
-/* Trigger bar animation when visible (simple approach) */
-/* More robust visibility detection usually needs JS (Intersection Observer) */
 @keyframes growBar {
     from { width: 0; }
     to { /* Width is set inline */ }
 }
 
-/* Apply animation - this might trigger on load, not scroll */
-/* Consider adding a class via JS when element is in view */
 .db-barplot-bar {
-    /* animation: growBar 1s ease-out forwards; */ /* Disabled for now - enable if JS adds class */
-    /* Basic transition for width changes */
      transition: width 1s ease-out;
      width: 0; /* Start at width 0 for animation */
 }
 
-/* Simple script to trigger animation on load (add this if no JS library is used) */
-/* You might put this in base.html */
-/*
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const bars = document.querySelectorAll('.db-barplot-bar');
-    bars.forEach(bar => {
-      const targetWidth = bar.style.width; // Get width set inline
-      // Set initial state for transition
-      bar.style.width = '0';
-      // Use setTimeout to allow the initial state to render before transitioning
-      setTimeout(() => {
-        bar.style.width = targetWidth;
-      }, 50); // Small delay
-    });
-  });
-</script>
-*/
-
-/* --- Citation Section --- */
 .citation-section {
     background-color: var(--color-surface);
     padding: 1rem 1.5rem;
@@ -768,51 +738,34 @@ footer {
 }
 .citation-section a {
     color: var(--color-primary-dark);
-    word-break: break-all; /* Prevent long URLs from overflowing */
+    word-break: break-all;
 }
 
-/* Make labels clickable */
 .db-barplot-label-link {
     text-decoration: none;
-    color: inherit; /* Use default text color */
-    display: inline-block; /* Allow hover effect */
-    /* Ensure it doesn't interfere with flex alignment */
-    line-height: 1; /* Adjust if needed based on font */
+    color: inherit;
+    display: inline-block; 
+    line-height: 1; 
 }
 .db-barplot-label-link:hover .db-barplot-label {
      color: var(--color-primary-dark);
      text-decoration: underline;
 }
 
-/* REMOVE styles related to linking the bar */
-/*
-.db-barplot-bar-link {
-    text-decoration: none;
-    display: block;
-}
-*/
-
 .db-barplot-bar-wrapper {
     flex-grow: 1;
-    background-color: var(--color-code-bg); /* Light background for the track */
+    background-color: var(--color-code-bg); 
     border-radius: 4px;
-    overflow: hidden; /* Ensure bar stays within rounded corners */
-    /* cursor: pointer; */ /* REMOVE cursor pointer */
-    /* transition: box-shadow 0.2s ease; */ /* REMOVE transition */
-    border: 1px solid #dee2e6; /* Keep border */
-    height: 20px; /* Keep height */
+    overflow: hidden; 
+    border: 1px solid #dee2e6;
+    height: 20px; 
 }
-/* REMOVE hover effect for the wrapper */
-/*
-.db-barplot-bar-link:hover .db-barplot-bar-wrapper {
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
-}
-*/
+
 
 .db-barplot-bar {
-    height: 100%; /* Keep height */
+    height: 100%; 
     border-radius: var(--border-radius);
-    width: 0; /* Start at 0 for animation */
+    width: 0; 
     transition: width 2s ease-out;
     padding-right: 0.5em;
     color: var(--color-text);
@@ -822,26 +775,11 @@ footer {
     box-sizing: border-box;
 }
 
-/* Source DB: Cycle through pastel colors (using more colors) */
-/* (Keep the :nth-child background color rules) */
 .db-barplot-container .db-barplot-item:nth-child(10n+1) .db-barplot-bar { background-color: var(--color-pastel-blue); }
-/* ... other color rules ... */
 
-/* REMOVE hover effect for the bar itself if it exists */
-/*
-.db-barplot-bar:hover {
-    filter: brightness(95%);
-}
-*/
-
-/* --- Chart Containers --- */
 .chart-container {
-    position: relative; /* Needed for Chart.js responsiveness */
-    /* margin-top: 1.5rem; */ /* Handled by visualization-section */
+    position: relative;
     padding: 1rem;
-    /* border: 1px solid var(--color-border); */ /* Handled by visualization-section */
-    /* border-radius: 8px; */ /* Handled by visualization-section */
-    /* background-color: #fff; */ /* Handled by visualization-section */
     max-width: 450px; /* Limit pie chart max width */
     max-height: 450px; /* Limit pie chart max height */
     margin: 1rem auto; /* Center chart within its section */
@@ -863,7 +801,6 @@ footer {
     height: 300px; /* Height for pie/donut */
 }
 
-/* Grid for side-by-side charts */
 .chart-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive grid */
@@ -871,7 +808,6 @@ footer {
     margin-top: 1.5rem;
 }
 
-/* Style for placeholder notes */
 .chart-container.note {
     background-color: var(--color-background); /* Slightly different background */
     text-align: center;
@@ -901,27 +837,17 @@ footer {
 }
 
 .class-button {
-    /* Inherits .button styles */
-    /* Add specific overrides if needed */
-    /* --- MODIFICATION: Adjust padding and font size --- */
     padding: 0.3rem 0.7rem; /* Smaller padding */
     font-size: 0.8rem; /* Smaller font */
-    /* --- End Modification --- */
     text-decoration: none !important;
-    /* --- MODIFICATION: Change default text color --- */
     color: var(--color-text-muted) !important; /* Muted grey text */
-    /* color: var(--color-text) !important; */ /* Darker text */
-    /* --- End Modification --- */
     border: 1px solid var(--color-primary);
     transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease, filter 0.2s ease, color 0.2s ease; /* Added color transition */
 }
 
 .class-button:hover {
     filter: brightness(90%);
-    /* --- MODIFICATION: Ensure text color changes on hover if needed, or keep it muted --- */
-    /* color: var(--color-text) !important; */ /* Optional: Darken text on hover */
     color: var(--color-text-muted) !important; /* Keep text muted on hover */
-    /* --- End Modification --- */
     transform: translateY(-1px);
 }
 
@@ -950,14 +876,12 @@ footer {
 .class-button .count-number {
     font-weight: bold;
     margin-left: 0.3em;
-    /* Style for the animated number */
     display: inline-block; /* Needed for potential width changes during animation */
     min-width: 1.5em; /* Give space for numbers to change */
     text-align: right;
 }
 /* --- End Antibiotic Class Buttons Section --- */
 
-/* --- NEW: Grid Container for Side-by-Side Visualizations --- */
 .viz-grid-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -966,7 +890,6 @@ footer {
     align-items: stretch;
 }
 
-/* Adjustments for visualization sections within the grid */
 .viz-grid-container > .visualization-section {
     margin-bottom: 0;
     height: 100%;
@@ -974,7 +897,6 @@ footer {
     flex-direction: column;
 }
 
-/* Ensure the bar plot container can grow */
 .viz-grid-container .v-barplot-container {
     flex-grow: 1;
 }
@@ -990,7 +912,6 @@ footer {
     max-width: 350px; /* Reduced max width here too */
 }
 
-/* Optional: Placeholder styling if you added the placeholder class */
 .visualization-section.placeholder {
     /* Add some styling to indicate missing data */
     background-color: var(--color-background);
@@ -1009,7 +930,6 @@ footer {
     margin-bottom: 0.5rem;
 }
 
-/* --- NEW: Styles for Visualization Section Header --- */
 .visualization-header {
     display: flex;
     justify-content: space-between;
@@ -1030,7 +950,6 @@ footer {
     margin-right: 1rem;
 }
 
-/* Style for the new browse buttons in the viz headers */
 .visualization-header .browse-button {
     padding: 0.3rem 0.8rem;
     font-size: 0.8rem;
@@ -1049,4 +968,3 @@ footer {
     border-color: var(--color-primary);
     color: var(--color-primary);
 }
-/* --- End Visualization Section Header Styles --- */ 
