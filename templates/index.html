@@ -33,18 +33,18 @@
             </div>
             <div class="v-barplot-container">
                 {% for row in source_db_counts %}
-                    {% set bar_height_percent = (row.gene_count / max_db_count * 100) if max_db_count else 0 %}
-                    {% set bar_height_percent = [0, bar_height_percent] | max %}
-                    {% set bar_height_percent = [100, bar_height_percent] | min %}
+                    {% set bar_width_percent = (row.gene_count / max_db_count * 100) if max_db_count else 0 %}
+                    {% set bar_width_percent = [0, bar_width_percent] | max %}
+                    {% set bar_width_percent = [100, bar_width_percent] | min %}
                     {% set formatted_count = "{:,}".format(row.gene_count) %}
 
                     <div class="v-barplot-item" title="{{ row.database_name }} ({{ formatted_count }} genes)">
-                        <div class="v-barplot-count">{{ formatted_count }}</div>
+                        <div class="v-barplot-label">{{ row.database_name }}</div>
                         <div class="v-barplot-bar-wrapper">
-                            <div class="v-barplot-bar" data-target-height="{{ bar_height_percent }}%" style="height: 0%;">
+                            <div class="v-barplot-bar" data-target-width="{{ bar_width_percent }}%" style="width: 0%;">
                             </div>
                         </div>
-                        <div class="v-barplot-label">{{ row.database_name }}</div>
+                        <div class="v-barplot-count">{{ formatted_count }}</div>
                     </div>
                 {% endfor %}
             </div>
@@ -115,9 +115,9 @@
 
             const bars = document.querySelectorAll('.v-barplot-bar');
             bars.forEach(bar => {
-                const targetHeight = bar.dataset.targetHeight;
+                const targetWidth = bar.dataset.targetWidth;
                 setTimeout(() => {
-                    bar.style.height = targetHeight;
+                    bar.style.width = targetWidth;
                 }, 50);
             });
 

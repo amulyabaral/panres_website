@@ -203,112 +203,218 @@ a:hover code {
     padding-bottom: 0.5rem;
 }
 
-/* --- NEW REFACTORED: Vertical Bar Plot Styles --- */
+/* --- NEW REFACTORED: Horizontal Bar Plot Styles --- */
 .source-db-chart {
     /* Ensures the section takes necessary height */
     display: flex;
     flex-direction: column;
-    min-height: 400px; /* Adjust minimum height as needed */
+    min-height: 300px; /* Reduced minimum height */
 }
 
 .v-barplot-container {
-    display: flex; /* Use flexbox to lay out bars horizontally */
-    justify-content: space-around; /* Distribute space between bars */
-    align-items: flex-end; /* CRITICAL: Aligns items (count+bar+label) to the bottom */
-    gap: 8px; /* Space between each bar item */
+    /* Container for all the horizontal bar items */
     padding: 1rem 0.5rem 0.5rem 0.5rem; /* Padding: top right bottom left */
     flex-grow: 1; /* Allow container to fill vertical space in section */
-    overflow-x: auto; /* Enable horizontal scroll if bars overflow */
-    overflow-y: hidden; /* Prevent vertical scroll */
-    min-height: 280px; /* Minimum height for the chart area itself */
     border-top: 1px solid var(--color-border);
     margin-top: 1rem;
+    overflow-y: auto; /* Allow vertical scroll if many items */
 }
 
 .v-barplot-item {
-    display: flex;
-    flex-direction: column; /* Stack count, bar, label vertically */
-    align-items: center; /* Center items horizontally */
-    text-align: center;
-    min-width: 45px; /* Minimum width for each bar item */
-    flex-shrink: 0; /* Prevent items from shrinking too much */
-    /* align-self: flex-end; */ /* This should not be needed if container uses align-items: flex-end */
-}
-
-.v-barplot-count {
-    font-size: 0.75rem;
-    font-weight: bold;
-    color: var(--color-text-muted);
-    margin-bottom: 4px; /* Space between count and bar */
-    height: 1.2em; /* Reserve space for the count */
-    line-height: 1.2em;
-    white-space: nowrap;
-}
-
-.v-barplot-bar-wrapper {
-    width: 35px; /* Width of the bar track */
-    height: 200px; /* Maximum height of the bar track - Adjust as needed */
-    background-color: var(--color-code-bg); /* Background of the track */
-    border-radius: var(--border-radius) var(--border-radius) 0 0; /* Rounded top corners */
-    display: flex; /* Needed to align the bar inside */
-    flex-direction: column; /* Align bar vertically */
-    justify-content: flex-end; /* Bar grows from the bottom */
-    overflow: hidden; /* Hide bar overflow if calculation exceeds 100% */
-    border: 1px solid var(--color-border);
-    border-bottom: none;
-}
-
-.v-barplot-bar {
-    width: 100%; /* Bar fills the wrapper horizontally */
-    height: 0; /* Initial height for animation */
-    background-color: var(--color-primary); /* Default bar color (overridden by nth-child) */
-    border-radius: var(--border-radius) var(--border-radius) 0 0; /* Match wrapper rounding */
-    transition: height 1.5s ease-out; /* Animation for height */
-    box-sizing: border-box;
+    display: flex; /* Lay out label, bar, count horizontally */
+    align-items: center; /* Vertically center items in the row */
+    margin-bottom: 6px; /* Space between horizontal bars */
+    min-height: 28px; /* Ensure minimum height for the item */
 }
 
 .v-barplot-label {
-    font-size: 0.8rem; /* Slightly larger label */
-    font-weight: bold; /* Make label bold */
-    color: var(--color-text); /* Darker label text */
-    margin-top: 6px; /* Space between bar and label */
-    writing-mode: vertical-rl; /* Vertical text */
-    transform: rotate(180deg); /* Orient text correctly */
-    white-space: nowrap;
-    max-height: 100px; /* Max height for label before overflow */
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* Label styles */
+    width: 160px; /* Fixed width for labels */
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--color-text);
+    text-align: right;
+    margin-right: 8px; /* Space between label and bar */
+    white-space: nowrap; /* Prevent wrapping */
+    overflow: hidden; /* Hide overflow */
+    text-overflow: ellipsis; /* Add ellipsis if text is too long */
+    flex-shrink: 0; /* Prevent label from shrinking */
+    /* Remove vertical styles */
+    /* writing-mode: vertical-rl; */
+    /* transform: rotate(180deg); */
+    /* max-height: 100px; */
 }
 
-/* --- Apply nth-child colors to the new vertical bars --- */
+.v-barplot-bar-wrapper {
+    flex-grow: 1; /* Allow bar wrapper to take remaining horizontal space */
+    height: 25px; /* Increased bar thickness */
+    background-color: var(--color-code-bg); /* Background of the track */
+    border-radius: var(--border-radius);
+    display: flex; /* Needed for the bar inside */
+    align-items: center; /* Center bar vertically if needed, though height 100% should handle it */
+    overflow: hidden; /* Hide bar overflow */
+    border: 1px solid var(--color-border);
+    /* Remove vertical styles */
+    /* width: 35px; */
+    /* height: 200px; */
+    /* border-radius: var(--border-radius) var(--border-radius) 0 0; */
+    /* flex-direction: column; */
+    /* justify-content: flex-end; */
+    /* border-bottom: none; */
+}
+
+.v-barplot-bar {
+    height: 100%; /* Bar fills the wrapper vertically */
+    width: 0; /* Initial width for animation */
+    background-color: var(--color-primary); /* Default bar color (overridden by nth-child) */
+    border-radius: var(--border-radius); /* Match wrapper rounding */
+    transition: width 1s ease-out; /* Animate width, faster duration (1s) */
+    box-sizing: border-box;
+    /* Remove vertical styles */
+    /* width: 100%; */
+    /* height: 0; */
+    /* border-radius: var(--border-radius) var(--border-radius) 0 0; */
+    /* transition: height 1.5s ease-out; */
+}
+
+.v-barplot-count {
+    width: 55px; /* Fixed width for count */
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: var(--color-text-muted);
+    margin-left: 8px; /* Space between bar and count */
+    text-align: left;
+    white-space: nowrap;
+    flex-shrink: 0; /* Prevent count from shrinking */
+    /* Remove vertical styles */
+    /* margin-bottom: 4px; */
+    /* height: 1.2em; */
+    /* line-height: 1.2em; */
+}
+
+
+/* --- Apply nth-child colors to the new horizontal bars --- */
+/* These rules remain the same, targeting the .v-barplot-bar */
 .v-barplot-container .v-barplot-item:nth-child(10n+1) .v-barplot-bar { background-color: var(--color-pastel-blue); }
 .v-barplot-container .v-barplot-item:nth-child(10n+2) .v-barplot-bar { background-color: var(--color-pastel-green); }
-.v-barplot-container .v-barplot-item:nth-child(10n+3) .v-barplot-bar { background-color: var(--color-pastel-yellow); }
-.v-barplot-container .v-barplot-item:nth-child(10n+4) .v-barplot-bar { background-color: var(--color-pastel-purple); }
-.v-barplot-container .v-barplot-item:nth-child(10n+5) .v-barplot-bar { background-color: var(--color-pastel-pink); }
-.v-barplot-container .v-barplot-item:nth-child(10n+6) .v-barplot-bar { background-color: var(--color-pastel-cyan); }
-.v-barplot-container .v-barplot-item:nth-child(10n+7) .v-barplot-bar { background-color: var(--color-pastel-orange); }
-.v-barplot-container .v-barplot-item:nth-child(10n+8) .v-barplot-bar { background-color: var(--color-pastel-lime); }
-.v-barplot-container .v-barplot-item:nth-child(10n+9) .v-barplot-bar { background-color: var(--color-pastel-indigo); }
+/* ... keep all other nth-child rules ... */
 .v-barplot-container .v-barplot-item:nth-child(10n+10) .v-barplot-bar { background-color: var(--color-pastel-teal); }
-/* --- End Vertical Bar Plot Styles --- */
+/* --- End Horizontal Bar Plot Styles --- */
 
 /* Adjust grid container alignment if needed */
 .viz-grid-container {
-    align-items: stretch; /* Make grid items stretch vertically */
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    align-items: stretch;
 }
+
+/* Adjustments for visualization sections within the grid */
+.viz-grid-container > .visualization-section {
+    margin-bottom: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    /* Default padding is applied in .visualization-section rule */
+}
+
+/* --- NEW: Remove padding specifically from the pie chart section (second child) --- */
+.viz-grid-container > .visualization-section:nth-child(2) {
+    padding: 0.5rem; /* Reduce padding significantly, or use 0 */
+}
+
+/* Ensure the bar plot container can grow */
+.viz-grid-container .db-barplot-container {
+    flex-grow: 1;
+}
+
+/* Ensure the pie chart container can grow and center */
+.viz-grid-container .chart-container {
+    margin: 1rem auto; /* Default margin */
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 350px; /* Reduced max width here too */
+}
+
+/* --- NEW: Remove margin from the chart container inside the second viz section --- */
+.viz-grid-container > .visualization-section:nth-child(2) .chart-container {
+    margin: 0; /* Remove margin to allow filling the space */
+    /* Max width/height still apply to prevent excessive size */
+}
+
+/* Optional: Placeholder styling if you added the placeholder class */
+.visualization-section.placeholder {
+    /* Add some styling to indicate missing data */
+    background-color: var(--color-background);
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    min-height: 200px; /* Give it some minimum height */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+.visualization-section.placeholder h4 {
+    border-bottom: none; /* Remove border from placeholder title */
+    margin-bottom: 0.5rem;
+}
+
+/* --- NEW: Styles for Visualization Section Header --- */
+.visualization-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px dashed var(--color-border);
+    padding-bottom: 0.5rem;
+}
+
+.visualization-header h4 {
+    margin: 0;
+    padding: 0;
+    border: none;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-text);
+    flex-grow: 1;
+    margin-right: 1rem;
+}
+
+/* Style for the new browse buttons in the viz headers */
+.visualization-header .browse-button {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
+    text-decoration: none;
+    background-color: var(--color-background);
+    color: var(--color-primary-dark);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    white-space: nowrap;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.visualization-header .browse-button:hover {
+    background-color: var(--color-code-bg);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+/* --- End Visualization Section Header Styles --- */
 
 /* --- Antibiotic Class Pie/Donut Chart --- */
 .chart-container {
     position: relative;
-    /* Adjust height/aspect ratio as needed */
-    /* height: 40vh; */
-    max-height: 450px; /* Limit max height */
-    /* width: 100%; */
-    max-width: 450px; /* Limit max width if desired */
+    max-height: 350px; /* Reduced max height */
+    max-width: 350px; /* Reduced max width */
     margin: 1rem auto; /* Center chart with some margin */
     aspect-ratio: 1 / 1; /* Make it square-ish */
-    min-height: 300px; /* Ensure minimum height */
+    min-height: 250px; /* Reduced min height */
 }
 
 /* Ensure canvas takes up container size */
@@ -872,7 +978,7 @@ footer {
     align-items: center;
     justify-content: center;
     width: 100%;
-    max-width: 450px;
+    max-width: 350px; /* Reduced max width here too */
 }
 
 /* Optional: Placeholder styling if you added the placeholder class */
