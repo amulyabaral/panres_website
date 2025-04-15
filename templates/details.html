@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Details: {{ item_id }} - PanRes Ontology Explorer{% endblock %}
+
+{% block content %}
+    <h2>Details for: <code>{{ item_id }}</code></h2>
+
+    {% if not outgoing and not incoming %}
+        <p><em>No information found for this item ID in the database.</em></p>
+    {% else %}
+        <h3>Properties / Relationships (Outgoing)</h3>
+        {% if outgoing %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Predicate (Relationship/Property)</th>
+                        <th>Object (Value/Target)</th>
+                        <th>Object Type</th>
+                        <th>Datatype (if Literal)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for triple in outgoing %}
+                        <tr>
+                            <td>
+                                <!-- Make predicates linkable too, if they are resources -->
+                                <a href="{{ url_for('details', item_id=triple.predicate) }}">{{ triple.predicate }}</a>
+                            </td>
+                            <td>
+                                {% if triple.object_is_literal == 0 %}
+                                    <!-- Object is a Resource/Link -->
+                                    <a href="{{ url_for('details', item_id=triple.object) }}">{{ triple.object }}</a>
+                                {% else %}
+                                    <!-- Object is a Literal -->
+                                    {{ triple.object }}
+                                {% endif %}
+                            </td>
+                            <td>{{ 'Literal' if triple.object_is_literal == 1 else 'Resource' }}</td>
+                            <td>{{ triple.object_datatype if triple.object_datatype else 'N/A' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p><em>This item has no outgoing properties or relationships defined.</em></p>
+        {% endif %}
+
+        <h3>Referenced By (Incoming Links)</h3>
+        {% if incoming %}
+             <table>
+                <thead>
+                    <tr>
+                        <th>Subject (Source)</th>
+                        <th>Predicate (Relationship)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for triple in incoming %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('details', item_id=triple.subject) }}">{{ triple.subject }}</a>
+                            </td>
+                            <td>
+                                 <a href="{{ url_for('details', item_id=triple.predicate) }}">{{ triple.predicate }}</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p><em>This item is not referenced as an object by any other resource.</em></p>
+        {% endif %}
+    {% endif %}
+
+    <p><a href="{{ url_for('index') }}">Back to Home</a></p>
+
+{% endblock %} 

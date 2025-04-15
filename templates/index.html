@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Home - PanRes Ontology Explorer{% endblock %}
+
+{% block content %}
+    <h2>Welcome!</h2>
+    <p>This tool allows you to explore the PanRes Ontology data stored in the SQLite database.</p>
+    <p>Select a category to browse:</p>
+    <ul>
+        {% for display_name, type_id in browse_types.items() %}
+            <li><a href="{{ url_for('list_items', item_type_id=type_id) }}">{{ display_name }}</a></li>
+        {% else %}
+            <li>No browseable types defined in app.py</li>
+        {% endfor %}
+    </ul>
+    <p>You can also directly access details by constructing the URL, e.g., <code>/details/YourItemID</code>.</p>
+{% endblock %} 
