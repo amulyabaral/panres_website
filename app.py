@@ -256,7 +256,8 @@ def index():
         app.logger.error(f"Error fetching or processing antibiotic class counts: {e}")
         # Handle error appropriately, antibiotic_chart_data remains None
 
-    # --- NEW: Fetch Predicted Phenotype Counts for Donut Chart ---
+    # --- NEW: Fetch Predicted Phenotype Counts for Stacked Bar ---
+    phenotype_chart_data = None # Initialize as None
     try:
         cursor_pheno = db.execute("""
             SELECT object AS phenotype_name, COUNT(DISTINCT subject) AS gene_count
@@ -268,41 +269,56 @@ def index():
         phenotype_counts = [dict(row) for row in cursor_pheno.fetchall()]
         app.logger.info(f"Fetched {len(phenotype_counts)} predicted phenotype counts.")
 
-        # --- Process Phenotype Counts for Donut Chart (Top 8 + Others) ---
+        # --- Process Phenotype Counts for Stacked Bar (Top 8 + Others) ---
         if phenotype_counts:
-            top_n_pheno = 8 # Show top 8 phenotypes
-            chart_labels_pheno = []
-            chart_data_points_pheno = []
-            chart_colors_pheno = []
+            top_n_pheno = 8
+            pheno_segments = [] # List to hold data for each bar segment/legend item
+            pheno_colors = DONUT_CHART_COLORS # Reuse colors
 
             # Take top N
             top_phenotypes = phenotype_counts[:top_n_pheno]
-            for i, row in enumerate(top_phenotypes):
-                chart_labels_pheno.append(row['phenotype_name'])
-                chart_data_points_pheno.append(row['gene_count'])
-                # Cycle through DONUT_CHART_COLORS
-                chart_colors_pheno.append(DONUT_CHART_COLORS[i % (len(DONUT_CHART_COLORS) -1)])
+            total_count_top_n = sum(row['gene_count'] for row in top_phenotypes)
 
-            # Group remaining into "Others"
+            # Calculate "Others" count
+            other_count_pheno = 0
             if len(phenotype_counts) > top_n_pheno:
                 other_phenotypes = phenotype_counts[top_n_pheno:]
                 other_count_pheno = sum(row['gene_count'] for row in other_phenotypes)
-                if other_count_pheno > 0:
-                    chart_labels_pheno.append("Others")
-                    chart_data_points_pheno.append(other_count_pheno)
-                    chart_colors_pheno.append(DONUT_CHART_COLORS[-1]) # Use the last defined color for Others
 
-            phenotype_chart_data = {
-                'labels': chart_labels_pheno,
-                'data': chart_data_points_pheno,
-                'colors': chart_colors_pheno
-            }
-            app.logger.info(f"Processed phenotype counts for donut chart: {len(chart_labels_pheno)} slices.")
+            # Total count for percentage calculation
+            total_pheno_count = total_count_top_n + other_count_pheno
+
+            if total_pheno_count > 0: # Avoid division by zero
+                # Add top N segments
+                for i, row in enumerate(top_phenotypes):
+                    percentage = (row['gene_count'] / total_pheno_count * 100)
+                    pheno_segments.append({
+                        'name': row['phenotype_name'],
+                        'count': row['gene_count'],
+                        'percentage': percentage,
+                        'color': pheno_colors[i % (len(pheno_colors) -1)] # Cycle colors, excluding last for 'Others'
+                    })
+
+                # Add "Others" segment if applicable
+                if other_count_pheno > 0:
+                    percentage = (other_count_pheno / total_pheno_count * 100)
+                    pheno_segments.append({
+                        'name': "Others",
+                        'count': other_count_pheno,
+                        'percentage': percentage,
+                        'color': pheno_colors[-1] # Use the last color for Others
+                    })
+
+                phenotype_chart_data = {
+                    'segments': pheno_segments,
+                    'total_count': total_pheno_count
+                }
+                app.logger.info(f"Processed phenotype counts for stacked bar: {len(pheno_segments)} segments.")
 
     except sqlite3.Error as e:
         app.logger.error(f"Error fetching or processing phenotype counts: {e}")
-        # Handle error appropriately, phenotype_chart_data remains None
-    # --- End NEW Section ---
+        phenotype_chart_data = None # Ensure it's None on error
+    # --- End Phenotype Section ---
 
     # --- Convert Row objects to Dictionaries ---
     # Convert source_db_counts_rows to a list of dicts
@@ -319,7 +335,7 @@ def index():
         source_db_counts=source_db_counts,
         max_db_count=max_db_count,
         antibiotic_chart_data=antibiotic_chart_data,
-        phenotype_chart_data=phenotype_chart_data # <-- Pass new data
+        phenotype_chart_data=phenotype_chart_data # Pass new structure
     )
 
 

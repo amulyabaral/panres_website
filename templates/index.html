@@ -24,17 +24,17 @@
     {# --- Grid Container for Side-by-Side Visualizations --- #}
     <div class="viz-grid-container">
 
-        {# --- NEW: Wrapper Div for Left Column (Source DB + Phenotypes) --- #}
+        {# --- Wrapper Div for Left Column (Source DB + Phenotypes) --- #}
         <div class="viz-column-left">
 
             {# --- Source Database Visualization --- #}
             {% if source_db_counts %}
-            <div class="visualization-section source-db-chart">
-                <div class="visualization-header">
-                    <h4>ARGs by Source Database</h4> {# Shortened Title #}
+            <div class="visualization-section source-db-chart no-internal-padding">
+                <div class="visualization-header no-border">
+                    <h4>ARGs by Source Database</h4>
                     <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button">Browse Sources</a>
                 </div>
-                <div class="v-barplot-container">
+                <div class="v-barplot-container no-border">
                     {% for row in source_db_counts %}
                         {% set bar_width_percent = (row.gene_count / max_db_count * 100) if max_db_count else 0 %}
                         {% set bar_width_percent = [0, bar_width_percent] | max %}
@@ -53,8 +53,8 @@
                 </div>
             </div>
             {% else %}
-             <div class="visualization-section placeholder source-db-chart">
-                 <div class="visualization-header">
+             <div class="visualization-section placeholder source-db-chart no-internal-padding">
+                 <div class="visualization-header no-border">
                      <h4>ARGs by Source Database</h4>
                      <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button" style="margin-top: 1rem;">Browse Sources</a>
                  </div>
@@ -62,24 +62,38 @@
              </div>
             {% endif %}
 
-            {# --- NEW: Predicted Phenotype Donut Chart Section --- #}
-            {% if phenotype_chart_data and phenotype_chart_data.labels %}
-            <div class="visualization-section phenotype-chart"> {# Added class for potential specific styling #}
-                 <div class="visualization-header">
+            {# --- NEW: Predicted Phenotype Stacked Bar Section --- #}
+            {% if phenotype_chart_data and phenotype_chart_data.segments %}
+            <div class="visualization-section phenotype-stacked-bar no-internal-padding">
+                 <div class="visualization-header no-border">
                     <h4>ARGs by Predicted Phenotype (Top 8)</h4>
                      <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="browse-button">Browse Phenotypes</a>
                 </div>
-                <div class="chart-container small-chart"> {# Added class for potential size control #}
-                    <canvas id="phenotypeChart"></canvas>
+                <div class="stacked-bar-container">
+                    {% for segment in phenotype_chart_data.segments %}
+                        <span class="stacked-bar-segment"
+                              style="width: {{ segment.percentage }}%; background-color: {{ segment.color }};"
+                              title="{{ segment.name }} ({{ '{:,}'.format(segment.count) }} genes, {{ '%.1f'|format(segment.percentage) }}%)">
+                        </span>
+                    {% endfor %}
+                </div>
+                <div class="stacked-bar-legend">
+                    {% for segment in phenotype_chart_data.segments %}
+                    <div class="legend-item">
+                        <span class="legend-color-box" style="background-color: {{ segment.color }};"></span>
+                        <span class="legend-label">{{ segment.name }}</span>
+                        <span class="legend-count">({{ '{:,}'.format(segment.count) }})</span>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
             {% else %}
-                <div class="visualization-section placeholder phenotype-chart">
-                     <div class="visualization-header">
+                <div class="visualization-section placeholder phenotype-stacked-bar no-internal-padding">
+                     <div class="visualization-header no-border">
                          <h4>ARGs by Predicted Phenotype (Top 8)</h4>
                          <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="browse-button">Browse Phenotypes</a>
                      </div>
-                     <p style="margin-top: auto; margin-bottom: auto;">No data available to display phenotype counts.</p>
+                     <p style="margin-top: auto; margin-bottom: auto;">No data available.</p>
                 </div>
             {% endif %}
             {# --- End NEW Phenotype Section --- #}
@@ -90,18 +104,18 @@
         {# --- Antibiotic Class Pie Chart Section (Right Column) --- #}
         {# This remains directly inside the grid container #}
         {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
-        <div class="visualization-section antibiotic-class-chart"> {# Added class #}
-             <div class="visualization-header">
-                <h4>ARGs by Antibiotic Class (Top 7)</h4> {# Updated Title #}
+        <div class="visualization-section antibiotic-class-chart no-internal-padding">
+             <div class="visualization-header no-border">
+                <h4>ARGs by Antibiotic Class (Top 7)</h4>
                  <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
             </div>
-            <div class="chart-container"> {# Removed size class, let it fill #}
+            <div class="chart-container">
                 <canvas id="antibioticClassChart"></canvas>
             </div>
         </div>
         {% else %}
-            <div class="visualization-section placeholder antibiotic-class-chart">
-                 <div class="visualization-header">
+            <div class="visualization-section placeholder antibiotic-class-chart no-internal-padding">
+                 <div class="visualization-header no-border">
                      <h4>ARGs by Antibiotic Class (Top 7)</h4>
                      <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
                  </div>
@@ -226,70 +240,6 @@
                     });
                 }
             {% endif %}
-
-            // --- Predicted Phenotype Donut Chart ---
-            const ctxPhenotype = document.getElementById('phenotypeChart');
-            {% if phenotype_chart_data and phenotype_chart_data.labels %}
-                const phenotypeLabels = {{ phenotype_chart_data.labels | tojson }};
-                const phenotypeDataPoints = {{ phenotype_chart_data.data | tojson }};
-                const phenotypeColors = {{ phenotype_chart_data.colors | tojson }};
-
-                if (ctxPhenotype) {
-                    new Chart(ctxPhenotype, {
-                        type: 'doughnut',
-                        data: {
-                            labels: phenotypeLabels,
-                            datasets: [{
-                                label: 'Gene Count',
-                                data: phenotypeDataPoints,
-                                backgroundColor: phenotypeColors,
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            cutout: '65%', // Slightly larger hole might look better when small
-                            plugins: {
-                                legend: {
-                                    position: 'bottom',
-                                    labels: {
-                                        boxWidth: 8, // Smaller box
-                                        padding: 5, // Further reduced padding
-                                        font: {
-                                            size: 8 // Even smaller legend font
-                                        }
-                                    }
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            let label = context.label || '';
-                                            if (label) { label += ': '; }
-                                            if (context.parsed !== null) {
-                                                label += context.parsed.toLocaleString();
-                                            }
-                                            return label;
-                                        }
-                                    }
-                                },
-                                datalabels: {
-                                    formatter: (value, ctx) => {
-                                        let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                        let percentage = (value * 100 / sum).toFixed(0) + "%";
-                                        return (value * 100 / sum) > 6 ? percentage : ''; // Show % only if > 6%
-                                    },
-                                    color: '#fff',
-                                    font: { weight: 'bold', size: 8 }, // Smaller datalabel font
-                                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                                    borderRadius: 2,
-                                    padding: 1 // Minimal padding
-                                }
-                            }
-                        }
-                    });
-                }
-            {% endif %}
-            // --- End NEW Phenotype Chart JS ---
         });
     </script>
 {% endblock %} 

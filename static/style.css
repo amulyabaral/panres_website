@@ -176,13 +176,29 @@ a:hover code {
 .visualization-section {
     background-color: var(--color-surface);
     border: var(--border-default);
-    border-radius: var(--border-radius); /* Standard radius */
-    padding: 0.6rem 0.8rem; /* Significantly reduced padding */
-    margin-bottom: 1rem; /* Reduced spacing */
-    display: flex; /* Allow vertical stretching if needed */
+    border-radius: var(--border-radius);
+    padding: 0.6rem 0.8rem; /* Keep side padding */
+    margin-bottom: 1rem;
+    display: flex;
     flex-direction: column;
     transition: background-color 0.2s ease;
-    min-height: 80px; /* Significantly reduced base min-height */
+    min-height: auto; /* Let content define height */
+}
+
+/* NEW: Modifier to remove all internal vertical padding/borders */
+.visualization-section.no-internal-padding {
+    padding-top: 0.2rem; /* Minimal top padding */
+    padding-bottom: 0.2rem; /* Minimal bottom padding */
+}
+.visualization-section.no-internal-padding .visualization-header {
+    padding-bottom: 0;
+    margin-bottom: 0.4rem; /* Space below header */
+}
+.visualization-section.no-internal-padding .v-barplot-container,
+.visualization-section.no-internal-padding .chart-container {
+    margin-top: 0;
+    padding-top: 0.2rem; /* Minimal padding above content */
+    padding-bottom: 0;
 }
 
 /* Add margin-top specifically to the class buttons section */
@@ -202,20 +218,23 @@ a:hover code {
 
 /* --- NEW REFACTORED: Horizontal Bar Plot Styles --- */
 .source-db-chart {
-    /* Ensures the section takes necessary height */
     display: flex;
     flex-direction: column;
-    min-height: 150px; /* Drastically reduced minimum height */
+    min-height: 120px; /* Further reduced */
 }
 
 .v-barplot-container {
-    /* Container for all the horizontal bar items */
-    padding: 0.3rem 0.1rem 0.1rem 0.1rem; /* Reduced padding */
-    flex-grow: 1; /* Allow container to fill vertical space in section */
-    border-top: 1px solid var(--color-border);
-    margin-top: 0.5rem; /* Reduced margin */
-    overflow-y: auto; /* Allow vertical scroll if many items */
-    min-height: 100px; /* Reduced minimum height */
+    padding: 0.3rem 0.1rem 0.1rem 0.1rem;
+    flex-grow: 1;
+    margin-top: 0.5rem;
+    overflow-y: auto;
+    min-height: 80px; /* Further reduced */
+}
+
+/* NEW: Modifier to remove border */
+.v-barplot-container.no-border {
+    border-top: none;
+    margin-top: 0;
 }
 
 .v-barplot-item {
@@ -334,14 +353,14 @@ a:hover code {
 
 /* Specific adjustments for chart containers */
 .chart-container {
-    flex-grow: 1; /* Allow container to grow vertically */
+    min-height: 130px; /* Slightly reduced */
+    padding: 0.1rem;
+    flex-grow: 1; /* Allow pie chart to take space */
     display: flex;
     align-items: center;
     justify-content: center;
     width: 100%;
-    position: relative; /* Needed for canvas responsiveness */
-    min-height: 140px; /* Significantly reduced minimum height */
-    padding: 0.1rem; /* Minimal padding */
+    position: relative;
 }
 
 /* Optional: Slightly smaller chart container for the phenotype donut */
@@ -375,25 +394,33 @@ a:hover code {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.5rem; /* Reduced margin */
-    padding-bottom: 0.2rem; /* Reduced padding */
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.2rem;
+}
+
+/* NEW: Modifier to remove border */
+.visualization-header.no-border {
+    border-bottom: none;
+    padding-bottom: 0;
 }
 
 .visualization-header h4 {
-    margin: 0;
-    padding: 0;
-    border: none;
-    font-size: 1.0rem; /* Smaller */
-    font-weight: 700;
+    font-size: 1.0rem;
+    margin: 0; /* Remove default margins */
+    padding: 0; /* Remove default padding */
+    border: none; /* Remove default border */
+    font-weight: 600; /* Slightly less bold */
     color: var(--color-text);
     flex-grow: 1;
-    margin-right: 0.5rem; /* Reduced margin */
+    margin-right: 0.5rem;
+    font-family: var(--font-mono);
+    line-height: 1.2; /* Tighten line height */
 }
 
 /* Style for the new browse buttons in the viz headers */
 .visualization-header .browse-button {
-    padding: 0.2rem 0.5rem; /* Reduced padding */
-    font-size: 0.75rem; /* Smaller font */
+    padding: 0.1rem 0.4rem; /* Smaller padding */
+    font-size: 0.7rem; /* Smaller font */
     text-decoration: none;
     background-color: var(--color-background);
     color: var(--color-primary-dark);
@@ -1021,3 +1048,63 @@ footer {
 .category-card .button /* Add category card button specifically */ {
     font-family: var(--font-mono); /* Explicitly set for buttons */
 }
+
+/* --- NEW: Phenotype Stacked Bar Styles --- */
+.phenotype-stacked-bar {
+    min-height: auto; /* Override default min-height */
+}
+
+.stacked-bar-container {
+    display: flex;
+    width: 100%;
+    height: 20px; /* Height of the stacked bar */
+    border-radius: var(--border-radius);
+    overflow: hidden; /* Clip segments to rounded corners */
+    margin-top: 0.4rem; /* Space below header */
+    margin-bottom: 0.6rem; /* Space above legend */
+    border: 1px solid var(--color-border); /* Add a border around the bar */
+}
+
+.stacked-bar-segment {
+    display: block;
+    height: 100%;
+    transition: filter 0.2s ease; /* Add hover effect */
+}
+.stacked-bar-segment:hover {
+    filter: brightness(90%);
+    cursor: default; /* Indicate it's interactive (via title) */
+}
+
+.stacked-bar-legend {
+    display: flex;
+    flex-wrap: wrap; /* Allow legend items to wrap */
+    gap: 0.2rem 0.8rem; /* Row and column gap */
+    margin-top: 0.4rem; /* Space above legend */
+    padding-left: 0.2rem; /* Slight indent */
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.75rem; /* Smaller legend font */
+}
+
+.legend-color-box {
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    border-radius: 2px;
+    display: inline-block;
+    border: 1px solid rgba(0,0,0,0.1); /* Subtle border */
+}
+
+.legend-label {
+    color: var(--color-text);
+    margin-right: 3px;
+}
+
+.legend-count {
+    color: var(--color-text-muted);
+    font-size: 0.9em; /* Slightly smaller than label */
+}
+/* --- End Phenotype Stacked Bar Styles --- */
