@@ -24,54 +24,85 @@
     {# --- Grid Container for Side-by-Side Visualizations --- #}
     <div class="viz-grid-container">
 
-        {# --- Source Database Visualization (Left Column) --- #}
-        {% if source_db_counts %}
-        <div class="visualization-section source-db-chart">
-            <div class="visualization-header">
-                <h4>Panres 2.0 contains ARGs from the following databases</h4>
-                <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button">Browse Sources</a>
-            </div>
-            <div class="v-barplot-container">
-                {% for row in source_db_counts %}
-                    {% set bar_width_percent = (row.gene_count / max_db_count * 100) if max_db_count else 0 %}
-                    {% set bar_width_percent = [0, bar_width_percent] | max %}
-                    {% set bar_width_percent = [100, bar_width_percent] | min %}
-                    {% set formatted_count = "{:,}".format(row.gene_count) %}
+        {# --- NEW: Wrapper Div for Left Column (Source DB + Phenotypes) --- #}
+        <div class="viz-column-left">
 
-                    <div class="v-barplot-item" title="{{ row.database_name }} ({{ formatted_count }} genes)">
-                        <div class="v-barplot-label">{{ row.database_name }}</div>
-                        <div class="v-barplot-bar-wrapper">
-                            <div class="v-barplot-bar" data-target-width="{{ bar_width_percent }}%" style="width: 0%;">
+            {# --- Source Database Visualization --- #}
+            {% if source_db_counts %}
+            <div class="visualization-section source-db-chart">
+                <div class="visualization-header">
+                    <h4>ARGs by Source Database</h4> {# Shortened Title #}
+                    <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button">Browse Sources</a>
+                </div>
+                <div class="v-barplot-container">
+                    {% for row in source_db_counts %}
+                        {% set bar_width_percent = (row.gene_count / max_db_count * 100) if max_db_count else 0 %}
+                        {% set bar_width_percent = [0, bar_width_percent] | max %}
+                        {% set bar_width_percent = [100, bar_width_percent] | min %}
+                        {% set formatted_count = "{:,}".format(row.gene_count) %}
+
+                        <div class="v-barplot-item" title="{{ row.database_name }} ({{ formatted_count }} genes)">
+                            <div class="v-barplot-label">{{ row.database_name }}</div>
+                            <div class="v-barplot-bar-wrapper">
+                                <div class="v-barplot-bar" data-target-width="{{ bar_width_percent }}%" style="width: 0%;">
+                                </div>
                             </div>
+                            <div class="v-barplot-count">{{ formatted_count }}</div>
                         </div>
-                        <div class="v-barplot-count">{{ formatted_count }}</div>
-                    </div>
-                {% endfor %}
+                    {% endfor %}
+                </div>
             </div>
-        </div>
-        {% else %}
-         <div class="visualization-section placeholder source-db-chart">
-             <h4>Panres 2.0 contains ARGs from the following databases</h4>
-             <p>No data available.</p>
-             <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button" style="margin-top: 1rem;">Browse Sources</a>
-         </div>
-        {% endif %}
+            {% else %}
+             <div class="visualization-section placeholder source-db-chart">
+                 <div class="visualization-header">
+                     <h4>ARGs by Source Database</h4>
+                     <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button" style="margin-top: 1rem;">Browse Sources</a>
+                 </div>
+                 <p>No data available.</p>
+             </div>
+            {% endif %}
+
+            {# --- NEW: Predicted Phenotype Donut Chart Section --- #}
+            {% if phenotype_chart_data and phenotype_chart_data.labels %}
+            <div class="visualization-section phenotype-chart"> {# Added class for potential specific styling #}
+                 <div class="visualization-header">
+                    <h4>ARGs by Predicted Phenotype (Top 8)</h4>
+                     <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="browse-button">Browse Phenotypes</a>
+                </div>
+                <div class="chart-container small-chart"> {# Added class for potential size control #}
+                    <canvas id="phenotypeChart"></canvas>
+                </div>
+            </div>
+            {% else %}
+                <div class="visualization-section placeholder phenotype-chart">
+                     <div class="visualization-header">
+                         <h4>ARGs by Predicted Phenotype (Top 8)</h4>
+                         <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="browse-button">Browse Phenotypes</a>
+                     </div>
+                     <p style="margin-top: auto; margin-bottom: auto;">No data available to display phenotype counts.</p>
+                </div>
+            {% endif %}
+            {# --- End NEW Phenotype Section --- #}
+
+        </div> {# --- End viz-column-left --- #}
+
 
         {# --- Antibiotic Class Pie Chart Section (Right Column) --- #}
+        {# This remains directly inside the grid container #}
         {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
-        <div class="visualization-section">
+        <div class="visualization-section antibiotic-class-chart"> {# Added class #}
              <div class="visualization-header">
-                <h4>ARG count in PanRes 2.0 by Antibiotic class</h4>
+                <h4>ARGs by Antibiotic Class (Top 7)</h4> {# Updated Title #}
                  <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
             </div>
-            <div class="chart-container">
+            <div class="chart-container"> {# Removed size class, let it fill #}
                 <canvas id="antibioticClassChart"></canvas>
             </div>
         </div>
         {% else %}
-            <div class="visualization-section placeholder">
+            <div class="visualization-section placeholder antibiotic-class-chart">
                  <div class="visualization-header">
-                     <h4>ARG count in PanRes 2.0 by Antibiotic class</h4>
+                     <h4>ARGs by Antibiotic Class (Top 7)</h4>
                      <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
                  </div>
                  <p style="margin-top: auto; margin-bottom: auto;">No data available to display antibiotic class counts.</p>
@@ -115,54 +146,65 @@
     {# --- JavaScript for Charts and Animations --- #}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // --- Get Monospace Font from CSS Variable ---
+            const monoFont = getComputedStyle(document.body).getPropertyValue('--font-mono').trim();
+            // Set Chart.js default font
+            if (monoFont) {
+                Chart.defaults.font.family = monoFont;
+            }
 
+            // --- Bar Plot Animation ---
             const bars = document.querySelectorAll('.v-barplot-bar');
             bars.forEach(bar => {
                 const targetWidth = bar.dataset.targetWidth;
                 setTimeout(() => {
                     bar.style.width = targetWidth;
-                }, 50);
+                }, 50); // Short delay
             });
 
-            const ctx = document.getElementById('antibioticClassChart');
+            // --- Antibiotic Class Pie Chart ---
+            const ctxAntibiotic = document.getElementById('antibioticClassChart');
             {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
-                const chartLabels = {{ antibiotic_chart_data.labels | tojson }};
-                const chartDataPoints = {{ antibiotic_chart_data.data | tojson }};
-                const chartColors = {{ antibiotic_chart_data.colors | tojson }};
+                const antibioticLabels = {{ antibiotic_chart_data.labels | tojson }};
+                const antibioticDataPoints = {{ antibiotic_chart_data.data | tojson }};
+                const antibioticColors = {{ antibiotic_chart_data.colors | tojson }};
 
-                if (ctx) {
-                    Chart.register(ChartDataLabels);
+                if (ctxAntibiotic) {
+                    Chart.register(ChartDataLabels); // Register plugin once is enough
 
-                    new Chart(ctx, {
+                    new Chart(ctxAntibiotic, {
                         type: 'pie',
                         data: {
-                            labels: chartLabels,
+                            labels: antibioticLabels,
                             datasets: [{
                                 label: 'Gene Count',
-                                data: chartDataPoints,
-                                backgroundColor: chartColors,
+                                data: antibioticDataPoints,
+                                backgroundColor: antibioticColors,
+                                // borderColor: 'rgba(255, 255, 255, 0.3)', // Optional subtle border
+                                // borderWidth: 1
                             }]
                         },
                         options: {
                             responsive: true,
-                            maintainAspectRatio: false,
+                            maintainAspectRatio: false, // Allow chart to fill container height
                             plugins: {
                                 legend: {
                                     position: 'bottom',
                                     labels: {
-                                        boxWidth: 12,
+                                        boxWidth: 10,
+                                        padding: 15, // Spacing between legend items
                                         font: {
-                                            size: 11
+                                            size: 10 // Keep size small if needed
+                                            // family is inherited from Chart.defaults.font.family
                                         }
                                     }
                                 },
                                 tooltip: {
+                                    // family is inherited
                                     callbacks: {
                                         label: function(context) {
                                             let label = context.label || '';
-                                            if (label) {
-                                                label += ': ';
-                                            }
+                                            if (label) { label += ': '; }
                                             if (context.parsed !== null) {
                                                 label += context.parsed.toLocaleString();
                                             }
@@ -171,22 +213,16 @@
                                     }
                                 },
                                 datalabels: {
+                                    // family is inherited
                                     formatter: (value, ctx) => {
-                                        let sum = 0;
-                                        let dataArr = ctx.chart.data.datasets[0].data;
-                                        dataArr.map(data => {
-                                            sum += data;
-                                        });
-                                        let percentage = (value*100 / sum).toFixed(1) + "%";
-                                        return (value*100 / sum) > 3 ? percentage : '';
+                                        let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                        let percentage = (value * 100 / sum).toFixed(1) + "%";
+                                        return (value * 100 / sum) > 3 ? percentage : ''; // Show % only if > 3%
                                     },
                                     color: '#fff',
-                                    font: {
-                                        weight: 'bold',
-                                        size: 10
-                                    },
-                                    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                                    borderRadius: 4,
+                                    font: { weight: 'bold', size: 10 },
+                                    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Slightly darker bg
+                                    borderRadius: 3,
                                     padding: 3
                                 }
                             }
@@ -194,6 +230,77 @@
                     });
                 }
             {% endif %}
+
+            // --- NEW: Predicted Phenotype Donut Chart ---
+            const ctxPhenotype = document.getElementById('phenotypeChart');
+            {% if phenotype_chart_data and phenotype_chart_data.labels %}
+                const phenotypeLabels = {{ phenotype_chart_data.labels | tojson }};
+                const phenotypeDataPoints = {{ phenotype_chart_data.data | tojson }};
+                const phenotypeColors = {{ phenotype_chart_data.colors | tojson }};
+
+                if (ctxPhenotype) {
+                    // Plugin already registered
+
+                    new Chart(ctxPhenotype, {
+                        type: 'doughnut', // Use doughnut type
+                        data: {
+                            labels: phenotypeLabels,
+                            datasets: [{
+                                label: 'Gene Count',
+                                data: phenotypeDataPoints,
+                                backgroundColor: phenotypeColors,
+                                // borderColor: 'rgba(255, 255, 255, 0.3)',
+                                // borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false, // Allow filling container
+                            cutout: '60%', // Adjust donut hole size (optional)
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        boxWidth: 10,
+                                        padding: 10, // Slightly less padding maybe
+                                        font: {
+                                            size: 9 // Maybe even smaller for this chart
+                                            // family is inherited
+                                        }
+                                    }
+                                },
+                                tooltip: {
+                                    // family is inherited
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.label || '';
+                                            if (label) { label += ': '; }
+                                            if (context.parsed !== null) {
+                                                label += context.parsed.toLocaleString();
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                },
+                                datalabels: { // Optional: Add datalabels if desired
+                                    // family is inherited
+                                    formatter: (value, ctx) => {
+                                        let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                        let percentage = (value * 100 / sum).toFixed(0) + "%"; // No decimal for smaller chart
+                                        return (value * 100 / sum) > 5 ? percentage : ''; // Show % only if > 5%
+                                    },
+                                    color: '#fff',
+                                    font: { weight: 'bold', size: 9 },
+                                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                    borderRadius: 3,
+                                    padding: 2
+                                }
+                            }
+                        }
+                    });
+                }
+            {% endif %}
+            // --- End NEW Phenotype Chart JS ---
         });
     </script>
 {% endblock %} 
