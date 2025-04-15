@@ -130,8 +130,8 @@ def index():
     """Shows the main index page with visualizations and browseable categories."""
     db = get_db()
     category_data = {}
-    source_db_counts = []
-    antibiotic_class_counts = []
+    source_db_counts_rows = []
+    antibiotic_class_counts_rows = []
     app.logger.info(f"Loading index page. Categories configured: {list(INDEX_CATEGORIES.keys())}")
 
     # --- Fetch Category Counts (as before, but maybe hide them later) ---
@@ -182,8 +182,8 @@ def index():
             GROUP BY object
             ORDER BY gene_count DESC
         """)
-        source_db_counts = cursor_db.fetchall()
-        app.logger.info(f"Fetched {len(source_db_counts)} source database counts.")
+        source_db_counts_rows = cursor_db.fetchall()
+        app.logger.info(f"Fetched {len(source_db_counts_rows)} source database counts.")
     except sqlite3.Error as e:
         app.logger.error(f"Error fetching source database counts: {e}")
         # Handle error appropriately, maybe pass an error message to the template
@@ -197,11 +197,17 @@ def index():
             GROUP BY object
             ORDER BY gene_count DESC
         """)
-        antibiotic_class_counts = cursor_class.fetchall()
-        app.logger.info(f"Fetched {len(antibiotic_class_counts)} antibiotic class counts.")
+        antibiotic_class_counts_rows = cursor_class.fetchall()
+        app.logger.info(f"Fetched {len(antibiotic_class_counts_rows)} antibiotic class counts.")
     except sqlite3.Error as e:
         app.logger.error(f"Error fetching antibiotic class counts: {e}")
         # Handle error appropriately
+
+    # --- Convert Row objects to Dictionaries ---
+    # Convert source_db_counts_rows to a list of dicts
+    source_db_counts = [dict(row) for row in source_db_counts_rows]
+    # Convert antibiotic_class_counts_rows to a list of dicts (THIS FIXES THE JSON ERROR)
+    antibiotic_class_counts = [dict(row) for row in antibiotic_class_counts_rows]
 
     # Calculate max counts for scaling the bar plot
     max_db_count = max(row['gene_count'] for row in source_db_counts) if source_db_counts else 1
@@ -214,7 +220,7 @@ def index():
         source_db_counts=source_db_counts,
         max_db_count=max_db_count,
         antibiotic_class_counts=antibiotic_class_counts,
-        max_class_count=max_class_count # Pass this for potential JS chart scaling
+        max_class_count=max_class_count
     )
 
 
