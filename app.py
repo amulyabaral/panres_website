@@ -256,14 +256,17 @@ def index():
     # Convert source_db_counts_rows to a list of dicts
     source_db_counts = [dict(row) for row in source_db_counts_rows]
 
+    # --- MODIFICATION: Set a fixed maximum count for the vertical bar chart ---
     # Calculate max counts for scaling the bar plot
-    max_db_count = max(row['gene_count'] for row in source_db_counts) if source_db_counts else 1
+    # max_db_count = max(row['gene_count'] for row in source_db_counts) if source_db_counts else 1
+    max_db_count = 15000 # Set the fixed maximum value
+    # --- End Modification ---
 
     return render_template(
         'index.html',
         category_data=category_data,
         source_db_counts=source_db_counts,
-        max_db_count=max_db_count,
+        max_db_count=max_db_count, # Pass the fixed max count
         antibiotic_chart_data=antibiotic_chart_data # Pass the processed data
     )
 

@@ -26,73 +26,54 @@
 
         {# --- Source Database Visualization (Left Column) --- #}
         {% if source_db_counts %}
-        <div class="visualization-section">
-            {# --- MODIFICATION: Header with Title and Button --- #}
+        <div class="visualization-section source-db-chart">
             <div class="visualization-header">
                 <h4>Panres 2.0 contains ARGs from the following databases</h4>
                 <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button">Browse Sources</a>
             </div>
-            {# --- End Modification --- #}
-            <ul class="db-barplot-container">
-                {# Calculate total ONLY from the sources being displayed #}
-                {% set total_source_genes = source_db_counts | sum(attribute='gene_count') %}
+            <div class="db-vbarplot-container">
                 {% for row in source_db_counts %}
-                {# Calculate width relative to the total of displayed sources #}
-                {% set bar_width = (row.gene_count / total_source_genes * 100) if total_source_genes else 0 %}
-                {# Generate the link URL (still needed for title attribute) #}
+                {% set bar_height = (row.gene_count / max_db_count * 100) if max_db_count else 0 %}
+                {% set bar_height = [0, bar_height] | max %}
+                {% set bar_height = [100, bar_height] | min %}
                 {% set db_link = url_for('genes_related_to', predicate='is_from_database', object_value=row.database_name) %}
-                <li class="db-barplot-item">
-                    {# --- MODIFICATION: Remove link from label --- #}
-                    <span class="db-barplot-label" title="{{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">{{ row.database_name }}</span>
-                    {# --- End Modification --- #}
-                    {# Bar wrapper is NOT linked anymore #}
-                    <div class="db-barplot-bar-wrapper" title="{{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
-                        {# Apply width inline, store target width in data attribute for JS animation #}
-                        <div class="db-barplot-bar" data-target-width="{{ [bar_width, 1] | max }}%" style="width: 0%;" > {# Start at 0% width #}
-                             {# Only show count if bar is wide enough #}
-                             {% if bar_width > 10 %} {# Adjust threshold as needed #}
-                                <span style="padding: 0 0.5em;">{{ "{:,}".format(row.gene_count) }}</span>
-                             {% endif %}
+
+                <div class="db-vbarplot-item" title="{{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
+                    <div class="db-vbarplot-bar-wrapper">
+                        <div class="db-vbarplot-bar" data-target-height="{{ bar_height }}%" style="height: 0%;">
                         </div>
                     </div>
-                </li>
+                    <span class="db-vbarplot-label">{{ row.database_name }}</span>
+                </div>
                 {% endfor %}
-            </ul>
+            </div>
         </div>
         {% else %}
-         {# Optional: Add a placeholder if source_db_counts is empty #}
-         <div class="visualization-section placeholder">
+         <div class="visualization-section placeholder source-db-chart">
              <h4>Panres 2.0 contains ARGs from the following databases</h4>
              <p>No data available.</p>
-             {# Optionally add disabled button or link here too #}
              <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button" style="margin-top: 1rem;">Browse Sources</a>
          </div>
         {% endif %}
 
         {# --- Antibiotic Class Pie Chart Section (Right Column) --- #}
-        {# Assumes antibiotic_chart_data = {'labels': [...], 'data': [...], 'colors': [...]} is passed from Flask #}
         {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
         <div class="visualization-section">
-             {# --- MODIFICATION: Header with Title and Button --- #}
-            <div class="visualization-header">
+             <div class="visualization-header">
                 <h4>ARG count in PanRes 2.0 by Antibiotic class</h4>
                  <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
             </div>
-             {# --- End Modification --- #}
             <div class="chart-container">
                 <canvas id="antibioticClassChart"></canvas>
             </div>
         </div>
         {% else %}
-            <div class="visualization-section placeholder"> {# Use placeholder class if needed #}
-                 {# --- MODIFICATION: Header with Title and Button (Placeholder) --- #}
+            <div class="visualization-section placeholder">
                  <div class="visualization-header">
                      <h4>ARG count in PanRes 2.0 by Antibiotic class</h4>
-                     {# Optionally disable button if no data #}
                      <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
                  </div>
-                 {# --- End Modification --- #}
-                 <p style="margin-top: auto; margin-bottom: auto;">No data available to display antibiotic class counts.</p> {# Center text vertically #}
+                 <p style="margin-top: auto; margin-bottom: auto;">No data available to display antibiotic class counts.</p>
             </div>
         {% endif %}
 
@@ -103,27 +84,21 @@
     <p>Select a category below to view the items or concepts within it:</p>
 
     <div class="category-grid">
-        {# Check if category_data exists and is not empty #}
         {% if category_data %}
             {% for display_name, data in category_data.items() %}
             <div class="category-card">
-                {# Card content wrapper #}
                 <div>
                     <h4>{{ display_name }}</h4>
                      {% if data.config.description %}
-                        <p class="category-description">{{ data.config.description }}</p> {# Add description #}
+                        <p class="category-description">{{ data.config.description }}</p>
                      {% endif %}
-                    {# --- Count Removed from direct display --- #}
-                    {# <p class="count"> ... </p> #}
                 </div>
-                {# Button links to the generic list_items route, passing the display_name as the key #}
                 <a href="{{ url_for('list_items', category_key=display_name) }}" class="button">
                     Browse
-                    {# Optionally add count back to button or as small text #}
                     {% if data.count is number and data.count > 0 %}
                        ({{ "{:,}".format(data.count) }})
                     {% elif data.count is string %}
-                        (!) {# Indicate error #}
+                        (!)
                     {% endif %}
                 </a>
             </div>
@@ -137,50 +112,43 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
-            // --- 1. Animate Source DB Bars ---
-            const bars = document.querySelectorAll('.db-barplot-bar');
+            const bars = document.querySelectorAll('.db-vbarplot-bar');
             bars.forEach(bar => {
-                const targetWidth = bar.dataset.targetWidth;
-                // Use setTimeout to allow the initial state (width: 0) to render before transitioning
+                const targetHeight = bar.dataset.targetHeight;
                 setTimeout(() => {
-                    bar.style.width = targetWidth;
-                }, 50); // Small delay
+                    bar.style.height = targetHeight;
+                }, 50);
             });
 
-            // --- 2. Render Antibiotic Class Pie Chart ---
             const ctx = document.getElementById('antibioticClassChart');
             {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
-                // Data passed from Flask view
                 const chartLabels = {{ antibiotic_chart_data.labels | tojson }};
                 const chartDataPoints = {{ antibiotic_chart_data.data | tojson }};
                 const chartColors = {{ antibiotic_chart_data.colors | tojson }};
 
                 if (ctx) {
-                    // Register the datalabels plugin globally
                     Chart.register(ChartDataLabels);
 
                     new Chart(ctx, {
-                        type: 'pie', // Or 'doughnut'
+                        type: 'pie',
                         data: {
                             labels: chartLabels,
                             datasets: [{
                                 label: 'Gene Count',
                                 data: chartDataPoints,
                                 backgroundColor: chartColors,
-                                // borderColor: '#ffffff', // Optional: Add border to segments
-                                // borderWidth: 1
                             }]
                         },
                         options: {
                             responsive: true,
-                            maintainAspectRatio: false, // Allow chart to fill container
+                            maintainAspectRatio: false,
                             plugins: {
                                 legend: {
-                                    position: 'bottom', // Or 'right', 'left', 'top'
+                                    position: 'bottom',
                                     labels: {
                                         boxWidth: 12,
                                         font: {
-                                            size: 11 // Smaller font for legend
+                                            size: 11
                                         }
                                     }
                                 },
@@ -192,14 +160,13 @@
                                                 label += ': ';
                                             }
                                             if (context.parsed !== null) {
-                                                // Format number with commas
                                                 label += context.parsed.toLocaleString();
                                             }
                                             return label;
                                         }
                                     }
                                 },
-                                datalabels: { // Configure datalabels plugin
+                                datalabels: {
                                     formatter: (value, ctx) => {
                                         let sum = 0;
                                         let dataArr = ctx.chart.data.datasets[0].data;
@@ -207,15 +174,13 @@
                                             sum += data;
                                         });
                                         let percentage = (value*100 / sum).toFixed(1) + "%";
-                                        // Only show percentage if it's reasonably large (e.g., > 3%)
                                         return (value*100 / sum) > 3 ? percentage : '';
                                     },
-                                    color: '#fff', // Color of the percentage text
+                                    color: '#fff',
                                     font: {
                                         weight: 'bold',
                                         size: 10
                                     },
-                                    // Add a background to the label for better visibility
                                     backgroundColor: 'rgba(0, 0, 0, 0.4)',
                                     borderRadius: 4,
                                     padding: 3
@@ -225,15 +190,6 @@
                     });
                 }
             {% endif %}
-
-            // --- REMOVE: Old Count Animation for Buttons ---
-            /*
-            const counters = document.querySelectorAll('.count-number');
-            // ... rest of the old counter animation code ...
-            */
-           // --- End Removed Code ---
         });
     </script>
-    {# --- End JavaScript --- #}
-
 {% endblock %} 
