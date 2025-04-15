@@ -2,7 +2,8 @@
 
 {% block title %}Welcome - PanRes Database Explorer{% endblock %}
 
-{% block content %}
+{# Override header content block for index page #}
+{% block header_content %}
     <h2>Welcome to the PanRes Database Explorer!</h2>
     <p>
         The <strong>PanRes database</strong> aggregates antimicrobial resistance genes (ARGs)
@@ -10,169 +11,298 @@
         to facilitate large-scale analysis. Each unique sequence is assigned a <code>pan_</code> identifier.
         Browse genes, origins, resistance classes, and phenotypes.
     </p>
-    {# Removed the longer description and citation for brevity, add back if desired #}
-    {# <p>
-        It integrates data from sources like:
-        ResFinder, ResFinderFG, CARD, MegaRes, AMRFinderPlus, ARGANNOT, the 'CsabaPal' collection, and BacMet.
-        This explorer allows you to browse the genes, their origins, associated resistance classes,
-        predicted phenotypes, and other relationships defined within the underlying data model.
-    </p>
-    <p>
-        (Based on the work: <i>"ARGfinder - a pipeline for large-scale analysis of antimicrobial resistance genes and their flanking regions in metagenomic datasets" (Unpublished, submitted)</i>).
-    </p> #}
+{% endblock %}
+
+{% block content %}
+    {# --- Citation Section --- #}
+    <div class="citation-section">
+        <h4>Please Cite:</h4>
+        <p>
+            Hannah-Marie Martiny, Nikiforos Pyrounakis, Thomas N Petersen, Oksana Lukjančenko, Frank M Aarestrup, Philip T L C Clausen, Patrick Munk, ARGprofiler—a pipeline for large-scale analysis of antimicrobial resistance genes and their flanking regions in metagenomic datasets, <i>Bioinformatics</i>, Volume 40, Issue 3, March 2024, btae086, <a href="https://doi.org/10.1093/bioinformatics/btae086" target="_blank" rel="noopener noreferrer">https://doi.org/10.1093/bioinformatics/btae086</a>
+        </p>
+    </div>
 
     {# --- Source Database Visualization --- #}
     {% if source_db_counts %}
     <div class="visualization-section">
-        <h4>Gene Counts by Source Database</h4>
+        {# Renamed Title #}
+        <h4>PanRes Data Sources</h4>
         <ul class="db-barplot-container">
+            {% set total_source_genes = source_db_counts | sum(attribute='gene_count') %}
             {% for row in source_db_counts %}
+            {% set bar_width = (row.gene_count / total_source_genes * 100) if total_source_genes else 0 %}
+            {# Generate the link URL #}
+            {% set db_link = url_for('related_genes', predicate='is_from_database', object_value=row.database_name) %}
             <li class="db-barplot-item">
-                <span class="db-barplot-label" title="{{ row.database_name }}">{{ row.database_name }}</span>
-                <div class="db-barplot-bar-wrapper">
-                    {# Calculate percentage width for the bar #}
-                    {% set bar_width = (row.gene_count / max_db_count * 100) | round(2) %}
-                    {# Apply width inline for CSS animation target #}
-                    {# Add a minimum width for visibility of small bars #}
-                    <div class="db-barplot-bar" style="width: {{ [bar_width, 1] | max }}%;" title="{{ "{:,}".format(row.gene_count) }} genes">
-                         {# Only show count if bar is wide enough #}
-                         {% if bar_width > 10 %}
-                            <span>{{ "{:,}".format(row.gene_count) }}</span>
-                         {% endif %}
+                {# Link the label #}
+                <a href="{{ db_link }}" class="db-barplot-label-link" title="{{ row.database_name }}">
+                    <span class="db-barplot-label">{{ row.database_name }}</span>
+                </a>
+                {# Link the bar wrapper #}
+                <a href="{{ db_link }}" class="db-barplot-bar-link">
+                    <div class="db-barplot-bar-wrapper">
+                        {# Apply width inline for CSS animation target #}
+                        {# Add a minimum width for visibility of small bars #}
+                        <div class="db-barplot-bar" style="width: {{ [bar_width, 1] | max }}%;" title="{{ "{:,}".format(row.gene_count) }} genes">
+                             {# Only show count if bar is wide enough #}
+                             {% if bar_width > 10 %}
+                                <span>{{ "{:,}".format(row.gene_count) }}</span>
+                             {% endif %}
+                        </div>
                     </div>
-                </div>
+                </a>
             </li>
             {% endfor %}
         </ul>
-        {# Simple script to trigger animation - place in base.html or separate JS file is better #}
-        <script>
-          document.addEventListener('DOMContentLoaded', () => {
-            // Small delay to ensure styles are applied
-            setTimeout(() => {
-                const bars = document.querySelectorAll('.db-barplot-bar');
-                bars.forEach(bar => {
-                const targetWidth = bar.style.width; // Get width set inline
-                if (targetWidth) { // Ensure width is set
-                    bar.style.width = '0'; // Reset to 0
-                    // Trigger reflow to restart animation if needed
-                    void bar.offsetWidth;
-                    // Apply target width to start animation
-                    bar.style.transition = 'width 1s ease-out'; // Ensure transition is set
-                    bar.style.width = targetWidth;
-                }
-                });
-            }, 100); // 100ms delay
-          });
-        </script>
     </div>
     {% endif %}
 
-    {# --- Antibiotic Class Visualization Placeholder --- #}
+    {# --- Antibiotic Class Visualization --- #}
     {% if antibiotic_class_counts %}
     <div class="visualization-section">
         <h4>Gene Counts by Antibiotic Class</h4>
-        <div class="chart-container"> {# Use a container for sizing #}
-            <p>Distribution of genes across {{ antibiotic_class_counts|length }} classes.</p>
-            {# --- Canvas for Chart.js --- #}
-            <canvas id="antibioticClassChart"></canvas>
-            {# --- REMOVE Fallback List --- #}
-            {# <p><i>(Visualization placeholder - showing data as list)</i></p>
-            <ul class="class-data-list">
-                {% for row in antibiotic_class_counts %}
-                    <li><code>{{ row.class_name }}</code>: {{ "{:,}".format(row.gene_count) }}</li>
-                {% endfor %}
-            </ul> #}
+        <p>Distribution of genes across different antibiotic resistance classes.</p>
+
+        {# Increase size using CSS classes on containers #}
+        <div class="chart-container large">
+            <h5>Bar Chart</h5>
+            <canvas id="antibioticClassBarChart"></canvas>
         </div>
+
+        <div class="chart-grid"> {# Use a grid for side-by-side smaller charts #}
+            <div class="chart-container medium">
+                <h5>Pie Chart</h5>
+                <canvas id="antibioticClassPieChart"></canvas>
+            </div>
+            <div class="chart-container medium">
+                <h5>Donut Chart</h5>
+                <canvas id="antibioticClassDonutChart"></canvas>
+            </div>
+        </div>
+
+        {# Placeholder/Note for Waffle Chart #}
+        <div class="chart-container note">
+            <h5>Waffle Chart (Conceptual)</h5>
+            <p><i>Waffle charts require specific libraries (like D3.js) or custom drawing logic and are not built-in to Chart.js.</i></p>
+            {# Example structure if using a library later
+            <div id="antibioticClassWaffleChart"></div>
+            #}
+        </div>
+
+         {# Placeholder/Note for Parliament Chart #}
+        <div class="chart-container note">
+            <h5>Parliament Chart (Conceptual)</h5>
+            <p><i>Parliament charts are complex visualizations, often requiring specialized libraries (like D3.js) and significant custom code.</i></p>
+             {# Example structure if using a library later
+            <div id="antibioticClassParliamentChart"></div>
+             #}
+        </div>
+
         {# --- Data and Script for JS Chart --- #}
         <script>
-            {# Ensure ChartDataLabels plugin is registered #}
-            Chart.register(ChartDataLabels);
+            // Ensure ChartDataLabels plugin is registered *globally*
+            // This should ideally happen once, perhaps after Chart.js is loaded in base.html,
+            // but registering again here is usually safe.
+            // Make sure Chart and ChartDataLabels are available in the global scope.
+            if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+                try {
+                    // Check if already registered to avoid errors if this script runs multiple times
+                    if (!Chart.registry.plugins.get('datalabels')) {
+                         Chart.register(ChartDataLabels);
+                    }
+                } catch (e) {
+                    console.error("Error registering ChartDataLabels:", e);
+                }
+            } else {
+                console.error("Chart.js or ChartDataLabels plugin not loaded.");
+            }
 
-            {# Add |safe filter to ensure JSON is rendered correctly for JS #}
-            const rawClassData = {{ antibiotic_class_counts | list | tojson | safe }};
-            // Prepare data for Chart.js
-            const classLabels = rawClassData.map(item => item.class_name);
-            const classData = rawClassData.map(item => item.gene_count);
+            // Use a self-executing function to avoid polluting the global scope
+            (function() {
+                // Get the data safely injected from Jinja
+                // Use standard JS comments // or /* */ inside script tags
+                const rawClassData = {{ antibiotic_class_counts | list | tojson | safe }};
 
-            // Define a larger set of pastel colors
-            const pastelColors = [
-                '#a5d8ff', '#b2f2bb', '#ffec99', '#d0bfff', '#ffc9c9', '#a3e1d4',
-                '#ffd8a8', '#d4f8d4', '#dbe4ff', '#a0e9e5', '#ffb3ba', '#bae1ff',
-                '#baffc9', '#ffffba', '#f1cbff', '#ffdfba', '#ace5ee', '#e0b0ff',
-                '#c1f0f6', '#f0c1f6', '#f6f0c1', '#c1f6e4', '#c1d4f6', '#f6c1c1',
-                '#c1e4f6', '#e4c1f6', '#f6e4c1', '#c1f6c1', '#d4c1f6', '#f6c1d4',
-                '#c1f6f0', '#f0f6c1', '#c1f6d4', '#d4f6c1', '#f6d4c1', '#c1d4f6',
-                '#d4c1f6', '#f6c1d4', '#c1f6e4', '#e4f6c1', '#f6e4c1', '#c1e4f6',
-                '#e4c1f6', '#f6c1e4' // Add more colors if needed
-            ];
+                if (!rawClassData || rawClassData.length === 0) {
+                    console.warn("No antibiotic class data available for charts.");
+                    return; // Don't proceed if there's no data
+                }
 
-            // Ensure enough colors for the data, repeat if necessary
-            const backgroundColors = classData.map((_, index) => pastelColors[index % pastelColors.length]);
+                // Prepare data for Chart.js
+                const classLabels = rawClassData.map(item => item.class_name);
+                const classData = rawClassData.map(item => item.gene_count);
 
-            const ctxClass = document.getElementById('antibioticClassChart').getContext('2d');
-            const antibioticClassChart = new Chart(ctxClass, {
-                type: 'pie',
-                data: {
-                    labels: classLabels,
-                    datasets: [{
-                        label: 'Gene Count',
-                        data: classData,
-                        backgroundColor: backgroundColors,
-                        borderColor: '#ffffff', // White border between segments
-                        borderWidth: 1
-                    }]
-                },
-                options: {
+                // Define reusable color palette (using CSS variables is more advanced)
+                const backgroundColors = [
+                    '#a5d8ff', '#b2f2bb', '#ffec99', '#d0bfff',
+                    '#ffc9c9', '#a3e1d4', '#ffd8a8', '#bac8d3' // Added gray
+                ];
+                const borderColors = backgroundColors.map(color => color.replace(')', ', 0.7)').replace('rgb', 'rgba')); // Slightly darker/opaque border
+
+                // --- Chart Configurations ---
+
+                const sharedChartOptions = {
                     responsive: true,
-                    maintainAspectRatio: false, // Allow container to control aspect ratio
+                    maintainAspectRatio: false, // Allow chart to fill container height
                     plugins: {
                         legend: {
-                            display: false // Hide legend as labels are shown directly
+                            position: 'top',
                         },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed !== null) {
-                                        // Format number with commas
-                                        label += context.parsed.toLocaleString();
-                                    }
-                                    return label;
-                                }
-                            }
+                        title: {
+                            display: false, // Title is handled by H5 above canvas
+                            // text: 'Gene Counts by Antibiotic Class'
                         },
                         datalabels: {
-                            display: true,
-                            anchor: 'end', // Position label anchor at the outer edge
-                            align: 'start', // Align text start relative to anchor
-                            offset: 10, // Distance from the chart edge
-                            color: '#333', // Label text color
-                            font: {
-                                size: 10, // Adjust font size as needed
-                                family: 'var(--font-mono)' // Use mono font
-                            },
+                            // Configure labels as needed, e.g., format numbers
                             formatter: (value, context) => {
-                                // Show label and value (or percentage)
-                                const label = context.chart.data.labels[context.dataIndex];
-                                // Optional: Calculate percentage
-                                // const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                // const percentage = ((value / total) * 100).toFixed(1) + '%';
-                                // return `${label} (${percentage})`;
-                                return label; // Just show the label name outside
+                                // Show label only if value is significant?
+                                // Or format large numbers
+                                return value.toLocaleString(); // Example: Add commas
                             },
-                            // Optional: Add background/border to labels if needed for clarity
-                            // backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                            // borderRadius: 4,
-                            // padding: 3,
+                            color: '#333', // Label color
+                            // display: 'auto' // Try to prevent overlap
                         }
                     }
+                };
+
+                // 1. Bar Chart
+                const barCtx = document.getElementById('antibioticClassBarChart');
+                if (barCtx) {
+                    new Chart(barCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: classLabels,
+                            datasets: [{
+                                label: 'Gene Count',
+                                data: classData,
+                                backgroundColor: backgroundColors,
+                                borderColor: borderColors,
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            ...sharedChartOptions, // Spread shared options
+                            indexAxis: 'y', // Make it horizontal for better label readability
+                             plugins: {
+                                ...sharedChartOptions.plugins, // Spread shared plugin options
+                                legend: { display: false }, // Hide legend for bar chart
+                                datalabels: {
+                                    ...sharedChartOptions.plugins.datalabels, // Spread shared datalabel options
+                                    anchor: 'end',
+                                    align: 'end',
+                                    offset: 4 // Adjust label position
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Number of Genes' }
+                                },
+                                y: {
+                                     title: { display: true, text: 'Antibiotic Class' }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                     console.error("Canvas element for Bar Chart not found.");
                 }
-            });
+
+                // 2. Pie Chart
+                const pieCtx = document.getElementById('antibioticClassPieChart');
+                 if (pieCtx) {
+                    new Chart(pieCtx, {
+                        type: 'pie',
+                        data: {
+                            labels: classLabels,
+                            datasets: [{
+                                label: 'Gene Count',
+                                data: classData,
+                                backgroundColor: backgroundColors,
+                                borderColor: borderColors,
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                             ...sharedChartOptions,
+                             plugins: {
+                                ...sharedChartOptions.plugins,
+                                legend: { position: 'right' }, // Adjust legend for pie
+                                datalabels: {
+                                    ...sharedChartOptions.plugins.datalabels,
+                                    formatter: (value, ctx) => {
+                                        // Show percentage on pie chart slices
+                                        let sum = 0;
+                                        let dataArr = ctx.chart.data.datasets[0].data;
+                                        dataArr.map(data => { sum += data; });
+                                        let percentage = (value*100 / sum).toFixed(1)+'%';
+                                        // Only show percentage if it's reasonably large
+                                        return (value*100 / sum) > 3 ? percentage : '';
+                                    },
+                                    color: '#fff', // White labels on slices
+                                    textStrokeColor: '#333',
+                                    textStrokeWidth: 1.5
+                                }
+                            }
+                        }
+                    });
+                } else {
+                     console.error("Canvas element for Pie Chart not found.");
+                }
+
+
+                // 3. Donut Chart
+                const donutCtx = document.getElementById('antibioticClassDonutChart');
+                 if (donutCtx) {
+                    new Chart(donutCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: classLabels,
+                            datasets: [{
+                                label: 'Gene Count',
+                                data: classData,
+                                backgroundColor: backgroundColors,
+                                borderColor: borderColors,
+                                borderWidth: 1
+                            }]
+                        },
+                         options: { // Reuse pie options, donut is similar
+                             ...sharedChartOptions,
+                             plugins: {
+                                ...sharedChartOptions.plugins,
+                                legend: { position: 'right' }, // Adjust legend for donut
+                                datalabels: {
+                                    ...sharedChartOptions.plugins.datalabels,
+                                     formatter: (value, ctx) => {
+                                        // Show percentage on donut chart slices
+                                        let sum = 0;
+                                        let dataArr = ctx.chart.data.datasets[0].data;
+                                        dataArr.map(data => { sum += data; });
+                                        let percentage = (value*100 / sum).toFixed(1)+'%';
+                                        // Only show percentage if it's reasonably large
+                                        return (value*100 / sum) > 3 ? percentage : '';
+                                    },
+                                    color: '#fff', // White labels on slices
+                                    textStrokeColor: '#333',
+                                    textStrokeWidth: 1.5
+                                }
+                            }
+                        }
+                    });
+                } else {
+                     console.error("Canvas element for Donut Chart not found.");
+                }
+
+            })(); // End self-executing function
+
         </script>
     </div>
+    {% else %}
+        {# Handle case where antibiotic_class_counts is empty or None #}
+        <div class="visualization-section">
+             <h4>Gene Counts by Antibiotic Class</h4>
+             <p>No data available to display antibiotic class counts.</p>
+        </div>
     {% endif %}
 
 

@@ -41,10 +41,13 @@
     --color-pastel-lavender: #f1cbff;
     --color-pastel-peach: #ffdfba;
     --color-pastel-aqua: #ace5ee;
+    --color-pastel-gray: #bac8d3; /* Added Gray */
 
     /* --- MONO FONT --- */
     --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* Keep sans for fallback/UI elements if needed */
     --font-mono: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    --font-family-sans-serif: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     /* --- REMOVE SHADOWS --- */
     /* --shadow-sm: 0 1px 2px rgba(0,0,0,0.04); */
     /* --shadow-md: 0 4px 6px rgba(0,0,0,0.06); */
@@ -70,42 +73,39 @@ body {
 }
 
 /* --- Header --- */
-header {
-    border-bottom: var(--border-default);
-    margin-bottom: 2rem; /* Reduced margin */
+.site-header {
+    display: flex; /* Enable flexbox */
+    align-items: center; /* Vertically align items */
+    margin-bottom: 2rem;
     padding-bottom: 1rem;
-    text-align: center;
-    /* Add flexbox for alignment if needed */
-    /* display: flex; */
-    /* justify-content: center; */
-    /* align-items: center; */
+    border-bottom: 1px solid var(--color-border);
+    gap: 1.5rem; /* Space between logo and text */
 }
 
-header h1 a {
-    /* Remove text-specific styles if only showing logo */
-    /* color: var(--color-primary-dark); */
-    text-decoration: none;
-    /* font-size: 2.2rem; */ /* Removed */
-    /* font-weight: 600; */ /* Removed */
-    display: inline-block; /* Allow centering */
+.header-logo-link {
+    flex-shrink: 0; /* Prevent logo from shrinking */
 }
-/* header h1 a:hover { */
-    /* color: var(--color-primary); */ /* Remove if no text */
-/* } */
 
-/* Style for the header logo */
 .header-logo {
-    max-height: 50px; /* Adjust height as needed */
-    width: auto;      /* Maintain aspect ratio */
-    vertical-align: middle; /* Align nicely if there were text next to it */
-    display: inline-block; /* Ensure it behaves like an inline block */
+    height: 60px; /* Adjust size as needed */
+    width: auto;
+    display: block; /* Remove extra space below image */
 }
 
-header .subtitle {
-   /* This class is no longer used, can be removed */
-   /* color: var(--color-text-muted); */
-   /* font-size: 1rem; */
-   /* margin-top: 0.2rem; */
+.header-content {
+    flex-grow: 1; /* Allow text content to take remaining space */
+}
+
+.header-content h1,
+.header-content h2 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    color: var(--color-text);
+}
+.header-content p {
+    margin-bottom: 0;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
 }
 
 /* --- Main Content Headings --- */
@@ -184,6 +184,7 @@ a:hover code {
     /* Removed margin-bottom as gap is handled by grid */
     display: flex; /* Allow vertical stretching if needed */
     flex-direction: column;
+    transition: background-color 0.2s ease;
 }
 
 .visualization-section h4 {
@@ -575,6 +576,8 @@ footer {
 /* Consider adding a class via JS when element is in view */
 .db-barplot-bar {
     /* animation: growBar 1s ease-out forwards; */ /* Disabled for now - enable if JS adds class */
+    /* Basic transition for width changes */
+     transition: width 1s ease-out;
 }
 
 /* Simple script to trigger animation on load (add this if no JS library is used) */
@@ -585,11 +588,203 @@ footer {
     const bars = document.querySelectorAll('.db-barplot-bar');
     bars.forEach(bar => {
       const targetWidth = bar.style.width; // Get width set inline
-      bar.style.width = '0'; // Reset to 0
-      // Trigger reflow
-      void bar.offsetWidth;
-      // Apply target width to start animation
-      bar.style.width = targetWidth;
+      // Set initial state for transition
+      bar.style.width = '0';
+      // Use setTimeout to allow the initial state to render before transitioning
+      setTimeout(() => {
+        bar.style.width = targetWidth;
+      }, 50); // Small delay
+    });
+  });
+</script>
+*/
+
+/* --- Citation Section --- */
+.citation-section {
+    background-color: var(--color-surface);
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    font-size: 0.9rem;
+}
+.citation-section h4 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    color: var(--color-text);
+}
+.citation-section p {
+    margin-bottom: 0;
+    line-height: 1.5;
+    color: var(--color-text-muted);
+}
+.citation-section a {
+    color: var(--color-primary-dark);
+    word-break: break-all; /* Prevent long URLs from overflowing */
+}
+
+/* Make labels clickable */
+.db-barplot-label-link {
+    text-decoration: none;
+    color: inherit; /* Use default text color */
+    display: inline-block; /* Allow hover effect */
+}
+.db-barplot-label-link:hover .db-barplot-label {
+     color: var(--color-primary-dark);
+     text-decoration: underline;
+}
+
+/* Make bars clickable */
+.db-barplot-bar-link {
+    text-decoration: none;
+    display: block; /* Make the link take up the bar wrapper space */
+}
+
+.db-barplot-bar-wrapper {
+    flex-grow: 1;
+    background-color: var(--color-code-bg); /* Light background for the track */
+    border-radius: 4px;
+    overflow: hidden; /* Ensure bar stays within rounded corners */
+    cursor: pointer; /* Indicate clickability */
+    transition: box-shadow 0.2s ease;
+}
+.db-barplot-bar-link:hover .db-barplot-bar-wrapper {
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); /* Add subtle shadow on hover */
+}
+
+.db-barplot-bar {
+    height: 20px;
+    border-radius: var(--border-radius);
+    width: 0; /* Start at 0 for animation */
+    transition: width 1s ease-out;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 0.5em;
+    color: var(--color-text);
+    font-size: 0.8em;
+    font-weight: bold;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+/* --- Chart Containers --- */
+.chart-container {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background-color: #fff; /* White background for charts */
+}
+
+.chart-container h5 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    text-align: center;
+    color: var(--color-text-muted);
+}
+
+/* Sizing */
+.chart-container.large {
+    height: 400px; /* Increased height for bar chart */
+}
+.chart-container.medium {
+    height: 300px; /* Height for pie/donut */
+}
+
+/* Grid for side-by-side charts */
+.chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive grid */
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+/* Style for placeholder notes */
+.chart-container.note {
+    background-color: var(--color-background); /* Slightly different background */
+    text-align: center;
+    font-style: italic;
+    color: var(--color-text-muted);
+    height: auto; /* Auto height for notes */
+    padding: 1.5rem;
+}
+
+/* --- Category Grid --- */
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Slightly smaller min */
+    gap: 1rem; /* Reduced gap */
+    margin-top: 1.5rem;
+}
+
+.category-card {
+    border: var(--border-default);
+    border-radius: var(--border-radius);
+    padding: 1rem 1.2rem; /* Reduced padding */
+    background-color: var(--color-surface);
+    /* transition: transform 0.2s ease-in-out, border-color 0.2s ease-in-out; */ /* Simpler transition */
+    transition: border-color 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    /* box-shadow: var(--shadow-sm); */ /* REMOVED */
+}
+.category-card:hover {
+    /* transform: translateY(-2px); */ /* REMOVED */
+    border-color: var(--color-primary); /* Highlight border on hover */
+}
+
+.category-card h4 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    color: var(--color-primary-dark);
+    font-size: 1.05rem; /* Slightly smaller */
+    font-weight: 600;
+}
+.category-card .category-description {
+    font-size: 0.85rem; /* Smaller description */
+    color: var(--color-text-muted);
+    margin-bottom: 0.8rem; /* Reduced margin */
+    flex-grow: 1;
+    min-height: 3em; /* Adjust if needed */
+}
+.category-card .count {
+    /* Style for count if you decide to show it again */
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-accent-dark);
+    margin-bottom: 1rem;
+    text-align: right;
+}
+.category-card .count .error-count {
+    color: var(--color-danger);
+    font-weight: normal;
+    font-size: 0.85rem;
+}
+
+/* Apply animation - this might trigger on load, not scroll */
+/* Consider adding a class via JS when element is in view */
+.db-barplot-bar {
+    /* animation: growBar 1s ease-out forwards; */ /* Disabled for now - enable if JS adds class */
+    /* Basic transition for width changes */
+     transition: width 1s ease-out;
+}
+
+/* Simple script to trigger animation on load (add this if no JS library is used) */
+/* You might put this in base.html */
+/*
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const bars = document.querySelectorAll('.db-barplot-bar');
+    bars.forEach(bar => {
+      const targetWidth = bar.style.width; // Get width set inline
+      // Set initial state for transition
+      bar.style.width = '0';
+      // Use setTimeout to allow the initial state to render before transitioning
+      setTimeout(() => {
+        bar.style.width = targetWidth;
+      }, 50); // Small delay
     });
   });
 </script>
