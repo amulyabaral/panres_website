@@ -50,6 +50,22 @@ PREDICATE_DISPLAY_NAMES = {
     # Add more mappings as needed based on your ontology predicates
 }
 
+# --- NEW: Define Colors for Pie Chart ---
+# Use hex codes matching the CSS pastel variables for consistency
+PIE_CHART_COLORS = [
+    '#a5d8ff', # pastel-blue
+    '#b2f2bb', # pastel-green
+    '#ffec99', # pastel-yellow
+    '#d0bfff', # pastel-purple
+    '#ffc9c9', # pastel-pink
+    '#a3e1d4', # pastel-cyan (corrected)
+    '#ffd8a8', # pastel-orange
+    '#d4f8d4', # pastel-lime
+    '#dbe4ff', # pastel-indigo
+    '#a0e9e5', # pastel-teal
+    '#bac8d3', # pastel-gray (for 'Others')
+]
+
 
 # --- Flask App Setup ---
 app = Flask(__name__)
@@ -132,6 +148,7 @@ def index():
     category_data = {}
     source_db_counts_rows = []
     antibiotic_class_counts_rows = []
+    antibiotic_chart_data = None # Initialize chart data as None
     app.logger.info(f"Loading index page. Categories configured: {list(INDEX_CATEGORIES.keys())}")
 
     # --- Fetch Category Counts (as before, but maybe hide them later) ---
@@ -197,30 +214,57 @@ def index():
             GROUP BY object
             ORDER BY gene_count DESC
         """)
-        antibiotic_class_counts_rows = cursor_class.fetchall()
-        app.logger.info(f"Fetched {len(antibiotic_class_counts_rows)} antibiotic class counts.")
+        antibiotic_class_counts = [dict(row) for row in cursor_class.fetchall()]
+        app.logger.info(f"Fetched {len(antibiotic_class_counts)} antibiotic class counts.")
+
+        # --- Process Antibiotic Class Counts for Pie Chart (Top 7 + Others) ---
+        if antibiotic_class_counts:
+            top_n = 7
+            chart_labels = []
+            chart_data_points = []
+            chart_colors = []
+
+            # Take top N
+            top_classes = antibiotic_class_counts[:top_n]
+            for i, row in enumerate(top_classes):
+                chart_labels.append(row['class_name'])
+                chart_data_points.append(row['gene_count'])
+                # Cycle through colors, use the last color for 'Others' later
+                chart_colors.append(PIE_CHART_COLORS[i % (len(PIE_CHART_COLORS) -1)])
+
+            # Group remaining into "Others"
+            if len(antibiotic_class_counts) > top_n:
+                other_classes = antibiotic_class_counts[top_n:]
+                other_count = sum(row['gene_count'] for row in other_classes)
+                if other_count > 0:
+                    chart_labels.append("Others")
+                    chart_data_points.append(other_count)
+                    chart_colors.append(PIE_CHART_COLORS[-1]) # Use the last defined color for Others
+
+            antibiotic_chart_data = {
+                'labels': chart_labels,
+                'data': chart_data_points,
+                'colors': chart_colors
+            }
+            app.logger.info(f"Processed antibiotic counts for pie chart: {len(chart_labels)} slices.")
+
     except sqlite3.Error as e:
-        app.logger.error(f"Error fetching antibiotic class counts: {e}")
-        # Handle error appropriately
+        app.logger.error(f"Error fetching or processing antibiotic class counts: {e}")
+        # Handle error appropriately, antibiotic_chart_data remains None
 
     # --- Convert Row objects to Dictionaries ---
     # Convert source_db_counts_rows to a list of dicts
     source_db_counts = [dict(row) for row in source_db_counts_rows]
-    # Convert antibiotic_class_counts_rows to a list of dicts (THIS FIXES THE JSON ERROR)
-    antibiotic_class_counts = [dict(row) for row in antibiotic_class_counts_rows]
 
     # Calculate max counts for scaling the bar plot
     max_db_count = max(row['gene_count'] for row in source_db_counts) if source_db_counts else 1
-    max_class_count = max(row['gene_count'] for row in antibiotic_class_counts) if antibiotic_class_counts else 1
-
 
     return render_template(
         'index.html',
         category_data=category_data,
         source_db_counts=source_db_counts,
         max_db_count=max_db_count,
-        antibiotic_class_counts=antibiotic_class_counts,
-        max_class_count=max_class_count
+        antibiotic_chart_data=antibiotic_chart_data # Pass the processed data
     )
 
 
