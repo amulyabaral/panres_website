@@ -264,7 +264,8 @@ def genes_related_to(predicate, object_value):
                            page_title=page_title,
                            description=description,
                            predicate=predicate,
-                           object_value=decoded_object_value)
+                           object_value=decoded_object_value,
+                           index_categories=app.config['INDEX_CATEGORIES']) # Pass categories for back link
 
 
 @app.route('/details/<path:item_id>')

@@ -1,39 +1,32 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block title %}{{ page_title }} - PanRes Database Explorer{% endblock %}
 
 {% block content %}
     <h2>{{ page_title }}</h2>
-
-    {% if description %}
-        <p>{{ description|safe }}</p> {# Use safe filter for potential <code> tags #}
-    {% endif %}
+    <p>{{ description|safe }}</p> {# Use safe filter because description contains <code> tags #}
 
     {% if genes %}
-        <p>Found {{ "{:,}".format(genes|length) }} related gene(s):</p> {# Format count #}
-        <ul class="item-list">
+        <p>Found {{ genes|length }} related gene(s):</p>
+        <ul class="item-list"> {# Reuse item-list style #}
             {% for gene in genes %}
-                {# Link directly to the details page for each gene #}
-                <li><a href="{{ gene.link }}"><code>{{ gene.id }}</code></a></li>
+                <li>
+                    {# Link each gene ID to its details page #}
+                    <a href="{{ gene.link }}"><code>{{ gene.id }}</code></a>
+                </li>
             {% endfor %}
         </ul>
     {% else %}
         <p>No genes found related to <code>{{ object_value }}</code> via the predicate <code>{{ predicate }}</code>.</p>
     {% endif %}
 
-    {# Link back to the list of items for the predicate (e.g., back to list of Databases) #}
-    {% set category_key = none %}
-    {% for key, config in index_categories.items() %} {# Use injected variable #}
-        {% if config.query_type == 'predicate_object' and config.value == predicate %}
-            {% set category_key = key %}
-            {% break %}
-        {% endif %}
-    {% endfor %}
-    {% if category_key %}
-         <p class="back-link"><a href="{{ url_for('list_items', category_key=category_key) }}">&laquo; Back to {{ category_key }} list</a></p>
-    {% endif %}
-    <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
-
-{% endblock %}
-
-{# Remove the macro get_index_categories() as it's no longer needed #} 
+    {# Add back links for navigation #}
+    <div class="back-links-footer">
+         <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
+         {# Attempt to find the original category list link #}
+         {% set category_key = index_categories | selectattr('value', 'equalto', predicate) | map(attribute='key') | first %}
+         {% if category_key and index_categories[category_key].query_type == 'predicate_object' %}
+             <p class="back-link"><a href="{{ url_for('list_items', category_key=category_key) }}">&laquo; Back to {{ category_key }} list</a></p>
+         {% endif %}
+    </div>
+{% endblock %} 

@@ -1,27 +1,33 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block title %}{{ list_title }} - PanRes Database Explorer{% endblock %}
+{% block title %}List: {{ list_title }} - PanRes Database Explorer{% endblock %}
 
 {% block content %}
-    {# Use the dynamic title passed from the route #}
     <h2>{{ list_title }}</h2>
-
-    {# Use the dynamic description passed from the route #}
-    {% if list_description %}
-        <p>{{ list_description|safe }}</p> {# Use safe filter if description contains HTML like <code> #}
-    {% endif %}
+    <p>{{ list_description|safe }}</p> {# Use safe filter if description might contain HTML/code #}
 
     {% if items %}
-        <p>Found {{ "{:,}".format(items|length) }} item(s):</p> {# Format count #}
-        <ul class="item-list">
+        <p>Found {{ items|length }} item(s):</p>
+        <ul class="item-list"> {# Use the item-list class for styling #}
             {% for item in items %}
-                {# The link is now pre-generated in the route #}
-                <li><a href="{{ item.link }}"><code>{{ item.id }}</code></a></li>
+                <li>
+                    {# The link is pre-generated in the view function #}
+                    <a href="{{ item.link }}">
+                        {# Display item ID, potentially wrapped in code tags #}
+                        {% if category_key == "PanRes Genes" or category_key == "Source Genes" %}
+                            <code>{{ item.id }}</code>
+                        {% else %}
+                            {{ item.id }}
+                        {% endif %}
+                    </a>
+                </li>
             {% endfor %}
         </ul>
     {% else %}
-        <p>No items found for this category: {{ list_title }}.</p>
+        <p>No items found for this category.</p>
     {% endif %}
 
-    <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
+    <div class="back-links-footer">
+        <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
+    </div>
 {% endblock %} 
