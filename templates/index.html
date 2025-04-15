@@ -6,10 +6,12 @@
     <h2>Welcome to the PanRes Database Explorer!</h2>
     <p>
         The <strong>PanRes database</strong> aggregates antimicrobial resistance genes (ARGs)
-        from various established collections to facilitate large-scale analysis. Each unique
-        sequence is assigned a <code>pan_</code> identifier (PanRes Gene).
+        from various established collections (ResFinder, CARD, MegaRes, AMRFinderPlus, etc.)
+        to facilitate large-scale analysis. Each unique sequence is assigned a <code>pan_</code> identifier.
+        Browse genes, origins, resistance classes, and phenotypes.
     </p>
-    <p>
+    {# Removed the longer description and citation for brevity, add back if desired #}
+    {# <p>
         It integrates data from sources like:
         ResFinder, ResFinderFG, CARD, MegaRes, AMRFinderPlus, ARGANNOT, the 'CsabaPal' collection, and BacMet.
         This explorer allows you to browse the genes, their origins, associated resistance classes,
@@ -17,10 +19,82 @@
     </p>
     <p>
         (Based on the work: <i>"ARGfinder - a pipeline for large-scale analysis of antimicrobial resistance genes and their flanking regions in metagenomic datasets" (Unpublished, submitted)</i>).
-    </p>
+    </p> #}
+
+    {# --- Source Database Visualization --- #}
+    {% if source_db_counts %}
+    <div class="visualization-section">
+        <h4>Gene Counts by Source Database</h4>
+        <ul class="db-barplot-container">
+            {% for row in source_db_counts %}
+            <li class="db-barplot-item">
+                <span class="db-barplot-label" title="{{ row.database_name }}">{{ row.database_name }}</span>
+                <div class="db-barplot-bar-wrapper">
+                    {# Calculate percentage width for the bar #}
+                    {% set bar_width = (row.gene_count / max_db_count * 100) | round(2) %}
+                    {# Apply width inline for CSS animation target #}
+                    {# Add a minimum width for visibility of small bars #}
+                    <div class="db-barplot-bar" style="width: {{ [bar_width, 1] | max }}%;" title="{{ "{:,}".format(row.gene_count) }} genes">
+                         {# Only show count if bar is wide enough #}
+                         {% if bar_width > 10 %}
+                            <span>{{ "{:,}".format(row.gene_count) }}</span>
+                         {% endif %}
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {# Simple script to trigger animation - place in base.html or separate JS file is better #}
+        <script>
+          document.addEventListener('DOMContentLoaded', () => {
+            // Small delay to ensure styles are applied
+            setTimeout(() => {
+                const bars = document.querySelectorAll('.db-barplot-bar');
+                bars.forEach(bar => {
+                const targetWidth = bar.style.width; // Get width set inline
+                if (targetWidth) { // Ensure width is set
+                    bar.style.width = '0'; // Reset to 0
+                    // Trigger reflow to restart animation if needed
+                    void bar.offsetWidth;
+                    // Apply target width to start animation
+                    bar.style.transition = 'width 1s ease-out'; // Ensure transition is set
+                    bar.style.width = targetWidth;
+                }
+                });
+            }, 100); // 100ms delay
+          });
+        </script>
+    </div>
+    {% endif %}
+
+    {# --- Antibiotic Class Visualization Placeholder --- #}
+    {% if antibiotic_class_counts %}
+    <div class="visualization-section">
+        <h4>Gene Counts by Antibiotic Class</h4>
+        <div class="class-viz-container">
+            <p>Distribution of genes across {{ antibiotic_class_counts|length }} classes.</p>
+            {# --- Placeholder for JS Chart --- #}
+            {# <canvas id="antibioticClassChart" width="400" height="400"></canvas> #}
+            {# --- Fallback: Simple List --- #}
+            <p><i>(Visualization placeholder - showing data as list)</i></p>
+            <ul class="class-data-list">
+                {% for row in antibiotic_class_counts %}
+                    <li><code>{{ row.class_name }}</code>: {{ "{:,}".format(row.gene_count) }}</li>
+                {% endfor %}
+            </ul>
+            {# --- Data for JS (if using) --- #}
+            {# <script>
+                const classLabels = {{ antibiotic_class_counts | map(attribute='class_name') | list | tojson }};
+                const classData = {{ antibiotic_class_counts | map(attribute='gene_count') | list | tojson }};
+                // Add JS charting library code here to use classLabels and classData
+                // e.g., new Chart(document.getElementById('antibioticClassChart'), { ... });
+            </script> #}
+        </div>
+    </div>
+    {% endif %}
 
 
-    <h3>Explore PanRes Data</h3>
+    <h3>Browse Categories</h3>
     <p>Select a category below to view the items or concepts within it:</p>
 
     <div class="category-grid">
@@ -34,18 +108,19 @@
                      {% if data.config.description %}
                         <p class="category-description">{{ data.config.description }}</p> {# Add description #}
                      {% endif %}
-                    <p class="count">
-                        {% if data.count is number %}
-                             {{ "{:,}".format(data.count) }} item(s) {# Format count with commas #}
-                        {% elif data.count == 0 %}
-                             0 items
-                        {% else %}
-                            <span class="error-count">{{ data.count }}</span> {# Show error message #}
-                        {% endif %}
-                    </p>
+                    {# --- Count Removed from direct display --- #}
+                    {# <p class="count"> ... </p> #}
                 </div>
                 {# Button links to the generic list_items route, passing the display_name as the key #}
-                <a href="{{ url_for('list_items', category_key=display_name) }}" class="button">Browse</a>
+                <a href="{{ url_for('list_items', category_key=display_name) }}" class="button">
+                    Browse
+                    {# Optionally add count back to button or as small text #}
+                    {% if data.count is number and data.count > 0 %}
+                       ({{ "{:,}".format(data.count) }})
+                    {% elif data.count is string %}
+                        (!) {# Indicate error #}
+                    {% endif %}
+                </a>
             </div>
             {% endfor %}
         {% else %}

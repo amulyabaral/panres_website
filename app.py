@@ -55,15 +55,19 @@ PREDICATE_DISPLAY_NAMES = {
 app = Flask(__name__)
 app.config['DATABASE'] = DATABASE
 app.config['INDEX_CATEGORIES'] = INDEX_CATEGORIES # Make categories accessible
+app.config['PREDICATE_DISPLAY_NAMES'] = PREDICATE_DISPLAY_NAMES # Make predicate names accessible
 
 # Configure logging
 logging.basicConfig(level=logging.INFO) # Log INFO level messages and above
 app.logger.setLevel(logging.INFO) # Ensure Flask's logger also respects INFO level
 
-# Make INDEX_CATEGORIES available to all templates
+# Make INDEX_CATEGORIES and PREDICATE_DISPLAY_NAMES available to all templates
 @app.context_processor
-def inject_categories():
-    return dict(index_categories=app.config['INDEX_CATEGORIES'])
+def inject_global_data():
+    return dict(
+        index_categories=app.config['INDEX_CATEGORIES'],
+        predicate_map=app.config['PREDICATE_DISPLAY_NAMES']
+    )
 
 # --- Database Helper Functions ---
 def get_db():
@@ -123,11 +127,14 @@ def query_db(query, args=(), one=False):
 # --- Flask Routes ---
 @app.route('/')
 def index():
-    """Shows the main index page with browseable categories and their counts."""
+    """Shows the main index page with visualizations and browseable categories."""
     db = get_db()
     category_data = {}
+    source_db_counts = []
+    antibiotic_class_counts = []
     app.logger.info(f"Loading index page. Categories configured: {list(INDEX_CATEGORIES.keys())}")
 
+    # --- Fetch Category Counts (as before, but maybe hide them later) ---
     for display_name, config in INDEX_CATEGORIES.items():
         query_type = config['query_type']
         value = config['value']
@@ -166,7 +173,49 @@ def index():
             'count': count if error_msg is None else error_msg
         }
 
-    return render_template('index.html', category_data=category_data)
+    # --- Fetch Source Database Counts for Bar Plot ---
+    try:
+        cursor_db = db.execute("""
+            SELECT object AS database_name, COUNT(DISTINCT subject) AS gene_count
+            FROM Triples
+            WHERE predicate = 'is_from_database' AND object_is_literal = 0
+            GROUP BY object
+            ORDER BY gene_count DESC
+        """)
+        source_db_counts = cursor_db.fetchall()
+        app.logger.info(f"Fetched {len(source_db_counts)} source database counts.")
+    except sqlite3.Error as e:
+        app.logger.error(f"Error fetching source database counts: {e}")
+        # Handle error appropriately, maybe pass an error message to the template
+
+    # --- Fetch Antibiotic Class Counts for Visualization ---
+    try:
+        cursor_class = db.execute("""
+            SELECT object AS class_name, COUNT(DISTINCT subject) AS gene_count
+            FROM Triples
+            WHERE predicate = 'has_resistance_class' AND object_is_literal = 0
+            GROUP BY object
+            ORDER BY gene_count DESC
+        """)
+        antibiotic_class_counts = cursor_class.fetchall()
+        app.logger.info(f"Fetched {len(antibiotic_class_counts)} antibiotic class counts.")
+    except sqlite3.Error as e:
+        app.logger.error(f"Error fetching antibiotic class counts: {e}")
+        # Handle error appropriately
+
+    # Calculate max counts for scaling the bar plot
+    max_db_count = max(row['gene_count'] for row in source_db_counts) if source_db_counts else 1
+    max_class_count = max(row['gene_count'] for row in antibiotic_class_counts) if antibiotic_class_counts else 1
+
+
+    return render_template(
+        'index.html',
+        category_data=category_data,
+        source_db_counts=source_db_counts,
+        max_db_count=max_db_count,
+        antibiotic_class_counts=antibiotic_class_counts,
+        max_class_count=max_class_count # Pass this for potential JS chart scaling
+    )
 
 
 @app.route('/list/<category_key>')

@@ -1,10 +1,10 @@
 /* --- Base & Variables --- */
 :root {
-    --color-text: #343a40;
+    --color-text: #212529; /* Darker text */
     --color-text-muted: #6c757d;
-    --color-background: #fdfdfe; /* Very light off-white */
+    --color-background: #f8f9fa; /* Slightly less white */
     --color-surface: #ffffff; /* Card/surface background */
-    --color-border: #e9ecef;
+    --color-border: #dee2e6; /* Slightly darker border */
     --color-primary: #4dabf7; /* Light Blue */
     --color-primary-dark: #228be6;
     --color-secondary: #74c0fc; /* Lighter Blue */
@@ -13,7 +13,7 @@
     --color-danger: #ff8787; /* Pastel Red */
     --color-warning: #ffd43b; /* Pastel Yellow */
     --color-info: #99e9f2; /* Pastel Cyan */
-    --color-code-bg: #f1f3f5;
+    --color-code-bg: #e9ecef; /* Slightly darker code bg */
     --color-code-text: #495057;
     --color-tag-database: #e5dbff; /* Pastel Purple */
     --color-tag-database-text: #5f3dc4;
@@ -22,42 +22,45 @@
     --color-tag-phenotype: #fff3bf; /* Pastel Yellow */
     --color-tag-phenotype-text: #f59f00;
 
-    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* --- MONO FONT --- */
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* Keep sans for fallback/UI elements if needed */
     --font-mono: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-md: 0 4px 6px rgba(0,0,0,0.06);
-    --border-radius: 6px;
+    /* --- REMOVE SHADOWS --- */
+    /* --shadow-sm: 0 1px 2px rgba(0,0,0,0.04); */
+    /* --shadow-md: 0 4px 6px rgba(0,0,0,0.06); */
+    --border-radius: 4px; /* Slightly smaller radius */
+    --border-default: 1px solid var(--color-border);
 }
 
 body {
-    font-family: var(--font-sans);
-    line-height: 1.6;
+    /* --- APPLY MONO FONT --- */
+    font-family: var(--font-mono);
+    line-height: 1.5; /* Slightly tighter line height */
     margin: 0;
     padding: 0;
     background-color: var(--color-background);
     color: var(--color-text);
-    font-size: 16px;
+    font-size: 15px; /* Slightly smaller base font */
 }
 
 .container {
-    max-width: 1200px; /* Wider container */
-    margin: 2rem auto;
-    padding: 1.5rem 2rem;
-    /* Removed background/shadow from main container, apply to elements */
+    max-width: 1100px; /* Slightly narrower */
+    margin: 1.5rem auto; /* Reduced top/bottom margin */
+    padding: 1rem 1.5rem;
 }
 
 /* --- Header --- */
 header {
-    border-bottom: 1px solid var(--color-border);
-    margin-bottom: 2.5rem;
-    padding-bottom: 1.5rem;
+    border-bottom: var(--border-default);
+    margin-bottom: 2rem; /* Reduced margin */
+    padding-bottom: 1rem;
     text-align: center;
 }
 
 header h1 a {
     color: var(--color-primary-dark);
     text-decoration: none;
-    font-size: 2.5rem;
+    font-size: 2.2rem; /* Slightly smaller */
     font-weight: 600;
 }
 header h1 a:hover {
@@ -66,28 +69,29 @@ header h1 a:hover {
 
 header .subtitle {
     color: var(--color-text-muted);
-    font-size: 1.1rem;
-    margin-top: 0.3rem;
+    font-size: 1rem;
+    margin-top: 0.2rem;
 }
 
 /* --- Main Content Headings --- */
 main h2 {
     color: var(--color-primary-dark);
-    margin-bottom: 1.5rem;
-    font-size: 1.8rem;
+    margin-bottom: 1.2rem;
+    font-size: 1.6rem;
     font-weight: 600;
-    /* border-bottom: 2px solid var(--color-accent); */
-    padding-bottom: 0.6rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--color-primary); /* Use primary color border */
+    display: inline-block; /* Make border only as wide as text */
 }
 
 main h3 {
     color: var(--color-text);
-    margin-top: 2rem;
+    margin-top: 1.8rem; /* Adjusted spacing */
     margin-bottom: 1rem;
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     font-weight: 600;
-    border-bottom: 1px solid var(--color-border);
-    padding-bottom: 0.5rem;
+    border-bottom: var(--border-default);
+    padding-bottom: 0.4rem;
 }
 
 /* --- Links --- */
@@ -103,20 +107,23 @@ a:hover {
 
 /* --- Code styling --- */
 code, pre {
-    font-family: var(--font-mono);
+    font-family: var(--font-mono); /* Already mono, but explicit */
     background-color: var(--color-code-bg);
-    padding: 0.2em 0.5em;
-    border-radius: 4px;
+    padding: 0.2em 0.4em; /* Slightly tighter padding */
+    border-radius: var(--border-radius);
     font-size: 0.9em;
     color: var(--color-code-text);
-    border: 1px solid var(--color-border);
-    word-break: break-word; /* Prevent long code from breaking layout */
+    border: var(--border-default);
+    word-break: break-word;
 }
 pre {
-    padding: 1em;
+    padding: 0.8em 1em;
     overflow-x: auto;
+    /* --- ADD BORDER --- */
+    border: var(--border-default);
+    border-radius: var(--border-radius);
 }
-a code { /* Make code within links inherit link color */
+a code {
     color: inherit;
     background-color: transparent;
     border: none;
@@ -126,77 +133,184 @@ a:hover code {
      text-decoration: underline;
 }
 
+/* --- Index Page: Visualizations --- */
+.visualization-section {
+    background-color: var(--color-surface);
+    border: var(--border-default);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.visualization-section h4 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-primary-dark);
+    border-bottom: 1px dashed var(--color-border);
+    padding-bottom: 0.5rem;
+}
+
+/* Bar Plot Styles */
+.db-barplot-container {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-width: 600px; /* Limit width */
+}
+
+.db-barplot-item {
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.9rem;
+}
+
+.db-barplot-label {
+    width: 120px; /* Fixed width for labels */
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--color-text-muted);
+}
+
+.db-barplot-bar-wrapper {
+    flex-grow: 1;
+    background-color: var(--color-code-bg);
+    border-radius: var(--border-radius);
+    height: 20px; /* Bar height */
+    overflow: hidden; /* Needed for animation */
+    border: 1px solid #dee2e6; /* Subtle border */
+}
+
+.db-barplot-bar {
+    height: 100%;
+    background-color: var(--color-secondary); /* Use secondary blue */
+    border-radius: var(--border-radius); /* Match wrapper */
+    width: 0; /* Start at 0 for animation */
+    transition: width 1s ease-out; /* Animation */
+    display: flex;
+    align-items: center;
+    justify-content: flex-end; /* Position count inside */
+    padding-right: 0.5em;
+    color: white;
+    font-size: 0.8em;
+    font-weight: bold;
+    white-space: nowrap;
+    box-sizing: border-box; /* Include padding in width */
+}
+/* Add hover effect? Maybe change color */
+.db-barplot-bar:hover {
+    background-color: var(--color-primary);
+}
+
+/* Class Visualization Placeholder */
+.class-viz-container {
+    /* Add styles if using JS library, e.g., min-height */
+    text-align: center;
+    color: var(--color-text-muted);
+    padding: 2rem 0;
+}
+.class-viz-container p {
+    margin-bottom: 1rem;
+}
+.class-data-list { /* Simple list fallback */
+    list-style: none;
+    padding: 0;
+    margin: 0 auto;
+    max-width: 400px;
+    font-size: 0.9rem;
+    text-align: left;
+}
+.class-data-list li {
+    margin-bottom: 0.3rem;
+    border-bottom: 1px dotted var(--color-border);
+    padding-bottom: 0.3rem;
+}
+ .class-data-list code {
+    background: none;
+    border: none;
+    padding: 0;
+ }
+
+
 /* --- Index Page Grid --- */
 .category-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-    margin-top: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Slightly smaller min */
+    gap: 1rem; /* Reduced gap */
+    margin-top: 1.5rem;
 }
 
 .category-card {
-    border: 1px solid var(--color-border);
+    border: var(--border-default);
     border-radius: var(--border-radius);
-    padding: 1.5rem;
+    padding: 1rem 1.2rem; /* Reduced padding */
     background-color: var(--color-surface);
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    /* transition: transform 0.2s ease-in-out, border-color 0.2s ease-in-out; */ /* Simpler transition */
+    transition: border-color 0.2s ease-in-out;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    box-shadow: var(--shadow-sm);
+    /* box-shadow: var(--shadow-sm); */ /* REMOVED */
 }
 .category-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
+    /* transform: translateY(-2px); */ /* REMOVED */
+    border-color: var(--color-primary); /* Highlight border on hover */
 }
 
 .category-card h4 {
     margin-top: 0;
     margin-bottom: 0.5rem;
     color: var(--color-primary-dark);
-    font-size: 1.15rem;
+    font-size: 1.05rem; /* Slightly smaller */
     font-weight: 600;
 }
 .category-card .category-description {
-    font-size: 0.9rem;
+    font-size: 0.85rem; /* Smaller description */
     color: var(--color-text-muted);
-    margin-bottom: 1rem;
-    flex-grow: 1; /* Allow description to push count down */
-    min-height: 3.5em;
+    margin-bottom: 0.8rem; /* Reduced margin */
+    flex-grow: 1;
+    min-height: 3em; /* Adjust if needed */
 }
 .category-card .count {
-    font-size: 1.3rem;
+    /* Style for count if you decide to show it again */
+    font-size: 1.1rem;
     font-weight: 600;
     color: var(--color-accent-dark);
-    margin-bottom: 1.2rem;
+    margin-bottom: 1rem;
     text-align: right;
 }
 .category-card .count .error-count {
     color: var(--color-danger);
     font-weight: normal;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
 /* --- Buttons --- */
 .button, a.button {
     display: inline-block;
     background-color: var(--color-primary);
-    color: white;
-    padding: 0.6rem 1.2rem;
+    color: white !important; /* Ensure white text */
+    padding: 0.5rem 1rem; /* Slightly smaller */
     border: none;
     border-radius: var(--border-radius);
-    text-decoration: none;
+    text-decoration: none !important; /* Override potential link styles */
     cursor: pointer;
     transition: background-color 0.2s ease, transform 0.1s ease;
     font-weight: 500;
-    font-size: 0.95rem;
-    align-self: flex-start; /* Align button left */
-    margin-top: auto; /* Push button to bottom */
+    font-size: 0.9rem;
+    align-self: flex-start;
+    margin-top: auto;
+    font-family: var(--font-sans); /* Use Sans Serif for buttons? Optional */
 }
 .button:hover, a.button:hover {
     background-color: var(--color-primary-dark);
     color: white;
-    text-decoration: none;
+    text-decoration: none !important;
     transform: translateY(-1px);
 }
 
@@ -206,41 +320,44 @@ a:hover code {
     padding-left: 0;
     margin-top: 1rem;
     background-color: var(--color-surface);
-    border: 1px solid var(--color-border);
+    border: var(--border-default);
     border-radius: var(--border-radius);
-    box-shadow: var(--shadow-sm);
-    overflow: hidden; /* Clip hover background */
+    /* box-shadow: var(--shadow-sm); */ /* REMOVED */
+    overflow: hidden;
 }
 .item-list li {
-    margin-bottom: 0; /* Remove bottom margin */
-    padding: 0; /* Remove padding */
-    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 0;
+    padding: 0;
+    border-bottom: var(--border-default);
     transition: background-color 0.15s ease;
 }
 .item-list li:last-child {
     border-bottom: none;
 }
 .item-list li:hover {
-    background-color: #f8f9fa; /* Subtle hover background */
+    background-color: #e9ecef; /* Use code bg color for hover */
 }
 .item-list li a {
-    font-size: 1rem;
+    font-size: 0.95rem; /* Slightly smaller */
     display: block;
-    padding: 0.8rem 1.2rem; /* Add padding to the link */
+    padding: 0.6rem 1rem; /* Adjusted padding */
     text-decoration: none;
+}
+.item-list li a:hover {
+    text-decoration: none; /* No underline on list items */
 }
 .item-list li a code {
     font-size: 0.95em;
-    background-color: transparent; /* Inherit background */
+    background-color: transparent;
     border: none;
     padding: 0;
 }
 
 /* --- Details Page --- */
 .details-header {
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 1.5rem; /* Reduced margin */
+    padding-bottom: 0.8rem;
+    border-bottom: var(--border-default);
 }
 .item-id-tag {
     display: inline-block;
@@ -249,51 +366,58 @@ a:hover code {
     color: var(--color-text-muted);
     background-color: var(--color-code-bg);
     padding: 0.3em 0.6em;
-    border-radius: 4px;
+    border-radius: var(--border-radius);
     margin-bottom: 0.5rem;
+    border: var(--border-default); /* Add border */
 }
 .category-title a {
     color: var(--color-primary-dark);
-    font-size: 1.8rem;
+    font-size: 1.6rem; /* Match h2 */
     font-weight: 600;
     text-decoration: none;
+    border-bottom: 2px solid var(--color-primary);
+    padding-bottom: 0.5rem;
+    display: inline-block;
 }
 .category-title a:hover {
     color: var(--color-primary);
+    border-color: var(--color-primary);
 }
 
 .details-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Adjust min size */
+    gap: 1.5rem; /* Reduced gap */
 }
 
 .details-section {
     background-color: var(--color-surface);
-    padding: 1.5rem;
+    padding: 1.2rem; /* Reduced padding */
     border-radius: var(--border-radius);
-    border: 1px solid var(--color-border);
-    box-shadow: var(--shadow-sm);
+    border: var(--border-default);
+    /* box-shadow: var(--shadow-sm); */ /* REMOVED */
 }
 .details-section h3 {
-    margin-top: 0; /* Remove top margin for section headings */
-    margin-bottom: 1.5rem;
-    font-size: 1.2rem;
+    margin-top: 0;
+    margin-bottom: 1.2rem; /* Reduced margin */
+    font-size: 1.1rem; /* Smaller section headings */
+    border-bottom: 1px dashed var(--color-border); /* Dashed border */
+    padding-bottom: 0.5rem;
 }
 
 /* Definition List Styling */
 .details-list dt {
     font-weight: 600;
     color: var(--color-text);
-    margin-bottom: 0.4rem;
-    font-size: 0.95rem;
+    margin-bottom: 0.3rem;
+    font-size: 0.9rem; /* Smaller term */
 }
 .details-list dd {
-    margin-left: 0; /* Reset browser default */
-    margin-bottom: 1.3rem;
+    margin-left: 0;
+    margin-bottom: 1rem; /* Reduced margin */
     color: var(--color-text);
-    font-size: 1rem;
-    line-height: 1.5;
+    font-size: 0.95rem; /* Smaller definition */
+    line-height: 1.4;
 }
 .details-list dd:last-child {
     margin-bottom: 0;
@@ -303,18 +427,20 @@ a:hover code {
 .details-list dd ul {
     list-style: none;
     padding: 0;
-    margin: 0;
+    margin: 0.3rem 0 0 0; /* Add slight top margin */
 }
 .details-list dd ul li {
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.3rem;
+    padding: 0.2rem 0; /* Add slight padding */
+    border-bottom: 1px dotted var(--color-border); /* Dotted separator */
 }
 .details-list dd ul li:last-child {
     margin-bottom: 0;
+    border-bottom: none;
 }
 
 /* Value Styling */
 .value-literal {
-    /* Basic style for literals */
     color: var(--color-text);
 }
 .value-link code {
@@ -332,12 +458,13 @@ a:hover code {
 .value-phenotype code {
     display: inline-block;
     padding: 0.2em 0.6em;
-    border-radius: 4px;
+    border-radius: var(--border-radius);
     font-size: 0.85em;
     font-weight: 500;
     line-height: 1.4;
-    margin: 0.1em 0; /* Add slight vertical margin */
+    margin: 0.1em 0;
     border: none; /* Override default code border */
+    /* Ensure colors are applied */
 }
 
 .value-database code {
@@ -355,32 +482,64 @@ a:hover code {
 a.value-database:hover code,
 a.value-resistance-class:hover code,
 a.value-phenotype:hover code {
-    text-decoration: none; /* Prevent underline on tags */
+    text-decoration: none;
     opacity: 0.85;
 }
 
 
 /* --- Footer --- */
 footer {
-    margin-top: 3rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--color-border);
+    margin-top: 2.5rem; /* Reduced margin */
+    padding-top: 1rem;
+    border-top: var(--border-default);
     text-align: center;
-    font-size: 0.9em;
+    font-size: 0.85em; /* Smaller footer text */
     color: var(--color-text-muted);
 }
 
 /* --- Utility --- */
 .back-links-footer {
-    margin-top: 2.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--color-border);
+    margin-top: 2rem; /* Reduced margin */
+    padding-top: 1rem;
+    border-top: var(--border-default);
 }
 .back-link {
     display: inline-block;
-    margin-right: 1.5rem; /* Space out back links */
-    font-size: 0.95rem;
+    margin-right: 1rem; /* Reduced margin */
+    font-size: 0.9rem;
 }
 .back-link:last-child {
     margin-right: 0;
-} 
+}
+
+/* --- Animations --- */
+/* Trigger bar animation when visible (simple approach) */
+/* More robust visibility detection usually needs JS (Intersection Observer) */
+@keyframes growBar {
+    from { width: 0; }
+    to { /* Width is set inline */ }
+}
+
+/* Apply animation - this might trigger on load, not scroll */
+/* Consider adding a class via JS when element is in view */
+.db-barplot-bar {
+    /* animation: growBar 1s ease-out forwards; */ /* Disabled for now - enable if JS adds class */
+}
+
+/* Simple script to trigger animation on load (add this if no JS library is used) */
+/* You might put this in base.html */
+/*
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const bars = document.querySelectorAll('.db-barplot-bar');
+    bars.forEach(bar => {
+      const targetWidth = bar.style.width; // Get width set inline
+      bar.style.width = '0'; // Reset to 0
+      // Trigger reflow
+      void bar.offsetWidth;
+      // Apply target width to start animation
+      bar.style.width = targetWidth;
+    });
+  });
+</script>
+*/ 
