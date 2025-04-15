@@ -235,6 +235,7 @@ a:hover code {
 .v-barplot-container.no-border {
     border-top: none;
     margin-top: 0;
+    padding-bottom: 0; /* Remove bottom padding */
 }
 
 .v-barplot-item {
@@ -327,19 +328,56 @@ a:hover code {
 /* Adjust grid container alignment if needed */
 .viz-grid-container {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* Keep 2 columns */
-    gap: 0.8rem; /* Reduced gap */
-    margin-bottom: 2rem; /* <-- INCREASED: Add more space below the grid */
-    align-items: stretch; /* Important: Make columns equal height */
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8rem; /* Keep consistent gap between all widgets */
+    margin-bottom: 2rem;
+    align-items: stretch; /* Ensure columns stretch to match each other */
 }
 
-/* NEW: Style for the left column wrapper */
+/* Make left column a flex container to stack widgets */
 .viz-column-left {
     display: flex;
     flex-direction: column;
-    gap: 0.8rem; /* Reduced gap */
+    gap: 0.8rem; /* Same gap as the main grid for consistency */
 }
 
+/* Remove all internal padding from visualization sections */
+.visualization-section.no-internal-padding {
+    padding-top: 0.2rem; /* Minimal top padding */
+    padding-bottom: 0.2rem; /* Minimal bottom padding */
+}
+
+/* Ensure the pie chart container fills the entire height */
+.visualization-section.antibiotic-class-chart {
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Take full height of grid cell */
+}
+
+.visualization-section.antibiotic-class-chart .chart-container {
+    flex-grow: 1; /* Make chart grow to fill available space */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0; /* Remove padding that could cause misalignment */
+}
+
+/* Ensure bar charts don't have extra space */
+.v-barplot-container.no-border {
+    border-top: none;
+    margin-top: 0;
+    padding-bottom: 0; /* Remove bottom padding */
+}
+
+/* Fix stacked bar container spacing */
+.stacked-bar-container {
+    margin-bottom: 0.4rem; /* Reduce space below bar */
+}
+
+.stacked-bar-legend {
+    margin-bottom: 0; /* Remove bottom margin */
+}
 
 /* Adjustments for visualization sections within the grid */
 .viz-grid-container > .visualization-section,
@@ -1052,7 +1090,7 @@ footer {
     border-radius: var(--border-radius);
     overflow: hidden; /* Clip segments to rounded corners */
     margin-top: 0.4rem; /* Space below header */
-    margin-bottom: 0.6rem; /* Space above legend */
+    margin-bottom: 0.4rem; /* Space above legend */
     border: 1px solid var(--color-border); /* Add a border around the bar */
 }
 
@@ -1073,6 +1111,7 @@ footer {
     gap: 0.2rem 0.8rem; /* Row and column gap */
     margin-top: 0.4rem; /* Space above legend */
     padding-left: 0.2rem; /* Slight indent */
+    margin-bottom: 0; /* Remove bottom margin */
 }
 
 .legend-item {
