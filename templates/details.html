@@ -3,107 +3,120 @@
 {% block title %}Details for {{ item_id }} - PanRes Database Explorer{% endblock %}
 
 {% block content %}
-    <h2>Details for <code>{{ item_id }}</code></h2>
-
-    <div class="details-section">
-        <h3>Key Information</h3>
-        {# Display the primary category/type if found #}
+    <div class="details-header">
+        {# Use a less prominent tag for the item ID itself #}
+        <span class="item-id-tag">{{ item_id }}</span>
+        {# Display category prominently if available #}
         {% if details.primary_type_display %}
-            <p><strong>Category:</strong>
+            <h2 class="category-title">
                 <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}">{{ details.primary_type_display }}</a>
-            </p>
+            </h2>
+        {% else %}
+             <h2>Details</h2> {# Fallback title #}
         {% endif %}
-        {# List all rdf:types found, excluding owl:NamedIndividual if others exist #}
-        {% if details.types %}
-            <p><strong>RDF Type(s):</strong>
-                {% set displayed_types = [] %}
-                {% for type in details.types %}
-                    {# Only show owl:NamedIndividual if it's the *only* type #}
-                    {% if type != 'owl:NamedIndividual' or details.types|length == 1 %}
-                        {% set _ = displayed_types.append("<code>" ~ type ~ "</code>") %}
+    </div>
+
+    <div class="details-grid"> {# Use grid for layout #}
+        <div class="details-section main-info">
+            <h3>Key Information</h3>
+            <dl class="details-list">
+                {# Display Label if present #}
+                {% if details.label %}
+                    <dt>{{ predicate_map.get(RDFS_LABEL, 'Label') }}</dt>
+                    <dd>{{ details.label }}</dd>
+                {% endif %}
+
+                {# Display Description if present #}
+                {% if details.comment %}
+                    <dt>{{ predicate_map.get(RDFS_COMMENT, 'Description') }}</dt>
+                    <dd>{{ details.comment }}</dd>
+                {% endif %}
+
+                {# List all RDF types found, excluding owl:NamedIndividual if others exist #}
+                {% if details.types %}
+                    {% set displayed_types = [] %}
+                    {% for type in details.types %}
+                        {% if type != 'owl:NamedIndividual' or details.types|length == 1 %}
+                            {% set _ = displayed_types.append("<code>" ~ type ~ "</code>") %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if displayed_types %}
+                        <dt>{{ predicate_map.get(RDF_TYPE, 'RDF Type(s)') }}</dt>
+                        <dd>{{ displayed_types|join(', ')|safe }}</dd>
                     {% endif %}
-                {% endfor %}
-                {{ displayed_types|join(', ')|safe }}
-            </p>
-        {% endif %}
+                {% endif %}
+            </dl>
+        </div>
 
-        {% if details.label %}
-            <p><strong>Label:</strong> {{ details.label }}</p>
-        {% endif %}
+        <div class="details-section outgoing-rels">
+            <h3>Properties &amp; Relationships</h3>
+            {% if details.grouped_properties %}
+                <dl class="details-list">
+                    {% for predicate, props in details.grouped_properties.items() %}
+                        <dt>{{ predicate_map.get(predicate, predicate) }}</dt> {# Use display name #}
+                        <dd>
+                            <ul class="property-values">
+                                {% for prop in props %}
+                                    <li>
+                                        {% if prop.is_literal %}
+                                            <span class="value-literal">{{ prop.value }}</span>
+                                            {# Removed datatype display #}
+                                        {% else %}
+                                            {# Assign classes based on predicate for potential styling #}
+                                            {% set value_class = 'value-link' %}
+                                            {% if predicate == 'is_from_database' %}
+                                                {% set value_class = value_class + ' value-database' %}
+                                            {% elif predicate == 'has_resistance_class' %}
+                                                {% set value_class = value_class + ' value-resistance-class' %}
+                                            {% elif predicate == 'has_predicted_phenotype' %}
+                                                {% set value_class = value_class + ' value-phenotype' %}
+                                            {% endif %}
+                                            <a href="{{ prop.link }}" class="{{ value_class }}"><code>{{ prop.value }}</code></a>
+                                            {% if prop.extra_info %}
+                                                <span class="extra-info">{{ prop.extra_info }}</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </dd>
+                    {% endfor %}
+                </dl>
+            {% else %}
+                <p>No other outgoing properties or relationships found.</p>
+            {% endif %}
+        </div>
 
-         {% if details.comment %}
-            <p><strong>Description:</strong> {{ details.comment }}</p>
+        <div class="details-section incoming-rels">
+            <h3>Referenced By</h3>
+             {% if details.grouped_references %}
+                <dl class="details-list">
+                    {% for predicate, refs in details.grouped_references.items() %}
+                         <dt>{{ predicate_map.get(predicate, predicate) }}</dt> {# Use display name #}
+                         <dd>
+                             <ul class="reference-values">
+                                 {% for ref in refs %}
+                                     <li>
+                                         <a href="{{ ref.link }}" class="value-link"><code>{{ ref.subject }}</code></a>
+                                     </li>
+                                 {% endfor %}
+                             </ul>
+                         </dd>
+                    {% endfor %}
+                </dl>
+            {% else %}
+                <p>This item is not referenced by any other items.</p>
+            {% endif %}
+        </div>
+    </div> {# End details-grid #}
+
+
+    <div class="back-links-footer">
+        <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
+        {# Link back to the primary category list if available #}
+        {% if details.primary_type_category_key %}
+             <p class="back-link"><a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}">&laquo; Back to {{ details.primary_type_display }} list</a></p>
         {% endif %}
     </div>
-
-
-    <div class="details-section">
-        {# Use predicate_map to get display names #}
-        <h3>Properties / Relationships (Outgoing)</h3>
-        {% if details.other_properties %}
-            <table class="details-table">
-                <thead>
-                    <tr>
-                        <th>Relationship / Property</th>
-                        <th>Value / Target Item</th>
-                        {# Removed Type column #}
-                    </tr>
-                </thead>
-                <tbody>
-                {% for prop in details.other_properties %}
-                    <tr>
-                        {# Use display name from map, fallback to original predicate #}
-                        <td>{{ predicate_map.get(prop.predicate, prop.predicate) }}</td>
-                        <td>
-                            {% if prop.object_is_literal %}
-                                {{ prop.object }}
-                                {% if prop.object_datatype %}<span class="datatype"> ({{ predicate_map.get(prop.object_datatype, prop.object_datatype) }})</span>{% endif %}
-                            {% else %}
-                                {# Link to details page for resources #}
-                                <a href="{{ url_for('details', item_id=prop.object) }}"><code>{{ prop.object }}</code></a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>No other outgoing properties or relationships found (besides type, label, comment if shown above).</p>
-        {% endif %}
-    </div>
-
-    <div class="details-section">
-        <h3>Referenced By (Incoming Relationships)</h3>
-         {% if references %}
-            <table class="details-table">
-                 <thead>
-                    <tr>
-                        <th>Source Item</th>
-                        <th>Relationship</th>
-                         {# Removed Type column #}
-                    </tr>
-                </thead>
-                <tbody>
-                {% for ref in references %}
-                    <tr>
-                        <td><a href="{{ url_for('details', item_id=ref.subject) }}"><code>{{ ref.subject }}</code></a></td>
-                        {# Use display name from map, fallback to original predicate #}
-                        <td>{{ predicate_map.get(ref.predicate, ref.predicate) }}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>This item is not the target of any known relationships from other items.</p>
-        {% endif %}
-    </div>
-
-
-    <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
-    {# Link back to the primary category list if available #}
-    {% if details.primary_type_category_key %}
-         <p class="back-link"><a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}">&laquo; Back to {{ details.primary_type_display }} list</a></p>
-    {% endif %}
-    {# Consider adding a back link using request.referrer if needed #}
 
 {% endblock %} 

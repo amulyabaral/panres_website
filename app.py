@@ -3,6 +3,7 @@ from flask import Flask, render_template, g, abort, url_for
 import os
 import logging
 from urllib.parse import unquote # Needed for handling URL-encoded values
+from collections import defaultdict # Import defaultdict
 
 # --- Configuration ---
 DATABASE = 'panres_ontology.db' # Make sure this file is in the same directory or provide the correct path
@@ -266,15 +267,14 @@ def genes_related_to(predicate, object_value):
                            object_value=decoded_object_value)
 
 
-@app.route('/details/<path:item_id>') # Use path converter to handle potential slashes in IDs
+@app.route('/details/<path:item_id>')
 def details(item_id):
     """Shows details (properties and references) for a specific item."""
     db = get_db()
-    # Decode item_id in case it contains URL-encoded characters
     decoded_item_id = unquote(item_id)
     app.logger.info(f"Fetching details for item ID: {decoded_item_id}")
 
-    # Fetch outgoing properties (where item_id is the subject)
+    # Fetch outgoing properties
     try:
         cursor_props = db.execute(
             "SELECT predicate, object, object_is_literal, object_datatype FROM Triples WHERE subject = ?",
@@ -286,7 +286,7 @@ def details(item_id):
         app.logger.error(f"Error fetching properties for '{decoded_item_id}': {e}")
         abort(500, description=f"Error retrieving properties for {decoded_item_id}")
 
-    # Fetch incoming references (where item_id is the object and is not a literal)
+    # Fetch incoming references
     try:
         cursor_refs = db.execute(
             "SELECT subject, predicate FROM Triples WHERE object = ? AND object_is_literal = 0",
@@ -298,52 +298,47 @@ def details(item_id):
         app.logger.error(f"Error fetching references for '{decoded_item_id}': {e}")
         abort(500, description=f"Error retrieving references for {decoded_item_id}")
 
-    # Prepare data for template (e.g., extract common properties)
+    # --- Process Properties for Better Display ---
     item_details = {
         'label': None,
         'comment': None,
-        'types': [], # Store all found types
-        'primary_type_display': None, # Display name for the 'most important' type
-        'primary_type_category_key': None, # Key for linking back to list
-        'other_properties': []
+        'types': [],
+        'primary_type_display': None,
+        'primary_type_category_key': None,
+        'grouped_properties': defaultdict(list), # Group properties by predicate
+        'grouped_references': defaultdict(list) # Group references by predicate
     }
-    processed_predicates = set()
+    processed_predicates_for_grouping = set() # Track predicates handled as key info
 
-    # Prioritize specific types like PanGene or OriginalGene
+    # Prioritize specific types
     preferred_types = ['PanGene', 'OriginalGene']
     found_preferred_type = None
 
+    # First pass: Extract Key Info (Type, Label, Comment)
     for prop in properties:
         predicate = prop['predicate']
         obj = prop['object']
 
-        # Collect all types
         if predicate == RDF_TYPE:
             item_details['types'].append(obj)
-            processed_predicates.add(predicate) # Process type predicate here
-
-            # Check if this type is one of our preferred ones
             if obj in preferred_types and not found_preferred_type:
                 found_preferred_type = obj
-            # Check if this type matches any category display name key
             for cat_key, cat_config in INDEX_CATEGORIES.items():
                  if cat_config['query_type'] == 'type' and cat_config['value'] == obj:
-                     # Use the first matching category as primary display
                      if not item_details['primary_type_display']:
                          item_details['primary_type_display'] = cat_key
                          item_details['primary_type_category_key'] = cat_key
-                     break # Stop after finding one match per type
+                     # Don't break here, might find a preferred type later
+            processed_predicates_for_grouping.add(predicate)
 
-        # Find label
         elif predicate == RDFS_LABEL and not item_details['label']:
             item_details['label'] = obj
-            processed_predicates.add(predicate)
-        # Find comment/description
+            processed_predicates_for_grouping.add(predicate)
         elif predicate in DESCRIPTION_PREDICATES and not item_details['comment']:
             item_details['comment'] = obj
-            processed_predicates.add(predicate)
+            processed_predicates_for_grouping.add(predicate)
 
-    # If a preferred type (PanGene/OriginalGene) was found, ensure it's reflected
+    # Ensure preferred type is set if found
     if found_preferred_type:
          for cat_key, cat_config in INDEX_CATEGORIES.items():
              if cat_config['query_type'] == 'type' and cat_config['value'] == found_preferred_type:
@@ -351,11 +346,58 @@ def details(item_id):
                  item_details['primary_type_category_key'] = cat_key
                  break
 
-    # Add remaining properties to 'other_properties'
-    item_details['other_properties'] = [p for p in properties if p['predicate'] not in processed_predicates]
+    # Second pass: Group remaining properties and fetch extra data if needed
+    for prop in properties:
+        predicate = prop['predicate']
+        if predicate in processed_predicates_for_grouping:
+            continue # Skip already handled key info
+
+        prop_data = {
+            'value': prop['object'],
+            'is_literal': bool(prop['object_is_literal']),
+            'datatype': prop['object_datatype'], # Keep for potential future use, but won't display directly
+            'link': None,
+            'extra_info': None # For adding "(from Database)" etc.
+        }
+
+        if not prop_data['is_literal']:
+            prop_data['link'] = url_for('details', item_id=prop['object'])
+
+            # --- Enhancement: Fetch source DB for 'same_as' OriginalGene links ---
+            if predicate == 'same_as':
+                try:
+                    # Check if the linked object is an OriginalGene and get its database
+                    cursor_orig_db = db.execute(
+                        """SELECT T_db.object
+                           FROM Triples T_type
+                           JOIN Triples T_db ON T_type.subject = T_db.subject
+                           WHERE T_type.subject = ?
+                             AND T_type.predicate = ? AND T_type.object = ? -- Check type
+                             AND T_db.predicate = ? -- Get database
+                           LIMIT 1""",
+                        (prop['object'], RDF_TYPE, 'OriginalGene', 'is_from_database')
+                    )
+                    db_info = cursor_orig_db.fetchone()
+                    if db_info:
+                        prop_data['extra_info'] = f"(from {db_info['object']})"
+                        # Optionally, link the database name too
+                        # prop_data['extra_info_link'] = url_for('genes_related_to', predicate='is_from_database', object_value=db_info['object'])
+                except sqlite3.Error as e_extra:
+                    app.logger.warning(f"Could not fetch extra DB info for {prop['object']}: {e_extra}")
+            # --- End Enhancement ---
+
+        item_details['grouped_properties'][predicate].append(prop_data)
+
+    # Group incoming references
+    for ref in references:
+         ref_data = {
+             'subject': ref['subject'],
+             'link': url_for('details', item_id=ref['subject'])
+         }
+         item_details['grouped_references'][ref['predicate']].append(ref_data)
 
 
-    # Check if item exists (at least has some properties or references)
+    # Check if item exists
     if not properties and not references:
         app.logger.warning(f"No data found for item_id: {decoded_item_id}. Returning 404.")
         abort(404, description=f"Item '{decoded_item_id}' not found in the PanRes data.")
@@ -365,7 +407,7 @@ def details(item_id):
         'details.html',
         item_id=decoded_item_id,
         details=item_details, # Pass the structured details
-        references=references,
+        # references=references, # References are now inside details['grouped_references']
         predicate_map=PREDICATE_DISPLAY_NAMES # Pass the display name map
     )
 

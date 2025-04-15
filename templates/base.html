@@ -3,15 +3,15 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}PanRes Ontology Explorer{% endblock %}</title>
+    <title>{% block title %}PanRes Database Explorer{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- Add links to CSS frameworks like Bootstrap here if desired -->
+    <!-- Optional: Add favicon links here -->
 </head>
 <body>
     <div class="container">
         <header>
-            <h1><a href="{{ url_for('index') }}">PanRes Ontology Explorer</a></h1>
-            <p class="subtitle">Exploring Pangenome Antibiotic Resistance Data</p>
+            <h1><a href="{{ url_for('index') }}">PanRes Database Explorer</a></h1>
+            <p class="subtitle">Browse Antimicrobial Resistance Gene Data</p>
         </header>
         <main>
             {% block content %}
@@ -19,7 +19,7 @@
             {% endblock %}
         </main>
         <footer>
-            PanRes Ontology Visualizer & Explorer
+            PanRes Database Explorer | Data derived from multiple sources.
         </footer>
     </div>
 </body>

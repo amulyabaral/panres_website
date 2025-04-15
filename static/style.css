@@ -1,270 +1,386 @@
-/* General Styles */
+/* --- Base & Variables --- */
+:root {
+    --color-text: #343a40;
+    --color-text-muted: #6c757d;
+    --color-background: #fdfdfe; /* Very light off-white */
+    --color-surface: #ffffff; /* Card/surface background */
+    --color-border: #e9ecef;
+    --color-primary: #4dabf7; /* Light Blue */
+    --color-primary-dark: #228be6;
+    --color-secondary: #74c0fc; /* Lighter Blue */
+    --color-accent: #8ce99a; /* Pastel Green */
+    --color-accent-dark: #51cf66;
+    --color-danger: #ff8787; /* Pastel Red */
+    --color-warning: #ffd43b; /* Pastel Yellow */
+    --color-info: #99e9f2; /* Pastel Cyan */
+    --color-code-bg: #f1f3f5;
+    --color-code-text: #495057;
+    --color-tag-database: #e5dbff; /* Pastel Purple */
+    --color-tag-database-text: #5f3dc4;
+    --color-tag-class: #d0ebff; /* Pastel Blue */
+    --color-tag-class-text: #1c7ed6;
+    --color-tag-phenotype: #fff3bf; /* Pastel Yellow */
+    --color-tag-phenotype-text: #f59f00;
+
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.06);
+    --border-radius: 6px;
+}
+
 body {
-    font-family: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-family: var(--font-sans);
     line-height: 1.6;
     margin: 0;
     padding: 0;
-    background-color: #f8f9fa; /* Light grey background */
-    color: #212529; /* Dark text */
-    font-size: 16px; /* Base font size */
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-size: 16px;
 }
 
 .container {
-    max-width: 1000px; /* Slightly wider */
+    max-width: 1200px; /* Wider container */
     margin: 2rem auto;
     padding: 1.5rem 2rem;
-    background-color: #ffffff; /* White content background */
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* Softer shadow */
+    /* Removed background/shadow from main container, apply to elements */
 }
 
-/* Header */
+/* --- Header --- */
 header {
-    border-bottom: 1px solid #dee2e6; /* Light border */
+    border-bottom: 1px solid var(--color-border);
     margin-bottom: 2.5rem;
     padding-bottom: 1.5rem;
     text-align: center;
 }
 
 header h1 a {
-    color: #1a5f7a; /* Darker teal */
+    color: var(--color-primary-dark);
     text-decoration: none;
-    font-size: 2.8rem; /* Larger title */
-    font-weight: 500; /* Slightly less bold */
+    font-size: 2.5rem;
+    font-weight: 600;
 }
 header h1 a:hover {
-    color: #159895; /* Lighter teal on hover */
-    text-decoration: none;
+    color: var(--color-primary);
 }
 
 header .subtitle {
-    color: #576F72; /* Muted teal/grey */
-    font-size: 1.2rem;
-    margin-top: 0.5rem;
+    color: var(--color-text-muted);
+    font-size: 1.1rem;
+    margin-top: 0.3rem;
 }
 
-/* Main Content Headings */
+/* --- Main Content Headings --- */
 main h2 {
-    color: #1a5f7a;
+    color: var(--color-primary-dark);
     margin-bottom: 1.5rem;
     font-size: 1.8rem;
-    font-weight: 500;
-    border-bottom: 2px solid #57C5B6; /* Accent color underline */
+    font-weight: 600;
+    /* border-bottom: 2px solid var(--color-accent); */
     padding-bottom: 0.6rem;
 }
 
 main h3 {
-    color: #34495e; /* Dark blue-grey */
-    margin-top: 2.5rem;
+    color: var(--color-text);
+    margin-top: 2rem;
     margin-bottom: 1rem;
-    font-size: 1.4rem;
-    font-weight: 500;
+    font-size: 1.3rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0.5rem;
 }
 
-/* Links */
+/* --- Links --- */
 a {
-    color: #159895; /* Teal links */
+    color: var(--color-primary-dark);
     text-decoration: none;
     transition: color 0.2s ease;
 }
-
 a:hover {
-    color: #1a5f7a; /* Darker teal on hover */
+    color: var(--color-primary);
     text-decoration: underline;
 }
 
-/* Code styling */
+/* --- Code styling --- */
 code, pre {
-    font-family: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-    background-color: #eef1f3; /* Lighter code background */
+    font-family: var(--font-mono);
+    background-color: var(--color-code-bg);
     padding: 0.2em 0.5em;
     border-radius: 4px;
-    font-size: 0.95em; /* Slightly larger code font */
-    color: #333;
-    border: 1px solid #d6dbdf; /* Subtle border */
+    font-size: 0.9em;
+    color: var(--color-code-text);
+    border: 1px solid var(--color-border);
+    word-break: break-word; /* Prevent long code from breaking layout */
 }
 pre {
     padding: 1em;
-    overflow-x: auto; /* Allow horizontal scroll for long code */
+    overflow-x: auto;
+}
+a code { /* Make code within links inherit link color */
+    color: inherit;
+    background-color: transparent;
+    border: none;
+    padding: 0;
+}
+a:hover code {
+     text-decoration: underline;
 }
 
-/* Index Page Grid */
+/* --- Index Page Grid --- */
 .category-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Responsive grid */
-    gap: 1.8rem;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
     margin-top: 2rem;
 }
 
 .category-card {
-    border: 1px solid #d6dbdf;
-    border-radius: 6px;
-    padding: 1.8rem;
-    text-align: center;
-    background-color: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    background-color: var(--color-surface);
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    display: flex; /* Use flexbox for alignment */
-    flex-direction: column; /* Stack items vertically */
-    justify-content: space-between; /* Push button to bottom */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: var(--shadow-sm);
 }
-
 .category-card:hover {
-    transform: translateY(-3px); /* Slight lift on hover */
-    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
 }
 
 .category-card h4 {
     margin-top: 0;
-    margin-bottom: 0.8rem;
-    color: #1a5f7a; /* Match header link */
-    font-size: 1.25rem;
-    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--color-primary-dark);
+    font-size: 1.15rem;
+    font-weight: 600;
 }
-
-/* Add style for category description */
 .category-card .category-description {
     font-size: 0.9rem;
-    color: #576F72; /* Muted color */
+    color: var(--color-text-muted);
     margin-bottom: 1rem;
-    min-height: 3em; /* Give some space even if description is short */
+    flex-grow: 1; /* Allow description to push count down */
+    min-height: 3.5em;
 }
-
 .category-card .count {
-    font-size: 1.5rem; /* Larger count */
-    font-weight: bold;
-    color: #28a745; /* Green count */
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--color-accent-dark);
     margin-bottom: 1.2rem;
-    flex-grow: 1; /* Allow count to take up space */
+    text-align: right;
 }
-
 .category-card .count .error-count {
-    color: #dc3545; /* Red for error */
+    color: var(--color-danger);
     font-weight: normal;
     font-size: 0.9rem;
 }
 
-/* Buttons */
+/* --- Buttons --- */
 .button, a.button {
     display: inline-block;
-    background-color: #159895; /* Teal button */
+    background-color: var(--color-primary);
     color: white;
     padding: 0.6rem 1.2rem;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--border-radius);
     text-decoration: none;
     cursor: pointer;
     transition: background-color 0.2s ease, transform 0.1s ease;
     font-weight: 500;
-    font-size: 1rem;
-    align-self: center; /* Center button horizontally */
+    font-size: 0.95rem;
+    align-self: flex-start; /* Align button left */
+    margin-top: auto; /* Push button to bottom */
 }
-
 .button:hover, a.button:hover {
-    background-color: #1a5f7a; /* Darker teal */
+    background-color: var(--color-primary-dark);
     color: white;
     text-decoration: none;
     transform: translateY(-1px);
 }
 
-/* List Page */
+/* --- List Page --- */
 .item-list {
     list-style: none;
     padding-left: 0;
     margin-top: 1rem;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden; /* Clip hover background */
 }
-
 .item-list li {
-    margin-bottom: 0.6rem;
-    padding: 0.5rem 0.8rem;
-    border-bottom: 1px solid #eef1f3; /* Lighter separator */
-    transition: background-color 0.2s ease;
+    margin-bottom: 0; /* Remove bottom margin */
+    padding: 0; /* Remove padding */
+    border-bottom: 1px solid var(--color-border);
+    transition: background-color 0.15s ease;
+}
+.item-list li:last-child {
+    border-bottom: none;
 }
 .item-list li:hover {
     background-color: #f8f9fa; /* Subtle hover background */
 }
-
 .item-list li a {
-    font-size: 1.1em;
-    display: block; /* Make the whole list item clickable area */
+    font-size: 1rem;
+    display: block;
+    padding: 0.8rem 1.2rem; /* Add padding to the link */
+    text-decoration: none;
 }
-.item-list li a code { /* Style code within list items */
-    font-size: 1em;
-    background-color: #e0e6eb;
-}
-
-/* Details Page */
-.details-section {
-    margin-bottom: 2.5rem;
-}
-
-.details-section p {
-    margin-bottom: 0.8rem;
-}
-.details-section p strong {
-    color: #34495e; /* Darker label for strong text */
-    margin-right: 0.5em;
+.item-list li a code {
+    font-size: 0.95em;
+    background-color: transparent; /* Inherit background */
+    border: none;
+    padding: 0;
 }
 
-.details-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 1.5rem;
+/* --- Details Page --- */
+.details-header {
     margin-bottom: 2rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Subtle shadow on tables */
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-border);
+}
+.item-id-tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    color: var(--color-text-muted);
+    background-color: var(--color-code-bg);
+    padding: 0.3em 0.6em;
     border-radius: 4px;
-    overflow: hidden; /* Ensures border radius applies to table */
+    margin-bottom: 0.5rem;
+}
+.category-title a {
+    color: var(--color-primary-dark);
+    font-size: 1.8rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+.category-title a:hover {
+    color: var(--color-primary);
 }
 
-.details-table th, .details-table td {
-    border: 1px solid #e0e6eb;
-    padding: 0.8rem 1rem;
-    text-align: left;
-    vertical-align: top; /* Align content to top */
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
 }
 
-.details-table thead th {
-    background-color: #f1f4f6; /* Very light grey header */
-    font-weight: 600; /* Bolder header */
-    color: #495057;
-    font-size: 1.05em;
+.details-section {
+    background-color: var(--color-surface);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+}
+.details-section h3 {
+    margin-top: 0; /* Remove top margin for section headings */
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
 }
 
-.details-table tbody tr:nth-child(odd) {
-    background-color: #fcfdfe; /* Very subtle zebra striping */
+/* Definition List Styling */
+.details-list dt {
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 0.4rem;
+    font-size: 0.95rem;
 }
-.details-table tbody tr:hover {
-    background-color: #f0f4f8; /* Hover effect for rows */
+.details-list dd {
+    margin-left: 0; /* Reset browser default */
+    margin-bottom: 1.3rem;
+    color: var(--color-text);
+    font-size: 1rem;
+    line-height: 1.5;
+}
+.details-list dd:last-child {
+    margin-bottom: 0;
 }
 
-.details-table td:first-child { /* Predicate/Subject column */
-    font-weight: 500;
-    color: #1a5f7a;
-    /* width: 30%; */ /* Adjust width as needed */
+/* Styling for lists within dd */
+.details-list dd ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
-.details-table td code { /* Code within tables */
-     font-size: 0.9em;
+.details-list dd ul li {
+    margin-bottom: 0.4rem;
+}
+.details-list dd ul li:last-child {
+    margin-bottom: 0;
 }
 
-/* Style for datatype span in details table */
-.details-table .datatype {
+/* Value Styling */
+.value-literal {
+    /* Basic style for literals */
+    color: var(--color-text);
+}
+.value-link code {
+    /* Code within links already handled */
+}
+.extra-info {
     font-size: 0.85em;
-    color: #6c757d;
+    color: var(--color-text-muted);
     margin-left: 0.5em;
 }
 
-/* Footer */
+/* Tag/Pill Styling for specific types */
+.value-database code,
+.value-resistance-class code,
+.value-phenotype code {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+    line-height: 1.4;
+    margin: 0.1em 0; /* Add slight vertical margin */
+    border: none; /* Override default code border */
+}
+
+.value-database code {
+    background-color: var(--color-tag-database);
+    color: var(--color-tag-database-text);
+}
+.value-resistance-class code {
+    background-color: var(--color-tag-class);
+    color: var(--color-tag-class-text);
+}
+.value-phenotype code {
+    background-color: var(--color-tag-phenotype);
+    color: var(--color-tag-phenotype-text);
+}
+a.value-database:hover code,
+a.value-resistance-class:hover code,
+a.value-phenotype:hover code {
+    text-decoration: none; /* Prevent underline on tags */
+    opacity: 0.85;
+}
+
+
+/* --- Footer --- */
 footer {
     margin-top: 3rem;
     padding-top: 1.5rem;
-    border-top: 1px solid #dee2e6;
+    border-top: 1px solid var(--color-border);
     text-align: center;
     font-size: 0.9em;
-    color: #6c757d;
+    color: var(--color-text-muted);
 }
 
-/* Utility */
+/* --- Utility --- */
+.back-links-footer {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
 .back-link {
     display: inline-block;
-    margin-top: 1.5rem;
-    font-size: 1rem;
+    margin-right: 1.5rem; /* Space out back links */
+    font-size: 0.95rem;
+}
+.back-link:last-child {
+    margin-right: 0;
 } 
