@@ -353,13 +353,11 @@ a:hover code {
 
 /* Specific adjustments for chart containers */
 .chart-container {
-    /* padding: 0.1rem; */ /* <-- REMOVE padding */
-    flex-grow: 1; /* Allow pie chart to take space */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
     position: relative;
+    padding: 1rem;
+    max-width: 450px; /* Limit pie chart max width */
+    max-height: 450px; /* Limit pie chart max height */
+    margin: 1rem auto; /* Center chart within its section */
 }
 
 /* Optional: Slightly smaller chart container for the phenotype donut */
@@ -811,15 +809,6 @@ footer {
 
 .db-barplot-container .db-barplot-item:nth-child(10n+1) .db-barplot-bar { background-color: var(--color-pastel-blue); }
 
-.chart-container {
-    position: relative;
-    padding: 1rem;
-    max-width: 450px; /* Limit pie chart max width */
-    max-height: 450px; /* Limit pie chart max height */
-    margin: 1rem auto; /* Center chart within its section */
-    aspect-ratio: 1 / 1; /* Keep it squarish */
-}
-
 .chart-container h5 {
     margin-top: 0;
     margin-bottom: 1rem;
@@ -937,13 +926,14 @@ footer {
 
 /* Ensure the pie chart container can grow and center */
 .viz-grid-container .chart-container {
-    margin: 1rem auto;
     flex-grow: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 100%;
     max-width: 350px; /* Reduced max width here too */
+    padding: 0; /* <-- ADD: Remove padding inside the container within the grid */
+    margin: 0; /* <-- ADD: Ensure all margins are zero */
 }
 
 .visualization-section.placeholder {
