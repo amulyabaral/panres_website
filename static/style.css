@@ -353,7 +353,6 @@ a:hover code {
 
 /* Specific adjustments for chart containers */
 .chart-container {
-    min-height: 130px; /* Slightly reduced */
     padding: 0.1rem;
     flex-grow: 1; /* Allow pie chart to take space */
     display: flex;

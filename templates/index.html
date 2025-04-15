@@ -222,18 +222,6 @@
                                             return label;
                                         }
                                     }
-                                },
-                                datalabels: {
-                                    formatter: (value, ctx) => {
-                                        let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                        let percentage = (value * 100 / sum).toFixed(0) + "%"; // No decimal
-                                        return (value * 100 / sum) > 4 ? percentage : ''; // Show % only if > 4%
-                                    },
-                                    color: '#fff',
-                                    font: { weight: 'bold', size: 8 }, // Smaller datalabel font
-                                    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Darker bg
-                                    borderRadius: 2,
-                                    padding: 2 // Reduced padding
                                 }
                             }
                         }
