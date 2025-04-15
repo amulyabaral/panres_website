@@ -452,7 +452,7 @@ a:hover code {
     /* width: 100%; */
     /* height: 100%; */
     max-width: 100%; /* Ensure it doesn't overflow container */
-    max-height: 400px; /* Optional: Set a max pixel height for the canvas itself */
+    /* max-height: 400px; */ /* <-- REMOVE this fixed max height */
 }
 
 /* --- Index Page Grid --- */
@@ -931,9 +931,8 @@ footer {
     align-items: center;
     justify-content: center;
     width: 100%;
-    max-width: 350px; /* Reduced max width here too */
-    padding: 0; /* <-- ADD: Remove padding inside the container within the grid */
-    margin: 0; /* <-- ADD: Ensure all margins are zero */
+    padding: 0; /* <-- Keep padding 0 */
+    margin: 0; /* <-- Keep margin 0 */
 }
 
 .visualization-section.placeholder {
