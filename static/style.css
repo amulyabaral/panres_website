@@ -177,108 +177,69 @@ a:hover code {
     background-color: var(--color-surface);
     border: var(--border-default);
     border-radius: var(--border-radius);
-    padding: 0.6rem 0.8rem; /* Keep side padding */
-    margin-bottom: 1rem;
+    padding: 0.2rem 0.5rem; /* Reduced base padding */
+    margin-bottom: 1rem; /* Keep some margin between sections if not in grid */
     display: flex;
     flex-direction: column;
     transition: background-color 0.2s ease;
-    min-height: auto; /* Let content define height */
-}
-
-/* NEW: Modifier to remove all internal vertical padding/borders */
-.visualization-section.no-internal-padding {
-    padding-top: 0.2rem; /* Minimal top padding */
-    padding-bottom: 0.2rem; /* Minimal bottom padding */
-}
-.visualization-section.no-internal-padding .visualization-header {
-    padding-bottom: 0;
-    margin-bottom: 0.4rem; /* Space below header */
-}
-.visualization-section.no-internal-padding .v-barplot-container,
-.visualization-section.no-internal-padding .chart-container {
-    margin-top: 0;
-    padding-top: 0.2rem; /* Minimal padding above content */
-    padding-bottom: 0;
-}
-
-/* Add margin-top specifically to the class buttons section */
-.visualization-section.antibiotic-classes-buttons {
-    margin-top: 1.5rem; /* Add space above this section */
+    overflow: hidden; /* Prevent content overflow with fixed heights */
 }
 
 .visualization-section h4 {
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-    font-size: 1.1rem;
-    font-weight: 700;
+    margin: 0; /* Remove default margins */
+    padding: 0; /* Remove default padding */
+    font-size: 1.0rem; /* Adjusted size */
+    font-weight: 600; /* Adjusted weight */
     color: var(--color-text);
-    border-bottom: 1px dashed var(--color-border);
-    padding-bottom: 0.5rem;
+    border: none; /* Remove default border */
+    font-family: var(--font-mono);
+    line-height: 1.2; /* Tighten line height */
 }
 
 /* --- NEW REFACTORED: Horizontal Bar Plot Styles --- */
 .source-db-chart {
-    display: flex;
-    flex-direction: column;
-    min-height: 120px; /* Further reduced */
+    height: 250px; /* Fixed height */
+    padding: 0.2rem 0.5rem; /* Minimal padding */
 }
 
 .v-barplot-container {
-    padding: 0.3rem 0.1rem 0.1rem 0.1rem;
+    padding: 0.1rem; /* Minimal padding */
     flex-grow: 1;
-    margin-top: 0.5rem;
-    overflow-y: auto;
-    min-height: 80px; /* Further reduced */
-}
-
-/* NEW: Modifier to remove border */
-.v-barplot-container.no-border {
-    border-top: none;
-    margin-top: 0;
-    padding-bottom: 0; /* Remove bottom padding */
+    margin: 0; /* Remove margin */
+    overflow-y: auto; /* Allow scrolling if content exceeds fixed height */
+    border: none; /* Remove border */
 }
 
 .v-barplot-item {
     display: flex; /* Lay out label, bar, count horizontally */
     align-items: center; /* Vertically center items in the row */
-    margin-bottom: 3px; /* Reduced space */
-    min-height: 20px; /* Reduced height */
+    margin-bottom: 2px; /* Further reduced space */
+    min-height: 18px; /* Reduced height */
 }
 
 .v-barplot-label {
     /* Label styles */
-    width: 120px; /* Reduced width */
-    font-size: 0.75rem; /* Smaller font */
+    width: 110px; /* Slightly reduced width */
+    font-size: 0.7rem; /* Smaller font */
     font-weight: bold;
     color: var(--color-text);
     text-align: right;
-    margin-right: 5px; /* Reduced space */
+    margin-right: 4px; /* Reduced space */
     white-space: nowrap; /* Prevent wrapping */
     overflow: hidden; /* Hide overflow */
     text-overflow: ellipsis; /* Add ellipsis if text is too long */
     flex-shrink: 0; /* Prevent label from shrinking */
-    /* Remove vertical styles */
-    /* writing-mode: vertical-rl; */
-    /* transform: rotate(180deg); */
-    /* max-height: 100px; */
 }
 
 .v-barplot-bar-wrapper {
     flex-grow: 1; /* Allow bar wrapper to take remaining horizontal space */
-    height: 18px; /* Reduced bar thickness */
+    height: 16px; /* Further reduced bar thickness */
     background-color: var(--color-code-bg); /* Background of the track */
     border-radius: var(--border-radius);
     display: flex; /* Needed for the bar inside */
     align-items: center; /* Center bar vertically if needed, though height 100% should handle it */
     overflow: hidden; /* Hide bar overflow */
     border: 1px solid var(--color-border);
-    /* Remove vertical styles */
-    /* width: 35px; */
-    /* height: 200px; */
-    /* border-radius: var(--border-radius) var(--border-radius) 0 0; */
-    /* flex-direction: column; */
-    /* justify-content: flex-end; */
-    /* border-bottom: none; */
 }
 
 .v-barplot-bar {
@@ -288,31 +249,21 @@ a:hover code {
     border-radius: var(--border-radius); /* Match wrapper rounding */
     transition: width 1s ease-out; /* Animate width, faster duration (1s) */
     box-sizing: border-box;
-    /* Remove vertical styles */
-    /* width: 100%; */
-    /* height: 0; */
-    /* border-radius: var(--border-radius) var(--border-radius) 0 0; */
-    /* transition: height 1.5s ease-out; */
 }
 
 .v-barplot-count {
-    width: 50px; /* Reduced width */
-    font-size: 0.75rem; /* Smaller font */
+    width: 45px; /* Reduced width */
+    font-size: 0.7rem; /* Smaller font */
     font-weight: bold;
     color: var(--color-text-muted);
-    margin-left: 5px; /* Reduced space */
+    margin-left: 4px; /* Reduced space */
     text-align: left;
     white-space: nowrap;
     flex-shrink: 0; /* Prevent count from shrinking */
-    /* Remove vertical styles */
-    /* margin-bottom: 4px; */
-    /* height: 1.2em; */
-    /* line-height: 1.2em; */
 }
 
 
 /* --- Apply nth-child colors to the new horizontal bars --- */
-/* These rules remain the same, targeting the .v-barplot-bar */
 .v-barplot-container .v-barplot-item:nth-child(10n+1) .v-barplot-bar { background-color: var(--color-pastel-blue); }
 .v-barplot-container .v-barplot-item:nth-child(10n+2) .v-barplot-bar { background-color: var(--color-pastel-green); }
 .v-barplot-container .v-barplot-item:nth-child(10n+3) .v-barplot-bar { background-color: var(--color-pastel-yellow); }
@@ -329,28 +280,22 @@ a:hover code {
 .viz-grid-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.8rem; 
-    margin-bottom: 2rem;
-    align-items: stretch; /* This makes grid items in a row equal height */
+    gap: 0.8rem; /* Reduced gap */
+    margin-bottom: 1.5rem; /* Reduced margin */
+    align-items: start; /* Align items to the top */
 }
 
 /* Make left column a flex container to stack widgets */
 .viz-column-left {
     display: flex;
     flex-direction: column;
-    gap: 0.8rem; 
-}
-
-/* Remove all internal padding from visualization sections */
-.visualization-section.no-internal-padding {
-    padding-top: 0.2rem; /* Minimal top padding */
-    padding-bottom: 0.2rem; /* Minimal bottom padding */
+    gap: 0.8rem; /* Reduced gap */
 }
 
 /* Modify pie chart container to not stretch */
 .visualization-section.antibiotic-class-chart {
-    /* Inherits display:flex, flex-direction:column */
-    /* Let align-items: stretch handle the height */
+    height: 400px; /* Fixed height */
+    padding: 0.2rem 0.5rem; /* Minimal padding */
 }
 
 .visualization-section.antibiotic-class-chart .chart-container {
@@ -359,46 +304,37 @@ a:hover code {
     align-items: center; /* Center vertically */
     justify-content: center; /* Center horizontally */
     position: relative; /* Keep for potential absolute positioning inside */
-    padding: 0.5rem; /* Reduced padding around the canvas */
+    padding: 0.2rem; /* Minimal padding around the canvas */
     margin: 0; /* Remove auto margins */
-    /* Remove fixed height and width constraints from previous edits */
-    /* max-width: 450px; /* Keep max-width if desired */
-    /* max-height: 450px; /* Keep max-height if desired */
+    width: 100%; /* Ensure it takes full width */
+    height: 100%; /* Ensure it takes full height */
 }
 
 /* Ensure canvas respects container and doesn't overflow */
 #antibioticClassChart {
     display: block;
     max-width: 100%;
-    max-height: 100%; 
-    /* Optional: Set an absolute max height for the canvas itself */
-    /* max-height: 400px; */ 
-}
-
-/* Ensure bar charts don't have extra space */
-.v-barplot-container.no-border {
-    border-top: none;
-    margin-top: 0;
-    padding-bottom: 0; /* Remove bottom padding */
+    max-height: 100%;
 }
 
 /* Fix stacked bar container spacing */
 .stacked-bar-container {
-    margin-bottom: 0.4rem; /* Reduce space below bar */
+    margin-top: 0.2rem; /* Minimal space below header */
+    margin-bottom: 0.2rem; /* Minimal space above legend */
+    height: 18px; /* Slightly reduced height */
 }
 
 .stacked-bar-legend {
+    margin-top: 0.2rem; /* Minimal space above legend */
     margin-bottom: 0; /* Remove bottom margin */
+    padding-left: 0.1rem; /* Minimal indent */
+    gap: 0.1rem 0.5rem; /* Reduced gap */
 }
 
 /* Adjustments for visualization sections within the grid */
 .viz-grid-container > .visualization-section,
 .viz-column-left > .visualization-section { /* Apply to sections in both columns */
     margin-bottom: 0; /* Remove margin as gap handles spacing */
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1; /* Allow sections to grow */
-    padding: 0.8rem 1rem; /* Consistent padding */
 }
 
 /* Specific adjustments for chart containers */
@@ -410,12 +346,6 @@ a:hover code {
     margin: 1rem auto; /* Center chart within its section */
 }
 
-/* Optional: Slightly smaller chart container for the phenotype donut */
-.chart-container.small-chart {
-    min-height: 120px; /* Significantly reduced minimum height */
-    /* max-height: 220px; */ /* Optional max height */
-}
-
 /* Ensure canvas elements are responsive within their container */
 #antibioticClassChart, #phenotypeChart {
     display: block;
@@ -423,45 +353,13 @@ a:hover code {
     max-height: 100%; /* Let container control max height */
 }
 
-
-/* --- MODIFIED: Remove margin override - let flex centering handle it --- */
-/* .viz-grid-container > .visualization-section:nth-child(2) .chart-container { */
-/*     margin: 0; /* Keep margin 0 */ */
-/* } */
-
-/* Ensure the bar plot container can grow */
-.v-barplot-container {
-    flex-grow: 1;
-    min-height: 120px; /* Reduced bar plot minimum space */
-    padding: 0.5rem 0.2rem 0.2rem 0.2rem; /* Reduced padding */
-}
-
 /* --- NEW: Styles for Visualization Section Header --- */
 .visualization-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.2rem;
-}
-
-/* NEW: Modifier to remove border */
-.visualization-header.no-border {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-.visualization-header h4 {
-    font-size: 1.0rem;
-    margin: 0; /* Remove default margins */
-    padding: 0; /* Remove default padding */
-    border: none; /* Remove default border */
-    font-weight: 600; /* Slightly less bold */
-    color: var(--color-text);
-    flex-grow: 1;
-    margin-right: 0.5rem;
-    font-family: var(--font-mono);
-    line-height: 1.2; /* Tighten line height */
+    margin-bottom: 0.2rem;
+    padding-bottom: 0.1rem;
 }
 
 /* Style for the new browse buttons in the viz headers */
@@ -476,6 +374,7 @@ a:hover code {
     white-space: nowrap;
     transition: background-color 0.2s ease, border-color 0.2s ease;
     flex-shrink: 0;
+    margin-left: 0.5rem; /* Add some space between title and button */
 }
 
 .visualization-header .browse-button:hover {
@@ -1092,17 +991,18 @@ footer {
 
 /* --- NEW: Phenotype Stacked Bar Styles --- */
 .phenotype-stacked-bar {
-    min-height: auto; /* Override default min-height */
+    height: 150px; /* Fixed height */
+    padding: 0.2rem 0.5rem; /* Minimal padding */
 }
 
 .stacked-bar-container {
     display: flex;
     width: 100%;
-    height: 20px; /* Height of the stacked bar */
+    height: 18px; /* Height of the stacked bar */
     border-radius: var(--border-radius);
     overflow: hidden; /* Clip segments to rounded corners */
-    margin-top: 0.4rem; /* Space below header */
-    margin-bottom: 0.4rem; /* Space above legend */
+    margin-top: 0.2rem; /* Space below header */
+    margin-bottom: 0.2rem; /* Space above legend */
     border: 1px solid var(--color-border); /* Add a border around the bar */
 }
 
@@ -1120,34 +1020,41 @@ footer {
 .stacked-bar-legend {
     display: flex;
     flex-wrap: wrap; /* Allow legend items to wrap */
-    gap: 0.2rem 0.8rem; /* Row and column gap */
-    margin-top: 0.4rem; /* Space above legend */
-    padding-left: 0.2rem; /* Slight indent */
+    gap: 0.1rem 0.5rem; /* Row and column gap */
+    margin-top: 0.2rem; /* Space above legend */
+    padding-left: 0.1rem; /* Slight indent */
     margin-bottom: 0; /* Remove bottom margin */
+    overflow-y: auto; /* Allow legend to scroll if needed */
+    flex-grow: 1; /* Allow legend to take remaining space */
+    max-height: calc(100% - 18px - 0.2rem - 0.2rem - 1.2em - 0.2rem - 0.1rem); /* Calculate max height: total - bar - margins - header */
 }
 
 .legend-item {
     display: flex;
     align-items: center;
-    font-size: 0.75rem; /* Smaller legend font */
+    font-size: 0.7rem; /* Further reduced legend font */
+    line-height: 1.2; /* Tighter line height */
 }
 
 .legend-color-box {
-    width: 10px;
-    height: 10px;
-    margin-right: 4px;
-    border-radius: 2px;
+    width: 8px; /* Smaller box */
+    height: 8px; /* Smaller box */
+    margin-right: 3px; /* Reduced space */
+    border-radius: 1px; /* Smaller radius */
     display: inline-block;
     border: 1px solid rgba(0,0,0,0.1); /* Subtle border */
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .legend-label {
     color: var(--color-text);
-    margin-right: 3px;
+    margin-right: 2px; /* Reduced space */
+    white-space: nowrap; /* Prevent wrapping */
 }
 
 .legend-count {
     color: var(--color-text-muted);
     font-size: 0.9em; /* Slightly smaller than label */
+    white-space: nowrap; /* Prevent wrapping */
 }
 /* --- End Phenotype Stacked Bar Styles --- */

@@ -29,12 +29,12 @@
 
             {# --- Source Database Visualization --- #}
             {% if source_db_counts %}
-            <div class="visualization-section source-db-chart no-internal-padding">
-                <div class="visualization-header no-border">
+            <div class="visualization-section source-db-chart">
+                <div class="visualization-header">
                     <h4>ARGs by Source Database</h4>
                     <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button">Browse Sources</a>
                 </div>
-                <div class="v-barplot-container no-border">
+                <div class="v-barplot-container">
                     {% for row in source_db_counts %}
                         {% set bar_width_percent = (row.gene_count / max_db_count * 100) if max_db_count else 0 %}
                         {% set bar_width_percent = [0, bar_width_percent] | max %}
@@ -53,10 +53,10 @@
                 </div>
             </div>
             {% else %}
-             <div class="visualization-section placeholder source-db-chart no-internal-padding">
-                 <div class="visualization-header no-border">
+             <div class="visualization-section placeholder source-db-chart">
+                 <div class="visualization-header">
                      <h4>ARGs by Source Database</h4>
-                     <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button" style="margin-top: 1rem;">Browse Sources</a>
+                     <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button">Browse Sources</a>
                  </div>
                  <p>No data available.</p>
              </div>
@@ -64,8 +64,8 @@
 
             {# --- NEW: Predicted Phenotype Stacked Bar Section --- #}
             {% if phenotype_chart_data and phenotype_chart_data.segments %}
-            <div class="visualization-section phenotype-stacked-bar no-internal-padding">
-                 <div class="visualization-header no-border">
+            <div class="visualization-section phenotype-stacked-bar">
+                 <div class="visualization-header">
                     <h4>ARGs by Predicted Phenotype</h4>
                      <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="browse-button">Browse Phenotypes</a>
                 </div>
@@ -89,12 +89,12 @@
                 </div>
             </div>
             {% else %}
-                <div class="visualization-section placeholder phenotype-stacked-bar no-internal-padding">
-                     <div class="visualization-header no-border">
+                <div class="visualization-section placeholder phenotype-stacked-bar">
+                     <div class="visualization-header">
                          <h4>ARGs by Predicted Phenotype</h4>
                          <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="browse-button">Browse Phenotypes</a>
                      </div>
-                     <p style="margin-top: auto; margin-bottom: auto;">No data available.</p>
+                     <p>No data available.</p>
                 </div>
             {% endif %}
             {# --- End NEW Phenotype Section --- #}
@@ -105,8 +105,8 @@
         {# --- Antibiotic Class Pie Chart Section (Right Column) --- #}
         {# This remains directly inside the grid container #}
         {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
-        <div class="visualization-section antibiotic-class-chart no-internal-padding">
-             <div class="visualization-header no-border">
+        <div class="visualization-section antibiotic-class-chart">
+             <div class="visualization-header">
                 <h4>ARGs by Antibiotic Class</h4>
                  <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
             </div>
@@ -115,12 +115,12 @@
             </div>
         </div>
         {% else %}
-            <div class="visualization-section placeholder antibiotic-class-chart no-internal-padding">
-                 <div class="visualization-header no-border">
+            <div class="visualization-section placeholder antibiotic-class-chart">
+                 <div class="visualization-header">
                      <h4>ARGs by Antibiotic Class</h4>
                      <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
                  </div>
-                 <p style="margin-top: auto; margin-bottom: auto;">No data available to display antibiotic class counts.</p>
+                 <p>No data available to display antibiotic class counts.</p>
             </div>
         {% endif %}
 
@@ -168,6 +168,9 @@
                 Chart.defaults.font.family = monoFont;
                 Chart.defaults.font.size = 10; // Smaller default chart font
             }
+            // --- Set global responsive and maintainAspectRatio defaults ---
+            Chart.defaults.responsive = true;
+            Chart.defaults.maintainAspectRatio = false; // Allow charts to fill container height
 
             // --- Bar Plot Animation ---
             const bars = document.querySelectorAll('.v-barplot-bar');
@@ -178,7 +181,7 @@
                 }, 50); // Short delay
             });
 
-            // --- NEW: Stacked Bar Animation ---
+            // --- Stacked Bar Animation ---
             const stackedSegments = document.querySelectorAll('.stacked-bar-segment');
             stackedSegments.forEach(segment => {
                 const targetWidth = segment.dataset.targetWidth;
@@ -187,7 +190,6 @@
                     segment.style.width = targetWidth;
                 }, 100);
             });
-            // --- END NEW ---
 
             // --- Antibiotic Class Pie Chart ---
             const ctxAntibiotic = document.getElementById('antibioticClassChart');
@@ -197,8 +199,6 @@
                 const antibioticColors = {{ antibiotic_chart_data.colors | tojson }};
 
                 if (ctxAntibiotic) {
-                    // Chart.register(ChartDataLabels); // Keep registered globally if needed elsewhere
-
                     new Chart(ctxAntibiotic, {
                         type: 'pie',
                         data: {
@@ -210,8 +210,6 @@
                             }]
                         },
                         options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
                             animation: {
                                 duration: 1200,
                                 easing: 'easeOutQuart',
@@ -223,10 +221,10 @@
                                     position: 'bottom',
                                     labels: {
                                         boxWidth: 8,
-                                        padding: 8,
+                                        padding: 6,
                                         color: getComputedStyle(document.body).getPropertyValue('--color-text').trim(),
                                         font: {
-                                            size: 10
+                                            size: 9
                                         }
                                     }
                                 },
