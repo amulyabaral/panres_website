@@ -21,26 +21,30 @@
         </p>
     </div>
 
-    {# --- NEW: Grid Container for Side-by-Side Visualizations --- #}
+    {# --- Grid Container for Side-by-Side Visualizations --- #}
     <div class="viz-grid-container">
 
         {# --- Source Database Visualization (Left Column) --- #}
         {% if source_db_counts %}
         <div class="visualization-section">
-            <h4>PanRes Data Sources</h4>
+            {# --- MODIFICATION: Header with Title and Button --- #}
+            <div class="visualization-header">
+                <h4>Panres 2.0 contains ARGs from the following databases</h4>
+                <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button">Browse Sources</a>
+            </div>
+            {# --- End Modification --- #}
             <ul class="db-barplot-container">
                 {# Calculate total ONLY from the sources being displayed #}
                 {% set total_source_genes = source_db_counts | sum(attribute='gene_count') %}
                 {% for row in source_db_counts %}
                 {# Calculate width relative to the total of displayed sources #}
                 {% set bar_width = (row.gene_count / total_source_genes * 100) if total_source_genes else 0 %}
-                {# Generate the link URL #}
+                {# Generate the link URL (still needed for title attribute) #}
                 {% set db_link = url_for('genes_related_to', predicate='is_from_database', object_value=row.database_name) %}
                 <li class="db-barplot-item">
-                    {# Link the label ONLY #}
-                    <a href="{{ db_link }}" class="db-barplot-label-link" title="View genes from {{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
-                        <span class="db-barplot-label">{{ row.database_name }}</span>
-                    </a>
+                    {# --- MODIFICATION: Remove link from label --- #}
+                    <span class="db-barplot-label" title="{{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">{{ row.database_name }}</span>
+                    {# --- End Modification --- #}
                     {# Bar wrapper is NOT linked anymore #}
                     <div class="db-barplot-bar-wrapper" title="{{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
                         {# Apply width inline, store target width in data attribute for JS animation #}
@@ -58,8 +62,10 @@
         {% else %}
          {# Optional: Add a placeholder if source_db_counts is empty #}
          <div class="visualization-section placeholder">
-             <h4>PanRes Data Sources</h4>
+             <h4>Panres 2.0 contains ARGs from the following databases</h4>
              <p>No data available.</p>
+             {# Optionally add disabled button or link here too #}
+             <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button" style="margin-top: 1rem;">Browse Sources</a>
          </div>
         {% endif %}
 
@@ -67,15 +73,26 @@
         {# Assumes antibiotic_chart_data = {'labels': [...], 'data': [...], 'colors': [...]} is passed from Flask #}
         {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
         <div class="visualization-section">
-            <h4>Top Antibiotic Classes by Gene Count</h4>
+             {# --- MODIFICATION: Header with Title and Button --- #}
+            <div class="visualization-header">
+                <h4>ARG count in PanRes 2.0 by Antibiotic class</h4>
+                 <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
+            </div>
+             {# --- End Modification --- #}
             <div class="chart-container">
                 <canvas id="antibioticClassChart"></canvas>
             </div>
         </div>
         {% else %}
             <div class="visualization-section placeholder"> {# Use placeholder class if needed #}
-                 <h4>Antibiotic Classes</h4>
-                 <p>No data available to display antibiotic class counts.</p>
+                 {# --- MODIFICATION: Header with Title and Button (Placeholder) --- #}
+                 <div class="visualization-header">
+                     <h4>ARG count in PanRes 2.0 by Antibiotic class</h4>
+                     {# Optionally disable button if no data #}
+                     <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
+                 </div>
+                 {# --- End Modification --- #}
+                 <p style="margin-top: auto; margin-bottom: auto;">No data available to display antibiotic class counts.</p> {# Center text vertically #}
             </div>
         {% endif %}
 
