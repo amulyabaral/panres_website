@@ -821,4 +821,49 @@ footer {
     min-width: 1.5em; /* Give space for numbers to change */
     text-align: right;
 }
-/* --- End Antibiotic Class Buttons Section --- */ 
+/* --- End Antibiotic Class Buttons Section --- */
+
+/* --- NEW: Grid Container for Side-by-Side Visualizations --- */
+.viz-grid-container {
+    display: grid;
+    /* Create two equal columns */
+    grid-template-columns: repeat(2, 1fr);
+    /* Add space between the columns */
+    gap: 1.5rem; /* Adjust gap as needed */
+    /* Add some margin below the grid */
+    margin-bottom: 2rem;
+    /* Align items at the start of the grid cell (top) */
+    align-items: start;
+}
+
+/* Optional: Adjustments for visualization sections within the grid */
+.viz-grid-container > .visualization-section {
+    /* Remove bottom margin if the grid gap provides enough spacing */
+    margin-bottom: 0;
+    /* Ensure sections take full height if needed, though align-items: start might be better */
+    /* height: 100%; */
+}
+
+/* Ensure the pie chart container still centers itself */
+.viz-grid-container .chart-container {
+    margin: 1rem auto; /* Keep auto margins for horizontal centering */
+}
+
+/* Optional: Placeholder styling if you added the placeholder class */
+.visualization-section.placeholder {
+    /* Add some styling to indicate missing data */
+    background-color: var(--color-background);
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    min-height: 200px; /* Give it some minimum height */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+.visualization-section.placeholder h4 {
+    border-bottom: none; /* Remove border from placeholder title */
+    margin-bottom: 0.5rem;
+} 

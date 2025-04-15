@@ -21,55 +21,65 @@
         </p>
     </div>
 
-    {# --- Source Database Visualization --- #}
-    {% if source_db_counts %}
-    <div class="visualization-section">
-        <h4>PanRes Data Sources</h4>
-        <ul class="db-barplot-container">
-            {# Calculate total ONLY from the sources being displayed #}
-            {% set total_source_genes = source_db_counts | sum(attribute='gene_count') %}
-            {% for row in source_db_counts %}
-            {# Calculate width relative to the total of displayed sources #}
-            {% set bar_width = (row.gene_count / total_source_genes * 100) if total_source_genes else 0 %}
-            {# Generate the link URL #}
-            {% set db_link = url_for('genes_related_to', predicate='is_from_database', object_value=row.database_name) %}
-            <li class="db-barplot-item">
-                {# Link the label ONLY #}
-                <a href="{{ db_link }}" class="db-barplot-label-link" title="View genes from {{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
-                    <span class="db-barplot-label">{{ row.database_name }}</span>
-                </a>
-                {# Bar wrapper is NOT linked anymore #}
-                <div class="db-barplot-bar-wrapper" title="{{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
-                    {# Apply width inline, store target width in data attribute for JS animation #}
-                    <div class="db-barplot-bar" data-target-width="{{ [bar_width, 1] | max }}%" style="width: 0%;" > {# Start at 0% width #}
-                         {# Only show count if bar is wide enough #}
-                         {% if bar_width > 10 %} {# Adjust threshold as needed #}
-                            <span style="padding: 0 0.5em;">{{ "{:,}".format(row.gene_count) }}</span>
-                         {% endif %}
-                    </div>
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
+    {# --- NEW: Grid Container for Side-by-Side Visualizations --- #}
+    <div class="viz-grid-container">
 
-    {# --- NEW: Antibiotic Class Pie Chart Section --- #}
-    {# Assumes antibiotic_chart_data = {'labels': [...], 'data': [...], 'colors': [...]} is passed from Flask #}
-    {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
-    <div class="visualization-section">
-        <h4>Top Antibiotic Classes by Gene Count</h4>
-        <div class="chart-container">
-            <canvas id="antibioticClassChart"></canvas>
-        </div>
-    </div>
-    {% else %}
+        {# --- Source Database Visualization (Left Column) --- #}
+        {% if source_db_counts %}
         <div class="visualization-section">
-             <h4>Antibiotic Classes</h4>
-             <p>No data available to display antibiotic class counts.</p>
+            <h4>PanRes Data Sources</h4>
+            <ul class="db-barplot-container">
+                {# Calculate total ONLY from the sources being displayed #}
+                {% set total_source_genes = source_db_counts | sum(attribute='gene_count') %}
+                {% for row in source_db_counts %}
+                {# Calculate width relative to the total of displayed sources #}
+                {% set bar_width = (row.gene_count / total_source_genes * 100) if total_source_genes else 0 %}
+                {# Generate the link URL #}
+                {% set db_link = url_for('genes_related_to', predicate='is_from_database', object_value=row.database_name) %}
+                <li class="db-barplot-item">
+                    {# Link the label ONLY #}
+                    <a href="{{ db_link }}" class="db-barplot-label-link" title="View genes from {{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
+                        <span class="db-barplot-label">{{ row.database_name }}</span>
+                    </a>
+                    {# Bar wrapper is NOT linked anymore #}
+                    <div class="db-barplot-bar-wrapper" title="{{ row.database_name }} ({{ "{:,}".format(row.gene_count) }} genes)">
+                        {# Apply width inline, store target width in data attribute for JS animation #}
+                        <div class="db-barplot-bar" data-target-width="{{ [bar_width, 1] | max }}%" style="width: 0%;" > {# Start at 0% width #}
+                             {# Only show count if bar is wide enough #}
+                             {% if bar_width > 10 %} {# Adjust threshold as needed #}
+                                <span style="padding: 0 0.5em;">{{ "{:,}".format(row.gene_count) }}</span>
+                             {% endif %}
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
         </div>
-    {% endif %}
-    {# --- End Antibiotic Class Pie Chart Section --- #}
+        {% else %}
+         {# Optional: Add a placeholder if source_db_counts is empty #}
+         <div class="visualization-section placeholder">
+             <h4>PanRes Data Sources</h4>
+             <p>No data available.</p>
+         </div>
+        {% endif %}
+
+        {# --- Antibiotic Class Pie Chart Section (Right Column) --- #}
+        {# Assumes antibiotic_chart_data = {'labels': [...], 'data': [...], 'colors': [...]} is passed from Flask #}
+        {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
+        <div class="visualization-section">
+            <h4>Top Antibiotic Classes by Gene Count</h4>
+            <div class="chart-container">
+                <canvas id="antibioticClassChart"></canvas>
+            </div>
+        </div>
+        {% else %}
+            <div class="visualization-section placeholder"> {# Use placeholder class if needed #}
+                 <h4>Antibiotic Classes</h4>
+                 <p>No data available to display antibiotic class counts.</p>
+            </div>
+        {% endif %}
+
+    </div> {# --- End viz-grid-container --- #}
 
 
     <h3>Browse Categories</h3>
