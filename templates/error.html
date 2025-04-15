@@ -3,14 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ontology Browser - Error</title>
+    <title>Data Browser - Error</title>
      <style>
         body { font-family: sans-serif; padding: 20px; }
         .error { color: red; font-weight: bold; border: 1px solid red; padding: 15px; background-color: #ffeeee; }
     </style>
 </head>
 <body>
-    <h1>Error Loading Ontology</h1>
+    <h1>Error Loading Data File</h1>
+    {% if filename %}
+        <p>Could not load or parse the file: <strong>{{ filename }}</strong></p>
+    {% endif %}
     <p class="error">
         {{ error_message | safe }}
     </p>
