@@ -66,7 +66,7 @@
             {% if phenotype_chart_data and phenotype_chart_data.segments %}
             <div class="visualization-section phenotype-stacked-bar no-internal-padding">
                  <div class="visualization-header no-border">
-                    <h4>ARGs by Predicted Phenotype (Top 8)</h4>
+                    <h4>ARGs by Predicted Phenotype</h4>
                      <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="browse-button">Browse Phenotypes</a>
                 </div>
                 <div class="stacked-bar-container">
@@ -90,7 +90,7 @@
             {% else %}
                 <div class="visualization-section placeholder phenotype-stacked-bar no-internal-padding">
                      <div class="visualization-header no-border">
-                         <h4>ARGs by Predicted Phenotype (Top 8)</h4>
+                         <h4>ARGs by Predicted Phenotype</h4>
                          <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="browse-button">Browse Phenotypes</a>
                      </div>
                      <p style="margin-top: auto; margin-bottom: auto;">No data available.</p>
@@ -106,7 +106,7 @@
         {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
         <div class="visualization-section antibiotic-class-chart no-internal-padding">
              <div class="visualization-header no-border">
-                <h4>ARGs by Antibiotic Class (Top 7)</h4>
+                <h4>ARGs by Antibiotic Class</h4>
                  <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
             </div>
             <div class="chart-container">
@@ -116,7 +116,7 @@
         {% else %}
             <div class="visualization-section placeholder antibiotic-class-chart no-internal-padding">
                  <div class="visualization-header no-border">
-                     <h4>ARGs by Antibiotic Class (Top 7)</h4>
+                     <h4>ARGs by Antibiotic Class</h4>
                      <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
                  </div>
                  <p style="margin-top: auto; margin-bottom: auto;">No data available to display antibiotic class counts.</p>
