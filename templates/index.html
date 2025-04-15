@@ -34,7 +34,9 @@
                     {% set bar_width = (row.gene_count / max_db_count * 100) | round(2) %}
                     {# Apply width inline for CSS animation target #}
                     {# Add a minimum width for visibility of small bars #}
-                    <div class="db-barplot-bar" style="width: {{ [bar_width, 1] | max }}%;" title="{{ "{:,}".format(row.gene_count) }} genes">
+                    <div class="db-barplot-bar" 
+                         data-width="{{ [bar_width, 1] | max }}" 
+                         title="{{ "{:,}".format(row.gene_count) }} genes">
                          {# Only show count if bar is wide enough #}
                          {% if bar_width > 10 %}
                             <span>{{ "{:,}".format(row.gene_count) }}</span>
@@ -51,7 +53,7 @@
             setTimeout(() => {
                 const bars = document.querySelectorAll('.db-barplot-bar');
                 bars.forEach(bar => {
-                const targetWidth = bar.style.width; // Get width set inline
+                const targetWidth = bar.getAttribute('data-width') + '%'; // Get width from data attribute
                 if (targetWidth) { // Ensure width is set
                     bar.style.width = '0'; // Reset to 0
                     // Trigger reflow to restart animation if needed
@@ -83,12 +85,14 @@
                 {% endfor %}
             </ul>
             {# --- Data for JS (if using) --- #}
-            {# <script>
+            <!-- 
+            <script>
                 const classLabels = {{ antibiotic_class_counts | map(attribute='class_name') | list | tojson }};
                 const classData = {{ antibiotic_class_counts | map(attribute='gene_count') | list | tojson }};
                 // Add JS charting library code here to use classLabels and classData
                 // e.g., new Chart(document.getElementById('antibioticClassChart'), { ... });
-            </script> #}
+            </script>
+            -->
         </div>
     </div>
     {% endif %}
