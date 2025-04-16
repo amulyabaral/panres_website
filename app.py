@@ -351,36 +351,45 @@ def index():
 
 @app.route('/list/<category_key>')
 def list_items(category_key):
-    """Lists all items belonging to a specific category (RDF type)."""
+    """Lists all items belonging to a specific category."""
     db = get_db()
-    decoded_category_key = category_key.replace('%20', ' ') # Handle spaces if any
-    app.logger.info(f"Listing items for category: {decoded_category_key}")
+    # Use unquote to handle URL-encoded spaces etc.
+    decoded_category_key = unquote(category_key)
+    app.logger.info(f"Listing items for category key: {decoded_category_key}")
 
-    # Get the display name for the category title
-    category_display_name = decoded_category_key # Default
-    for key, info in current_app.config['INDEX_CATEGORIES'].items():
-        if info['query_target'] == decoded_category_key:
-            category_display_name = info['display_name']
-            break
+    # --- Get Configuration for the Category ---
+    if decoded_category_key not in current_app.config['INDEX_CATEGORIES']:
+        app.logger.warning(f"Unrecognized category key requested: {decoded_category_key}")
+        abort(404, description=f"Category '{decoded_category_key}' not recognized.")
+
+    category_config = current_app.config['INDEX_CATEGORIES'][decoded_category_key]
+    category_display_name = decoded_category_key # The key is the display name
+    query_type = category_config.get('query_type')
+    # The actual value to query in the DB (e.g., 'PanGene', 'is_from_database')
+    query_target_value = category_config.get('value')
+
+    if not query_type or not query_target_value:
+         app.logger.error(f"Incomplete configuration for category key: {decoded_category_key}")
+         abort(500, description="Server configuration error for this category.")
+
+    app.logger.debug(f"Category Config - Display: {category_display_name}, Type: {query_type}, Target: {query_target_value}")
 
     items = []
     grouped_by_class = None
     grouped_by_phenotype = None
-    is_pangen_list = (decoded_category_key == 'PanGene') # Flag for template
+    # Check if the *target value* is 'PanGene' for special handling
+    is_pangen_list = (query_type == 'type' and query_target_value == 'PanGene')
 
     try:
         if is_pangen_list:
             # --- Special handling for PanGene: Group by Class and Phenotype ---
-            app.logger.debug(f"Fetching and grouping PanGenes by class and phenotype.")
+            app.logger.debug(f"Fetching and grouping PanGenes (target: {query_target_value}) by class and phenotype.")
 
-            # Use defaultdict for easier grouping
-            # Structure: { 'Class Label': {'id': 'class_id', 'genes': {gene1, gene2}} }
-            # Use sets for genes initially to handle duplicates automatically
             grouped_by_class_temp = defaultdict(lambda: {'id': None, 'genes': set()})
             grouped_by_phenotype_temp = defaultdict(lambda: {'id': None, 'genes': set()})
-            all_genes_in_category = set() # Keep track of all genes
+            all_genes_in_category = set()
 
-            # More efficient query to get genes, classes, phenotypes, and their labels
+            # Query uses query_target_value (e.g., 'PanGene')
             query = f"""
                 WITH CategoryItems AS (
                     SELECT DISTINCT subject
@@ -401,13 +410,14 @@ def list_items(category_key):
                 ORDER BY ci.subject;
             """
             cursor = db.execute(query, (
-                RDF_TYPE, decoded_category_key,
+                RDF_TYPE, query_target_value, # Use the target value here
                 HAS_RESISTANCE_CLASS, RDFS_LABEL,
                 HAS_PREDICTED_PHENOTYPE, RDFS_LABEL
             ))
             results = cursor.fetchall()
             app.logger.debug(f"Grouping query returned {len(results)} rows.")
 
+            # --- Grouping Logic (remains the same) ---
             for row in results:
                 gene_id = row['gene_id']
                 class_id = row['resistance_class_id']
@@ -417,67 +427,77 @@ def list_items(category_key):
 
                 all_genes_in_category.add(gene_id)
 
-                # Add to class group if class exists
                 if class_label:
-                    # Use label as key, store ID and add gene to set
                     grouped_by_class_temp[class_label]['id'] = class_id
                     grouped_by_class_temp[class_label]['genes'].add(gene_id)
-                elif class_id: # Handle classes without labels (use ID as fallback label)
+                elif class_id:
                      grouped_by_class_temp[class_id]['id'] = class_id
                      grouped_by_class_temp[class_id]['genes'].add(gene_id)
 
-
-                # Add to phenotype group if phenotype exists
                 if phenotype_label:
                     grouped_by_phenotype_temp[phenotype_label]['id'] = phenotype_id
                     grouped_by_phenotype_temp[phenotype_label]['genes'].add(gene_id)
-                elif phenotype_id: # Handle phenotypes without labels
+                elif phenotype_id:
                     grouped_by_phenotype_temp[phenotype_id]['id'] = phenotype_id
                     grouped_by_phenotype_temp[phenotype_id]['genes'].add(gene_id)
 
-            # Convert sets to sorted lists and sort groups by label/key
-            grouped_by_class = {
-                label: {
-                    'id': data['id'],
-                    'genes': sorted(list(data['genes']))
-                } for label, data in sorted(grouped_by_class_temp.items())
-            }
-            grouped_by_phenotype = {
-                label: {
-                    'id': data['id'],
-                    'genes': sorted(list(data['genes']))
-                } for label, data in sorted(grouped_by_phenotype_temp.items())
-            }
-
-            # Also pass the total list of items found for the header count
+            # --- Final Processing (remains the same) ---
+            grouped_by_class = { label: {'id': data['id'], 'genes': sorted(list(data['genes']))}
+                                 for label, data in sorted(grouped_by_class_temp.items()) }
+            grouped_by_phenotype = { label: {'id': data['id'], 'genes': sorted(list(data['genes']))}
+                                     for label, data in sorted(grouped_by_phenotype_temp.items()) }
             items = sorted(list(all_genes_in_category))
             app.logger.debug(f"Finished grouping. Found {len(grouped_by_class)} classes and {len(grouped_by_phenotype)} phenotypes.")
 
         else:
-            # --- Default handling for other categories: Simple list ---
-            cursor = db.execute(
-                "SELECT DISTINCT subject FROM triples WHERE predicate = ? AND object = ? ORDER BY subject",
-                (RDF_TYPE, decoded_category_key)
-            )
-            items = [row['subject'] for row in cursor.fetchall()]
+            # --- Default handling for other categories ---
+            app.logger.debug(f"Fetching simple list for Type: {query_type}, Target: {query_target_value}")
+            if query_type == 'type':
+                cursor = db.execute(
+                    "SELECT DISTINCT subject FROM triples WHERE predicate = ? AND object = ? ORDER BY subject",
+                    (RDF_TYPE, query_target_value) # Use target value
+                )
+                items = [row['subject'] for row in cursor.fetchall()]
+            elif query_type == 'predicate_object':
+                 cursor = db.execute(
+                     "SELECT DISTINCT object FROM triples WHERE predicate = ? AND object_is_literal = 0 ORDER BY object",
+                     (query_target_value,) # Use target value
+                 )
+                 # For these, we still just list the objects (e.g., database names, class names)
+                 # The template will link them appropriately (either to details or related genes)
+                 items = [row['object'] for row in cursor.fetchall()]
+            # Add elif for 'predicate_subject' if needed
+            else:
+                 app.logger.error(f"Unsupported query_type '{query_type}' for category {decoded_category_key}")
+                 abort(500, "Server configuration error.")
+
             app.logger.debug(f"Found {len(items)} items for category {decoded_category_key}.")
 
     except sqlite3.Error as e:
         app.logger.error(f"Database error fetching list for {decoded_category_key}: {e}")
         abort(500, description="Database error occurred.")
 
-    if not items and not is_pangen_list: # Only 404 if not PanGene and truly no items
+    # Check if items were found *after* the query attempt
+    if not items and not (is_pangen_list and (grouped_by_class or grouped_by_phenotype)):
+         # If it's not PanGene view OR it is PanGene view but no groups were found AND no items either
          app.logger.warning(f"No items found for category: {decoded_category_key}. Returning 404.")
-         abort(404, description=f"No items found for category '{decoded_category_key}'.")
+         # Return 200 with message in template instead of 404 for potentially valid but empty categories
+         # abort(404, description=f"No items found for category '{decoded_category_key}'.")
 
     return render_template(
         'list.html',
+        # Pass the original key used in the URL/config for potential use in template logic if needed
         category_key=decoded_category_key,
+        # Pass the display name for the title
         category_display_name=category_display_name,
-        items=items,
-        is_pangen_list=is_pangen_list, # Pass the flag
-        grouped_by_class=grouped_by_class, # Pass grouped data
-        grouped_by_phenotype=grouped_by_phenotype # Pass grouped data
+        # Pass the actual target value used in the query (e.g., 'PanGene')
+        query_target_value=query_target_value,
+        items=items, # This is the list of gene IDs for PanGene, or list of objects/subjects otherwise
+        is_pangen_list=is_pangen_list,
+        grouped_by_class=grouped_by_class,
+        grouped_by_phenotype=grouped_by_phenotype,
+        # Pass the query type to help the template decide how to link items in the default list
+        query_type=query_type
     )
 
 

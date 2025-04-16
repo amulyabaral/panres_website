@@ -83,13 +83,28 @@
 
     {% else %}
         {# --- Default Simple List View --- #}
-        <ul class="item-list">
-            {% for item in items %}
-                <li><a href="{{ url_for('details', item_id=item) }}"><code>{{ item }}</code></a></li>
-            {% else %}
-                <li>No items found in this category.</li>
-            {% endfor %}
-        </ul>
+        {% if items %}
+            <ul class="item-list">
+                {% for item in items %}
+                    <li>
+                        {# Determine the correct link based on query_type #}
+                        {% if query_type == 'type' %}
+                            {# Items are subjects (like PanGene, OriginalGene), link to details #}
+                            <a href="{{ url_for('details', item_id=item) }}"><code>{{ item }}</code></a>
+                        {% elif query_type == 'predicate_object' %}
+                            {# Items are objects (like Databases, Classes), link to related genes page #}
+                            {# We need the predicate (query_target_value) for the related genes link #}
+                            <a href="{{ url_for('genes_related_to', predicate=query_target_value, object_value=item) }}">{{ item }}</a>
+                        {% else %}
+                            {# Fallback or handle other query_types if added #}
+                            {{ item }}
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+             <p>No items found in this category.</p> {# Display message if items list is empty #}
+        {% endif %}
     {% endif %} {# End conditional display #}
 
     <div class="back-links-footer">
