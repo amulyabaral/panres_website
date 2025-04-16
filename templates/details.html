@@ -43,11 +43,13 @@
                     <dl class="details-list">
                         {# Iterate through predefined key info predicates #}
                         {% for predicate in pangen_key_info_preds %}
-                            {% if predicate in details.pangen_key_info %}
+                            {# Check if this predicate exists in the actual grouped properties #}
+                            {% if predicate in details.grouped_properties %}
                                 <dt>{{ predicate_map.get(predicate, predicate) }}</dt>
                                 <dd>
                                     <ul class="property-values">
-                                        {% for prop in details.pangen_key_info[predicate] %}
+                                        {# Iterate through the properties for this predicate #}
+                                        {% for prop in details.grouped_properties[predicate] %}
                                             <li>
                                                 {% if predicate == 'card_link' and not prop.is_literal %}
                                                     {# Special handling for clickable CARD link #}
@@ -67,8 +69,8 @@
                                         {% endfor %}
                                     </ul>
                                 </dd>
-                            {% endif %}
-                        {% endfor %}
+                            {% endif %} {# End check if predicate exists #}
+                        {% endfor %} {# End loop through key info predicates #}
                     </dl>
                 </div>
             </div>
@@ -78,13 +80,15 @@
                 <div class="details-card-stack">
                     {# Iterate through predefined right column predicates #}
                     {% for predicate in pangen_right_col_preds %}
-                        {% if predicate in details.pangen_right_col %}
+                        {# Check if this predicate exists in the actual grouped properties #}
+                        {% if predicate in details.grouped_properties %}
                             <div class="details-card">
                                 <h3>{{ predicate_map.get(predicate, predicate) }}</h3>
                                 <dl class="details-list single-item"> {# Simplified dl for single predicate cards #}
                                     <dd>
                                         <ul class="property-values">
-                                            {% for prop in details.pangen_right_col[predicate] %}
+                                            {# Iterate through the properties for this predicate #}
+                                            {% for prop in details.grouped_properties[predicate] %}
                                                 <li>
                                                     {% if prop.is_literal %}
                                                         <span class="value-literal">{{ prop.value }}</span>
@@ -107,8 +111,8 @@
                                     </dd>
                                 </dl>
                             </div>
-                        {% endif %}
-                    {% endfor %}
+                        {% endif %} {# End check if predicate exists #}
+                    {% endfor %} {# End loop through right column predicates #}
                 </div>
             </div> {# End Right Column #}
 
