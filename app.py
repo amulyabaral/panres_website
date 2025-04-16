@@ -843,16 +843,136 @@ def list_items(category_key=None, query_type=None, query_target_value=None):
     )
 
 
-# Renamed function and explicitly set endpoint name to avoid conflict with list_items
-@app.route('/related/<query_type>/<query_target_value>', endpoint='show_related_items')
-def show_related_items(query_type, query_target_value):
+# --- Helper function to get label (add if not already present) ---
+def get_label(db, item_id):
+    """Fetches the rdfs:label for a given item ID."""
+    if not item_id:
+        return None
+    try:
+        cursor = db.execute("SELECT object FROM triples WHERE subject = ? AND predicate = ?", (item_id, RDFS_LABEL))
+        result = cursor.fetchone()
+        return result['object'] if result else None
+    except sqlite3.Error as e:
+        current_app.logger.error(f"Error fetching label for {item_id}: {e}")
+        return None
+# --- End Helper ---
+
+
+# --- REVISED show_related_items function ---
+@app.route('/related/<predicate>/<path:object_value>', endpoint='show_related_items')
+def show_related_items(predicate, object_value):
     """
-    Route to display items related to a specific target value via a specific property.
-    This acts as a wrapper and calls the main list_items function/template.
+    Displays items (subjects) that are related to a specific object_value
+    via a given predicate. For example, show all genes (subjects) where
+    predicate='is_from_database' and object_value='AMRFinderPlus'.
     """
-    app.logger.info(f"Showing related items for type '{query_type}' and value '{query_target_value}'")
-    # Call the same function but indicate it's a related query
-    return list_items(query_type=query_type, query_target_value=query_target_value)
+    db = get_db()
+    decoded_predicate = unquote(predicate)
+    decoded_object_value = unquote(object_value)
+    app.logger.info(f"Showing related items for predicate='{decoded_predicate}', object='{decoded_object_value}'")
+
+    predicate_display_name = current_app.config['PREDICATE_DISPLAY_NAMES'].get(decoded_predicate, decoded_predicate)
+
+    # --- Generate Title and Description ---
+    # Attempt to get label for the object value if it's likely an entity (heuristic: not a literal number)
+    object_display = decoded_object_value
+    if not decoded_object_value.isdigit(): # Simple check if it might be an entity ID/label
+        object_label = get_label(db, decoded_object_value)
+        if object_label:
+            object_display = object_label # Use label if found
+
+    page_title = f"Items related to '{object_display}'"
+    description = f"Listing items (subjects) where the property <code>{predicate_display_name}</code> points to <code>{object_display}</code>."
+
+    genes = []
+    grouped_genes = None
+    total_gene_count = 0
+    is_grouped_view = False # Flag for template
+
+    try:
+        # --- Fetch Related Subjects ---
+        cursor = db.execute(
+            "SELECT DISTINCT subject FROM triples WHERE predicate = ? AND object = ? ORDER BY subject",
+            (decoded_predicate, decoded_object_value)
+        )
+        related_subjects = [row['subject'] for row in cursor.fetchall()]
+        total_gene_count = len(related_subjects)
+        app.logger.debug(f"Found {total_gene_count} subjects related via '{decoded_predicate}' to '{decoded_object_value}'.")
+
+        if not related_subjects:
+            app.logger.warning(f"No subjects found for predicate='{decoded_predicate}', object='{decoded_object_value}'.")
+            # Render template will show "No items found"
+
+        else:
+            # --- Grouping Logic (Example: Group genes from a DB by Resistance Class) ---
+            # Check if the predicate suggests the subjects are genes and grouping is desired
+            # We'll group if the predicate is 'is_from_database'
+            if decoded_predicate == IS_FROM_DATABASE:
+                is_grouped_view = True
+                app.logger.debug("Grouping related genes by resistance class.")
+
+                gene_placeholders = ','.join('?' * len(related_subjects))
+
+                # Fetch Gene -> Class ID relationships for these specific genes
+                query_classes = f"""
+                    SELECT t_rel.subject AS gene_id, t_rel.object AS class_id, t_label.object AS class_label
+                    FROM triples t_rel
+                    LEFT JOIN triples t_label ON t_rel.object = t_label.subject AND t_label.predicate = ?
+                    WHERE t_rel.predicate = ? AND t_rel.subject IN ({gene_placeholders})
+                """
+                cursor_classes = db.execute(query_classes, (RDFS_LABEL, HAS_RESISTANCE_CLASS, *related_subjects))
+                gene_class_info = cursor_classes.fetchall()
+                app.logger.debug(f"Fetched {len(gene_class_info)} class relationships for grouping.")
+
+                # Group in Python
+                grouped_genes_temp = defaultdict(lambda: {'id': None, 'genes': set()})
+                genes_with_class = set()
+
+                for row in gene_class_info:
+                    class_id = row['class_id']
+                    if not class_id: continue # Skip if no class assigned
+
+                    # Use label if available, otherwise use the ID itself as the key
+                    display_key = row['class_label'] or class_id
+                    grouped_genes_temp[display_key]['id'] = class_id # Store the actual ID
+                    grouped_genes_temp[display_key]['genes'].add(row['gene_id'])
+                    genes_with_class.add(row['gene_id'])
+
+                # Add genes without any class to a specific group
+                genes_without_class = set(related_subjects) - genes_with_class
+                if genes_without_class:
+                    grouped_genes_temp["No Class Assigned"]['genes'].update(genes_without_class)
+                    grouped_genes_temp["No Class Assigned"]['id'] = None # No ID for this group
+
+                # Convert sets to sorted lists and sort groups by label
+                grouped_genes = {
+                    label: {'id': data['id'], 'genes': sorted([{'id': gene_id, 'link': url_for('details', item_id=gene_id)} for gene_id in data['genes']], key=lambda x: x['id'])}
+                    for label, data in sorted(grouped_genes_temp.items())
+                }
+                app.logger.debug(f"Finished grouping. Found {len(grouped_genes)} class groups.")
+
+            else:
+                # --- No Grouping - Prepare simple list ---
+                genes = sorted([{'id': subject, 'link': url_for('details', item_id=subject)} for subject in related_subjects], key=lambda x: x['id'])
+
+    except sqlite3.Error as e:
+        app.logger.error(f"Database error fetching related items for predicate='{decoded_predicate}', object='{decoded_object_value}': {e}", exc_info=True)
+        abort(500, description="Database error occurred.")
+    except Exception as ex:
+        app.logger.error(f"Unexpected error in show_related_items: {ex}", exc_info=True)
+        abort(500, description="An unexpected server error occurred.")
+
+    return render_template(
+        'related_items.html', # Use the new template
+        page_title=page_title,
+        description=description,
+        predicate=decoded_predicate, # Pass predicate/object for context
+        object_value=decoded_object_value,
+        genes=genes, # Pass the simple list (will be empty if grouped)
+        grouped_genes=grouped_genes, # Pass grouped data (will be None if not grouped)
+        total_gene_count=total_gene_count,
+        is_grouped_view=is_grouped_view # Pass the flag
+    )
 
 
 @app.route('/details/<path:item_id>')
