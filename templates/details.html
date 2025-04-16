@@ -28,10 +28,15 @@
             {% endif %}
             {# Optionally list other types #}
             {% set other_types = [] %}
-            {# Filter out common/less informative types if needed, or just list all others #}
-            {% set excluded_types = ['PanGene', 'owl:NamedIndividual', details.primary_type_rdf] %}
-            {% for type_uri, type_display in details.all_types_display.items() if type_display not in excluded_types %}
-                 {% set _ = other_types.append("<code>" ~ type_display ~ "</code>") %}
+            {# Filter out the primary display type and common RDF types #}
+            {% set excluded_types_display = [details.primary_type_display, 'owl:NamedIndividual'] %}
+            {% for type_uri in details.types %}
+                 {# Simple check: if the URI doesn't match the primary display name and isn't owl:NamedIndividual #}
+                 {# A more robust check might involve fetching labels, but this uses available data #}
+                 {% if type_uri not in excluded_types_display %}
+                     {# Display the URI directly as we don't have separate display names for all types #}
+                     {% set _ = other_types.append("<code>" ~ type_uri ~ "</code>") %}
+                 {% endif %}
             {% endfor %}
             {% if other_types %}
                 (Type: {{ other_types|join(', ')|safe }})

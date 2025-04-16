@@ -302,50 +302,6 @@
     </div>
     {# --- END PanRes Example Section --- #}
 
-    {# --- Phenotype Distribution Chart --- #}
-    {% if phenotype_chart_data and phenotype_chart_data.segments %}
-        <div class="content-card chart-card">
-            <h3>Predicted Phenotype Distribution</h3>
-            <p>Distribution of predicted phenotypes across PanRes Genes.</p>
-            <div class="stacked-bar-chart-container">
-                <div class="stacked-bar">
-                    {% for segment in phenotype_chart_data.segments %}
-                        {# Optional: Make the bar segments clickable too? For now, just legend. #}
-                        <span class="stacked-bar-segment"
-                              data-target-width="{{ segment.percentage }}%"
-                              style="width: 0%; background-color: {{ segment.color }};"
-                              title="{{ segment.name }} ({{ '{:,}'.format(segment.count) }} genes, {{ '%.1f'|format(segment.percentage) }}%)">
-                        </span>
-                    {% endfor %}
-                </div>
-                <div class="chart-legend">
-                    {% for segment in phenotype_chart_data.segments %}
-                    {# Wrap legend item in a link to the related page #}
-                    <a href="{{ url_for('show_related_items', query_type='has_predicted_phenotype', query_target_value=segment.name) }}" class="legend-link">
-                        <div class="legend-item">
-                            <span class="legend-color-box" style="background-color: {{ segment.color }};"></span>
-                            <span class="legend-label">{{ segment.name }}</span>
-                            <span class="legend-count">({{ '{:,}'.format(segment.count) }})</span>
-                        </div>
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-            {# Animate the bars on load #}
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const segments = document.querySelectorAll('.stacked-bar-segment');
-                    segments.forEach(segment => {
-                        // Use setTimeout to ensure the transition happens after initial render
-                        setTimeout(() => {
-                            segment.style.width = segment.getAttribute('data-target-width');
-                        }, 100); // Small delay
-                    });
-                });
-            </script>
-        </div>
-    {% endif %}
-
     {# --- JavaScript for Charts and Animations --- #}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
