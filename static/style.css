@@ -1190,3 +1190,146 @@ a:hover {
     text-decoration: underline; /* Add underline on hover */
 }
 
+/* --- Index Page Example Section --- */
+.example-section {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.example-intro {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.gene-example-container {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    padding: 1rem 1.5rem 1.5rem 1.5rem; /* More bottom padding */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.example-gene-id {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-top: 0;
+    margin-bottom: 0.1rem;
+    text-align: center;
+}
+.example-gene-id a {
+    color: inherit;
+    text-decoration: none;
+}
+.example-gene-id a:hover {
+    color: var(--color-primary-dark);
+    text-decoration: underline;
+}
+.example-gene-id code {
+    font-size: inherit;
+    color: inherit;
+    background-color: transparent;
+    padding: 0;
+}
+
+.example-gene-type {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+}
+.example-gene-type code {
+    font-size: 0.9em;
+    background-color: transparent;
+    padding: 0;
+    color: var(--color-text-muted);
+}
+
+
+.example-details-grid {
+    display: grid;
+    /* Adjust columns for desired horizontal layout */
+    /* grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); */
+    grid-template-columns: repeat(4, 1fr); /* Try 4 columns */
+    gap: 1.5rem; /* Gap between columns */
+}
+
+.example-column {
+    /* Styles for each column if needed */
+}
+
+.example-details-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.example-details-list dt {
+    font-size: 0.75rem; /* Smaller font for term */
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 0.2rem;
+    text-transform: uppercase; /* Optional: make terms uppercase */
+    letter-spacing: 0.5px; /* Optional: spacing */
+}
+
+.example-details-list dd {
+    font-size: 0.85rem; /* Smaller font for definition */
+    margin-left: 0; /* Remove default dl indent */
+    margin-bottom: 0.8rem; /* Space below each item */
+    line-height: 1.3;
+}
+.example-details-list dd:last-child {
+    margin-bottom: 0;
+}
+
+.example-details-list dd ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.example-details-list dd ul li {
+    margin-bottom: 0.1rem;
+    padding: 0;
+    border: none;
+}
+.example-details-list dd ul li:last-child {
+    margin-bottom: 0;
+}
+
+.example-details-list dd a {
+    /* Link styling already handled globally */
+}
+.example-details-list dd code {
+    font-size: 0.95em; /* Slightly smaller code */
+    /* Code styling already handled globally */
+}
+.example-details-list .extra-info {
+    font-size: 0.8em;
+    color: var(--color-text-muted);
+    margin-left: 0.3em;
+}
+
+
+/* Responsive adjustments for example grid */
+@media (max-width: 992px) {
+    .example-details-grid {
+        grid-template-columns: repeat(2, 1fr); /* 2 columns on medium screens */
+    }
+}
+@media (max-width: 576px) {
+    .example-details-grid {
+        grid-template-columns: 1fr; /* 1 column on small screens */
+    }
+    .example-column {
+        margin-bottom: 1rem; /* Add space between stacked columns */
+    }
+     .example-column:last-child {
+        margin-bottom: 0;
+    }
+}
+

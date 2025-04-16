@@ -169,6 +169,151 @@
         </div>
     </div> {# --- End content-card --- #}
 
+    {# --- NEW: PanRes Example Section --- #}
+    <div class="example-section">
+        <p class="example-intro">
+            Unique gene sequences are then curated in PanRes, consolidating information from multiple sources.
+            Take a look at this example:
+        </p>
+        {% if pan_1_details %}
+        <div class="gene-example-container">
+            {# Link the main ID to its details page #}
+            <h3 class="example-gene-id">
+                Example: <a href="{{ url_for('details', item_id='pan_1') }}"><code>{{ pan_1_details.id }}</code></a>
+            </h3>
+            {# Display type if available #}
+            {% if pan_1_details.primary_type_display %}
+                <p class="example-gene-type">
+                    {{ pan_1_details.primary_type_display }}
+                    {% set other_types = [] %}
+                    {% for type in pan_1_details.types if type != pan_1_details.primary_type_display and type != 'owl:NamedIndividual' %}
+                         {% set _ = other_types.append("<code>" ~ type ~ "</code>") %}
+                    {% endfor %}
+                    {% if other_types %}
+                        (Type: {{ other_types|join(', ')|safe }})
+                    {% endif %}
+                </p>
+            {% endif %}
+
+            {# Horizontal layout for details #}
+            <div class="example-details-grid">
+                {# Column 1: Key Identifiers & Links #}
+                <div class="example-column">
+                    <dl class="example-details-list">
+                        {% if pan_1_details.grouped_properties['has_length'] %}
+                        <dt>Length (bp)</dt>
+                        <dd>{{ pan_1_details.grouped_properties['has_length'][0].value }}</dd>
+                        {% endif %}
+
+                        {% if pan_1_details.grouped_properties['accession'] %}
+                        <dt>Accession</dt>
+                        <dd>
+                            <ul>
+                            {% for prop in pan_1_details.grouped_properties['accession'] %}
+                                <li>{{ prop.value }}</li>
+                            {% endfor %}
+                            </ul>
+                        </dd>
+                        {% endif %}
+
+                        {% if pan_1_details.grouped_properties['card_link'] %}
+                        <dt>CARD Ontology Link</dt>
+                        <dd>
+                            <a href="{{ pan_1_details.grouped_properties['card_link'][0].value }}" target="_blank" rel="noopener noreferrer" class="external-link">
+                                {{ pan_1_details.grouped_properties['card_link'][0].value }}
+                            </a>
+                        </dd>
+                        {% endif %}
+                    </dl>
+                </div>
+
+                {# Column 2: Resistance Info #}
+                <div class="example-column">
+                     <dl class="example-details-list">
+                         {% if pan_1_details.grouped_properties['has_resistance_class'] %}
+                         <dt>Resistance Class</dt>
+                         <dd>
+                             <ul>
+                             {% for prop in pan_1_details.grouped_properties['has_resistance_class'] %}
+                                 <li><a href="{{ prop.link }}"><code>{{ prop.value }}</code></a></li>
+                             {% endfor %}
+                             </ul>
+                         </dd>
+                         {% endif %}
+
+                         {% if pan_1_details.grouped_properties['has_predicted_phenotype'] %}
+                         <dt>Predicted Phenotype</dt>
+                         <dd>
+                             <ul>
+                             {% for prop in pan_1_details.grouped_properties['has_predicted_phenotype'] %}
+                                 <li><a href="{{ prop.link }}"><code>{{ prop.value }}</code></a></li>
+                             {% endfor %}
+                             </ul>
+                         </dd>
+                         {% endif %}
+                     </dl>
+                </div>
+
+                {# Column 3: Source Info #}
+                <div class="example-column">
+                     <dl class="example-details-list">
+                         {% if pan_1_details.grouped_properties['is_from_database'] %}
+                         <dt>Source Database</dt>
+                         <dd>
+                             <ul>
+                             {% for prop in pan_1_details.grouped_properties['is_from_database'] %}
+                                 <li><a href="{{ prop.link }}"><code>{{ prop.value }}</code></a></li>
+                             {% endfor %}
+                             </ul>
+                         </dd>
+                         {% endif %}
+
+                         {% if pan_1_details.grouped_properties['same_as'] %}
+                         <dt>Equivalent To / Also Known As</dt>
+                         <dd>
+                             <ul>
+                             {% for prop in pan_1_details.grouped_properties['same_as'] %}
+                                 <li>
+                                     <a href="{{ prop.link }}"><code>{{ prop.value }}</code></a>
+                                     {% if prop.extra_info %}<span class="extra-info">{{ prop.extra_info }}</span>{% endif %}
+                                 </li>
+                             {% endfor %}
+                             </ul>
+                         </dd>
+                         {% endif %}
+                     </dl>
+                </div>
+
+                 {# Column 4: Other Info (Optional) #}
+                 <div class="example-column">
+                     <dl class="example-details-list">
+                         {% if pan_1_details.grouped_properties['translates_to'] %}
+                         <dt>Translates To Protein</dt>
+                         <dd>
+                             {% set prop = pan_1_details.grouped_properties['translates_to'][0] %}
+                             <a href="{{ prop.link }}"><code>{{ prop.value }}</code></a>
+                         </dd>
+                         {% endif %}
+                         {% if pan_1_details.grouped_properties['member_of'] %}
+                         <dt>Member Of Cluster</dt>
+                         <dd>
+                              {% set prop = pan_1_details.grouped_properties['member_of'][0] %}
+                             <a href="{{ prop.link }}"><code>{{ prop.value }}</code></a>
+                         </dd>
+                         {% endif %}
+                     </dl>
+                 </div>
+
+            </div> {# End example-details-grid #}
+        </div>
+        {% else %}
+        <div class="gene-example-container">
+             <p><em>Example gene details (pan_1) could not be loaded.</em></p>
+        </div>
+        {% endif %}
+    </div>
+    {# --- END PanRes Example Section --- #}
+
     {# --- JavaScript for Charts and Animations --- #}
     <script>
         document.addEventListener('DOMContentLoaded', () => {

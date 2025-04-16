@@ -4,6 +4,7 @@ import os
 import logging
 from urllib.parse import unquote # Needed for handling URL-encoded values
 from collections import defaultdict # Import defaultdict
+import random # Import random for color generation
 
 # --- Configuration ---
 DATABASE = 'panres_ontology.db' # Make sure this file is in the same directory or provide the correct path
@@ -14,9 +15,10 @@ SITE_NAME = "PanRes 2.0 Database"
 # 'query_type': 'type' -> count/list subjects with rdf:type = value
 # 'query_type': 'predicate_object' -> count/list distinct objects for predicate = value
 # 'query_type': 'predicate_subject' -> count/list distinct subjects for predicate = value (less common)
+# ADDED 'filter_subject_type': Only count/list subjects of this type (used for Source DB)
 INDEX_CATEGORIES = {
     "PanRes Genes": {'query_type': 'type', 'value': 'PanGene', 'description': 'Unique gene sequences curated in PanRes.'},
-    "Source Databases": {'query_type': 'predicate_object', 'value': 'is_from_database', 'description': 'Databases contributing genes to PanRes.'},
+    "Source Databases": {'query_type': 'predicate_object', 'value': 'is_from_database', 'description': 'Databases contributing genes to PanRes.', 'filter_subject_type': 'OriginalGene'}, # Filter subjects to be OriginalGene
     "Antibiotic Classes": {'query_type': 'predicate_object', 'value': 'has_resistance_class', 'description': 'Classes of antibiotics genes confer resistance to.'},
     "Predicted Phenotypes": {'query_type': 'predicate_object', 'value': 'has_predicted_phenotype', 'description': 'Specific antibiotic resistances predicted for genes.'},
     # Add more if needed, e.g., for Mechanisms, Metals, Biocides if predicates exist
@@ -177,6 +179,136 @@ def query_db(query, args=(), one=False):
         abort(500, description="Database query failed.")
 
 
+# --- NEW HELPER FUNCTION ---
+def get_item_details(item_id):
+    """Fetches and processes details for a given item ID."""
+    db = get_db()
+    app.logger.debug(f"Helper: Fetching details for item ID: {item_id}")
+
+    # Fetch outgoing properties
+    try:
+        cursor_props = db.execute(
+            "SELECT predicate, object, object_is_literal, object_datatype FROM Triples WHERE subject = ?",
+            (item_id,)
+        )
+        properties = [dict(row) for row in cursor_props.fetchall()]
+        app.logger.debug(f"Helper: Found {len(properties)} outgoing properties for {item_id}")
+    except sqlite3.Error as e:
+        app.logger.error(f"Helper: Error fetching properties for '{item_id}': {e}")
+        return None # Indicate error or not found
+
+    # Fetch incoming references
+    try:
+        cursor_refs = db.execute(
+            "SELECT subject, predicate FROM Triples WHERE object = ? AND object_is_literal = 0",
+            (item_id,)
+        )
+        references = [dict(row) for row in cursor_refs.fetchall()]
+        app.logger.debug(f"Helper: Found {len(references)} incoming references for {item_id}")
+    except sqlite3.Error as e:
+        app.logger.error(f"Helper: Error fetching references for '{item_id}': {e}")
+        # Decide if this is critical - maybe proceed without references? For now, return None.
+        return None
+
+    # Check if item exists (basic check based on properties/references)
+    if not properties and not references:
+        app.logger.warning(f"Helper: No data found for item_id: {item_id}.")
+        return None # Item not found
+
+    # --- Process Properties and References ---
+    item_details = {
+        'id': item_id, # Store the ID itself
+        'label': None,
+        'comment': None,
+        'types': [],
+        'primary_type_display': None,
+        'primary_type_category_key': None,
+        'grouped_properties': defaultdict(list),
+        'grouped_references': defaultdict(list),
+        'is_pangen': False # Default to false
+    }
+    # Define predicates for the PanGene specific layout (used for classification)
+    pangen_key_info_preds = ['has_length', 'same_as', 'card_link', 'accession', 'is_from_database']
+    pangen_right_col_preds = ['has_resistance_class', 'has_predicted_phenotype', 'translates_to', 'member_of']
+    processed_predicates_for_grouping = set()
+
+    preferred_types = ['PanGene', 'OriginalGene']
+    found_preferred_type = None
+    index_categories = current_app.config.get('INDEX_CATEGORIES', {}) # Get categories for type mapping
+
+    # Process properties
+    for prop in properties:
+        predicate = prop['predicate']
+        value = prop['object']
+        is_literal = prop['object_is_literal']
+
+        prop_data = {
+            'value': value,
+            'is_literal': is_literal,
+            'link': None if is_literal else url_for('details', item_id=value),
+            'extra_info': None
+        }
+
+        if predicate == RDF_TYPE:
+            item_details['types'].append(value)
+            if value in preferred_types and not found_preferred_type:
+                found_preferred_type = value
+            continue # Don't add rdf:type to grouped_properties
+
+        if predicate == RDFS_LABEL and not item_details['label']:
+            item_details['label'] = value # Capture first label
+            continue
+
+        if predicate in DESCRIPTION_PREDICATES and not item_details['comment']:
+            item_details['comment'] = value # Capture first comment/description
+            continue
+
+        # Add extra info for OriginalGene links if it's a PanGene view later
+        # (This logic might need adjustment if called outside PanGene context, but okay for now)
+        if predicate == 'same_as' and not is_literal:
+             try:
+                 cursor_orig_db = db.execute(
+                     """SELECT T_db.object
+                        FROM Triples T_type
+                        JOIN Triples T_db ON T_type.subject = T_db.subject
+                        WHERE T_type.subject = ?
+                          AND T_type.predicate = ? AND T_type.object = ?
+                          AND T_db.predicate = ? LIMIT 1""",
+                     (value, RDF_TYPE, 'OriginalGene', 'is_from_database')
+                 )
+                 db_info = cursor_orig_db.fetchone()
+                 if db_info:
+                     prop_data['extra_info'] = f"(from {db_info['object']})"
+             except sqlite3.Error as e_extra:
+                 app.logger.warning(f"Helper: Could not fetch extra DB info for {value}: {e_extra}")
+
+        item_details['grouped_properties'][predicate].append(prop_data)
+
+    # Determine primary type and category key
+    primary_type = found_preferred_type or next((t for t in item_details['types'] if t != 'owl:NamedIndividual'), None)
+    if primary_type:
+        item_details['is_pangen'] = (primary_type == 'PanGene')
+        # Find the display name and category key from INDEX_CATEGORIES
+        for key, config in index_categories.items():
+            if config['value'] == primary_type:
+                item_details['primary_type_display'] = key
+                item_details['primary_type_category_key'] = key
+                break
+        if not item_details['primary_type_display']: # Fallback if not in index categories
+             item_details['primary_type_display'] = primary_type
+
+    # Group incoming references
+    for ref in references:
+         ref_data = {
+             'subject': ref['subject'],
+             'link': url_for('details', item_id=ref['subject'])
+         }
+         item_details['grouped_references'][ref['predicate']].append(ref_data)
+
+    return item_details
+# --- END HELPER FUNCTION ---
+
+
 # --- Flask Routes ---
 @app.route('/')
 def index():
@@ -194,35 +326,69 @@ def index():
     for display_name, config in INDEX_CATEGORIES.items():
         query_type = config['query_type']
         value = config['value']
+        filter_subject_type = config.get('filter_subject_type') # Get optional filter
         count = 0
         error_msg = None
 
         try:
             if query_type == 'type':
-                # Count distinct subjects for a given rdf:type
-                cursor = db.execute(
-                    "SELECT COUNT(DISTINCT subject) FROM Triples WHERE predicate = ? AND object = ?",
-                    (RDF_TYPE, value)
-                )
+                # Count subjects with a specific rdf:type
+                cursor = db.execute(f"SELECT COUNT(DISTINCT subject) FROM triples WHERE predicate = ? AND object = ?", (RDF_TYPE, value))
             elif query_type == 'predicate_object':
-                # Count distinct non-literal objects for a given predicate
-                cursor = db.execute(
-                    "SELECT COUNT(DISTINCT object) FROM Triples WHERE predicate = ? AND object_is_literal = 0",
-                    (value,)
-                )
-            # Add elif for 'predicate_subject' if needed later
-            else:
-                 app.logger.warning(f"Unknown query_type '{query_type}' for category '{display_name}'")
-                 error_msg = "Config Error"
+                # Count distinct objects for a specific predicate
+                # Apply subject type filter if specified
+                if filter_subject_type:
+                     # Join to filter subjects by type before counting distinct objects linked via the predicate
+                     # NOTE: This counts the *target* objects (e.g., DB names), but ensures the *source* subject (gene) is of the correct type.
+                     # The original logic counted distinct *subjects* per object. Let's correct that.
+                     # We want to count distinct subjects (of a specific type) grouped by the object of the predicate.
+                     # Example: Count OriginalGenes (subjects) grouped by Source Database (object of is_from_database)
+                     cursor = db.execute(f"""
+                        SELECT COUNT(*) FROM (
+                            SELECT DISTINCT t1.object
+                            FROM triples t1
+                            JOIN triples t2 ON t1.subject = t2.subject
+                            WHERE t1.predicate = ?
+                              AND t2.predicate = ?
+                              AND t2.object = ?
+                        )
+                     """, (value, RDF_TYPE, filter_subject_type))
+                     # Fetch all results to count distinct objects (databases) that have at least one OriginalGene
+                     # This counts the number of *databases* that have OriginalGenes, not the genes per database.
+                     # Let's adjust to get counts *per* database for the bar chart later.
+                     # For the main index count, we just need the total number of unique databases linked from OriginalGenes.
+                     result = cursor.fetchone()
+                     count = result[0] if result else 0
+                     category_data[display_name] = count
+                     continue # Skip default count fetch
 
-            if error_msg is None:
-                count_result = cursor.fetchone()
-                count = count_result[0] if count_result else 0
-                app.logger.debug(f"Count for {display_name} ({query_type}={value}): {count}")
+                else:
+                    cursor = db.execute(f"SELECT COUNT(DISTINCT object) FROM triples WHERE predicate = ?", (value,))
+            elif query_type == 'predicate_subject':
+                 # Count distinct subjects for a specific predicate (less common)
+                 # Apply subject type filter if specified (though less likely needed here)
+                 if filter_subject_type:
+                     cursor = db.execute(f"""
+                         SELECT COUNT(DISTINCT t1.subject)
+                         FROM triples t1
+                         JOIN triples t2 ON t1.subject = t2.subject
+                         WHERE t1.predicate = ?
+                           AND t2.predicate = ?
+                           AND t2.object = ?
+                     """, (value, RDF_TYPE, filter_subject_type))
+                 else:
+                     cursor = db.execute(f"SELECT COUNT(DISTINCT subject) FROM triples WHERE predicate = ?", (value,))
+            else:
+                current_app.logger.warning(f"Unknown query_type '{query_type}' for category '{display_name}'")
+                cursor = None
+
+            if cursor:
+                result = cursor.fetchone()
+                count = result[0] if result else 0
 
         except sqlite3.Error as e:
-            app.logger.error(f"Error counting items for category '{display_name}' (value: {value}): {e}")
-            error_msg = "DB Error"
+            current_app.logger.error(f"Database error fetching count for {display_name}: {e}")
+            count = 0 # Default to 0 on error
 
         category_data[display_name] = {
             'config': config,
@@ -354,6 +520,16 @@ def index():
         phenotype_chart_data = None # Ensure it's None on error
     # --- End Phenotype Section ---
 
+    # --- Fetch details for pan_1 example ---
+    pan_1_details = None
+    try:
+        pan_1_details = get_item_details('pan_1')
+        if not pan_1_details:
+            app.logger.warning("Could not fetch details for pan_1 example for the index page.")
+    except Exception as e:
+        app.logger.error(f"Error fetching pan_1 details for index page: {e}")
+    # --- End fetch pan_1 details ---
+
     # --- Convert Row objects to Dictionaries ---
     # Convert source_db_counts_rows to a list of dicts
     source_db_counts = [dict(row) for row in source_db_counts_rows]
@@ -369,7 +545,8 @@ def index():
         source_db_counts=source_db_counts,
         max_db_count=max_db_count,
         antibiotic_chart_data=antibiotic_chart_data,
-        phenotype_chart_data=phenotype_chart_data # Pass new structure
+        phenotype_chart_data=phenotype_chart_data, # Pass new structure
+        pan_1_details=pan_1_details # Pass pan_1 details to template
     )
 
 
@@ -738,196 +915,33 @@ def genes_related_to(predicate, object_value):
 @app.route('/details/<path:item_id>')
 def details(item_id):
     """Shows details (properties and references) for a specific item."""
-    db = get_db()
     decoded_item_id = unquote(item_id)
-    app.logger.info(f"Fetching details for item ID: {decoded_item_id}")
+    app.logger.info(f"Details route: Fetching details for item ID: {decoded_item_id}")
 
-    # Fetch outgoing properties
-    try:
-        cursor_props = db.execute(
-            "SELECT predicate, object, object_is_literal, object_datatype FROM Triples WHERE subject = ?",
-            (decoded_item_id,)
-        )
-        # Convert rows to dictionaries immediately for easier processing
-        properties = [dict(row) for row in cursor_props.fetchall()]
-        app.logger.debug(f"Found {len(properties)} outgoing properties for {decoded_item_id}")
-    except sqlite3.Error as e:
-        app.logger.error(f"Error fetching properties for '{decoded_item_id}': {e}")
-        abort(500, description=f"Error retrieving properties for {decoded_item_id}")
+    # --- Use the helper function ---
+    item_details = get_item_details(decoded_item_id)
+    # --- End use helper function ---
 
-    # Fetch incoming references
-    try:
-        cursor_refs = db.execute(
-            "SELECT subject, predicate FROM Triples WHERE object = ? AND object_is_literal = 0",
-            (decoded_item_id,)
-        )
-        # Convert rows to dictionaries
-        references = [dict(row) for row in cursor_refs.fetchall()]
-        app.logger.debug(f"Found {len(references)} incoming references for {decoded_item_id}")
-    except sqlite3.Error as e:
-        app.logger.error(f"Error fetching references for '{decoded_item_id}': {e}")
-        abort(500, description=f"Error retrieving references for {decoded_item_id}")
-
-    # --- Process Properties for Better Display ---
-    item_details = {
-        'label': None,
-        'comment': None,
-        'types': [],
-        'primary_type_display': None,
-        'primary_type_category_key': None,
-        'grouped_properties': defaultdict(list), # Group properties by predicate
-        'grouped_references': defaultdict(list) # Group references by predicate
-    }
-    # Define predicates for the PanGene specific layout
-    pangen_key_info_preds = ['has_length', 'same_as', 'card_link', 'accession', 'is_from_database']
-    pangen_right_col_preds = ['has_resistance_class', 'has_predicted_phenotype', 'translates_to', 'member_of']
-    processed_predicates_for_grouping = set() # Track predicates handled as key info or PanGene specific
-
-    # Prioritize specific types
-    preferred_types = ['PanGene', 'OriginalGene']
-    found_preferred_type = None
-
-    # First pass: Extract Key Info (Type, Label, Comment) and identify primary type
-    for prop in properties:
-        predicate = prop['predicate']
-        obj = prop['object']
-
-        if predicate == RDF_TYPE:
-            item_details['types'].append(obj)
-            if obj in preferred_types and not found_preferred_type:
-                found_preferred_type = obj
-            # Find the display name for the type
-            for cat_key, cat_config in INDEX_CATEGORIES.items():
-                 if cat_config['query_type'] == 'type' and cat_config['value'] == obj:
-                     if not item_details['primary_type_display']: # Set the first one found
-                         item_details['primary_type_display'] = cat_key
-                         item_details['primary_type_category_key'] = cat_key
-                     # Don't break here, might find a preferred type later
-            processed_predicates_for_grouping.add(predicate) # Mark rdf:type as processed for general grouping
-
-        elif predicate == RDFS_LABEL and not item_details['label']:
-            item_details['label'] = obj
-            processed_predicates_for_grouping.add(predicate)
-        elif predicate in DESCRIPTION_PREDICATES and not item_details['comment']:
-            item_details['comment'] = obj
-            processed_predicates_for_grouping.add(predicate)
-
-    # Ensure preferred type (PanGene/OriginalGene) is set as primary if found
-    if found_preferred_type:
-         for cat_key, cat_config in INDEX_CATEGORIES.items():
-             if cat_config['query_type'] == 'type' and cat_config['value'] == found_preferred_type:
-                 item_details['primary_type_display'] = cat_key
-                 item_details['primary_type_category_key'] = cat_key
-                 break
-
-    # Determine if this is a PanGene for special handling
-    is_pangen = 'PanGene' in item_details['types']
-
-    # Second pass: Group remaining properties and fetch extra data if needed
-    for prop in properties:
-        predicate = prop['predicate']
-        # Skip already handled key info (label, comment, type)
-        # Also skip predicates handled by the specific PanGene layout if this IS a PanGene
-        if predicate in processed_predicates_for_grouping or \
-           (is_pangen and predicate in pangen_key_info_preds + pangen_right_col_preds):
-            continue
-
-        prop_data = {
-            'value': prop['object'],
-            'is_literal': bool(prop['object_is_literal']),
-            'datatype': prop['object_datatype'],
-            'link': None,
-            'extra_info': None
-        }
-
-        if not prop_data['is_literal']:
-            prop_data['link'] = url_for('details', item_id=prop['object'])
-
-            # Enhancement: Fetch source DB for 'same_as' OriginalGene links
-            if predicate == 'same_as':
-                try:
-                    cursor_orig_db = db.execute(
-                        """SELECT T_db.object
-                           FROM Triples T_type
-                           JOIN Triples T_db ON T_type.subject = T_db.subject
-                           WHERE T_type.subject = ?
-                             AND T_type.predicate = ? AND T_type.object = ?
-                             AND T_db.predicate = ?
-                           LIMIT 1""",
-                        (prop['object'], RDF_TYPE, 'OriginalGene', 'is_from_database')
-                    )
-                    db_info = cursor_orig_db.fetchone()
-                    if db_info:
-                        prop_data['extra_info'] = f"(from {db_info['object']})"
-                except sqlite3.Error as e_extra:
-                    app.logger.warning(f"Could not fetch extra DB info for {prop['object']}: {e_extra}")
-
-        item_details['grouped_properties'][predicate].append(prop_data)
-
-    # --- Prepare PanGene specific data structure if applicable ---
-    if is_pangen:
-        item_details['pangen_key_info'] = defaultdict(list)
-        item_details['pangen_right_col'] = defaultdict(list)
-
-        for prop in properties:
-            predicate = prop['predicate']
-            prop_data = {
-                'value': prop['object'],
-                'is_literal': bool(prop['object_is_literal']),
-                'datatype': prop['object_datatype'],
-                'link': None,
-                'extra_info': None
-            }
-            if not prop_data['is_literal']:
-                 prop_data['link'] = url_for('details', item_id=prop['object'])
-                 # Add extra info for 'same_as' again specifically for PanGene view
-                 if predicate == 'same_as':
-                    try:
-                        cursor_orig_db = db.execute(
-                            """SELECT T_db.object
-                               FROM Triples T_type
-                               JOIN Triples T_db ON T_type.subject = T_db.subject
-                               WHERE T_type.subject = ?
-                                 AND T_type.predicate = ? AND T_type.object = ?
-                                 AND T_db.predicate = ?
-                               LIMIT 1""",
-                            (prop['object'], RDF_TYPE, 'OriginalGene', 'is_from_database')
-                        )
-                        db_info = cursor_orig_db.fetchone()
-                        if db_info:
-                            prop_data['extra_info'] = f"(from {db_info['object']})"
-                    except sqlite3.Error as e_extra:
-                        app.logger.warning(f"Could not fetch extra DB info for {prop['object']} (PanGene view): {e_extra}")
-
-
-            if predicate in pangen_key_info_preds:
-                item_details['pangen_key_info'][predicate].append(prop_data)
-            elif predicate in pangen_right_col_preds:
-                item_details['pangen_right_col'][predicate].append(prop_data)
-
-    # Group incoming references (always do this, but display conditionally in template)
-    for ref in references:
-         ref_data = {
-             'subject': ref['subject'],
-             'link': url_for('details', item_id=ref['subject'])
-         }
-         item_details['grouped_references'][ref['predicate']].append(ref_data)
-
-
-    # Check if item exists (basic check)
-    if not item_details['types'] and not references:
-        app.logger.warning(f"No data found for item_id: {decoded_item_id}. Returning 404.")
+    # Check if item exists
+    if not item_details:
+        app.logger.warning(f"No data found for item_id: {decoded_item_id} via helper. Returning 404.")
         abort(404, description=f"Item '{decoded_item_id}' not found in the PanRes data.")
 
+    # Define predicates for the PanGene specific layout (needed for template logic)
+    pangen_key_info_preds = ['has_length', 'same_as', 'card_link', 'accession', 'is_from_database']
+    pangen_right_col_preds = ['has_resistance_class', 'has_predicted_phenotype', 'translates_to', 'member_of']
+
+    # Get predicate map from context processor (already available in template)
 
     return render_template(
         'details.html',
         item_id=decoded_item_id,
-        details=item_details, # Pass the structured details
-        is_pangen=is_pangen, # Pass the flag
-        # Pass predicate constants needed for PanGene layout checks
+        details=item_details, # Pass the structured details from helper
+        is_pangen=item_details['is_pangen'], # Pass the flag from helper
+        # Pass predicate constants needed for PanGene layout checks in template
         pangen_key_info_preds=pangen_key_info_preds,
         pangen_right_col_preds=pangen_right_col_preds
+        # predicate_map is available via context processor
     )
 
 
