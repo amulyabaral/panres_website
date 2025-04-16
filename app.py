@@ -328,7 +328,7 @@ def index():
         value = config['value']
         filter_subject_type = config.get('filter_subject_type') # Get optional filter
         count = 0
-        error_msg = None
+        error_msg = None # Initialize error message tracking
 
         try:
             if query_type == 'type':
@@ -339,10 +339,7 @@ def index():
                 # Apply subject type filter if specified
                 if filter_subject_type:
                      # Join to filter subjects by type before counting distinct objects linked via the predicate
-                     # NOTE: This counts the *target* objects (e.g., DB names), but ensures the *source* subject (gene) is of the correct type.
-                     # The original logic counted distinct *subjects* per object. Let's correct that.
-                     # We want to count distinct subjects (of a specific type) grouped by the object of the predicate.
-                     # Example: Count OriginalGenes (subjects) grouped by Source Database (object of is_from_database)
+                     # This counts the number of *databases* that have OriginalGenes.
                      cursor = db.execute(f"""
                         SELECT COUNT(*) FROM (
                             SELECT DISTINCT t1.object
@@ -353,20 +350,13 @@ def index():
                               AND t2.object = ?
                         )
                      """, (value, RDF_TYPE, filter_subject_type))
-                     # Fetch all results to count distinct objects (databases) that have at least one OriginalGene
-                     # This counts the number of *databases* that have OriginalGenes, not the genes per database.
-                     # Let's adjust to get counts *per* database for the bar chart later.
-                     # For the main index count, we just need the total number of unique databases linked from OriginalGenes.
-                     result = cursor.fetchone()
-                     count = result[0] if result else 0
-                     category_data[display_name] = count
-                     continue # Skip default count fetch
+                     # The count is fetched below, no need to assign here or continue
 
                 else:
+                    # Count distinct objects without subject filtering
                     cursor = db.execute(f"SELECT COUNT(DISTINCT object) FROM triples WHERE predicate = ?", (value,))
             elif query_type == 'predicate_subject':
-                 # Count distinct subjects for a specific predicate (less common)
-                 # Apply subject type filter if specified (though less likely needed here)
+                 # Count distinct subjects for a specific predicate
                  if filter_subject_type:
                      cursor = db.execute(f"""
                          SELECT COUNT(DISTINCT t1.subject)
@@ -381,18 +371,24 @@ def index():
             else:
                 current_app.logger.warning(f"Unknown query_type '{query_type}' for category '{display_name}'")
                 cursor = None
+                error_msg = "Config Error" # Set error message if config is wrong
 
+            # Fetch the count if a cursor was successfully created
             if cursor:
                 result = cursor.fetchone()
                 count = result[0] if result else 0
+                app.logger.debug(f"Count for {display_name} ({query_type}={value}, filter={filter_subject_type}): {count}")
+
 
         except sqlite3.Error as e:
             current_app.logger.error(f"Database error fetching count for {display_name}: {e}")
             count = 0 # Default to 0 on error
+            error_msg = "DB Error" # Set error message on DB error
 
+        # Assign the final dictionary structure for this category
         category_data[display_name] = {
             'config': config,
-            'count': count if error_msg is None else error_msg
+            'count': count if error_msg is None else error_msg # Use error message if set
         }
 
     # --- Fetch Source Database Counts for Bar Plot ---
