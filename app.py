@@ -379,15 +379,14 @@ def list_items(category_key):
     decoded_category_key = unquote(category_key)
     app.logger.info(f"Listing items for category key: {decoded_category_key}")
 
-    # --- Get Configuration for the Category ---
+    # --- Get Configuration ---
     if decoded_category_key not in current_app.config['INDEX_CATEGORIES']:
         app.logger.warning(f"Unrecognized category key requested: {decoded_category_key}")
         abort(404, description=f"Category '{decoded_category_key}' not recognized.")
 
     category_config = current_app.config['INDEX_CATEGORIES'][decoded_category_key]
-    category_display_name = decoded_category_key # The key is the display name
+    category_display_name = decoded_category_key
     query_type = category_config.get('query_type')
-    # The actual value to query in the DB (e.g., 'PanGene', 'is_from_database')
     query_target_value = category_config.get('value')
 
     if not query_type or not query_target_value:
@@ -399,132 +398,140 @@ def list_items(category_key):
     items = []
     grouped_by_class = None
     grouped_by_phenotype = None
-    # Check if the *target value* is 'PanGene' for special handling
     is_pangen_list = (query_type == 'type' and query_target_value == 'PanGene')
 
     try:
         if is_pangen_list:
-            # --- Special handling for PanGene: Group by Class and Phenotype ---
-            app.logger.debug(f"Fetching and grouping PanGenes (target: {query_target_value}) by class and phenotype.")
+            # --- Revised PanGene Grouping Strategy ---
+            app.logger.debug(f"Fetching PanGenes and grouping (Revised Strategy)")
 
-            grouped_by_class_temp = defaultdict(lambda: {'id': None, 'genes': set()})
-            grouped_by_phenotype_temp = defaultdict(lambda: {'id': None, 'genes': set()})
-            all_genes_in_category = set()
+            # 1. Get all PanGene IDs
+            cursor_genes = db.execute(
+                "SELECT DISTINCT subject FROM triples WHERE predicate = ? AND object = ?",
+                (RDF_TYPE, query_target_value)
+            )
+            all_genes_in_category = {row['subject'] for row in cursor_genes.fetchall()}
+            items = sorted(list(all_genes_in_category)) # Keep the total list for count
+            app.logger.debug(f"Found {len(all_genes_in_category)} PanGene IDs.")
 
-            # Query uses query_target_value (e.g., 'PanGene')
-            query = f"""
-                WITH CategoryItems AS (
-                    SELECT DISTINCT subject
+            if not all_genes_in_category:
+                 app.logger.info("No PanGenes found, skipping grouping.")
+                 # Render template will show "No items found" based on empty items list
+
+            else:
+                # Use IN clause for potentially better performance than many ORs
+                # Create placeholders for the IN clause
+                gene_placeholders = ','.join('?' * len(all_genes_in_category))
+
+                # 2. Fetch Gene -> Class ID relationships
+                query_classes = f"""
+                    SELECT subject AS gene_id, object AS class_id
                     FROM triples
-                    WHERE predicate = ? AND object = ?
-                )
-                SELECT
-                    ci.subject AS gene_id,
-                    rc.object AS resistance_class_id,
-                    rc_label_triple.object AS resistance_class_label,
-                    pp.object AS phenotype_id,
-                    pp_label_triple.object AS phenotype_label
-                FROM CategoryItems ci
-                LEFT JOIN triples rc ON ci.subject = rc.subject AND rc.predicate = ?
-                LEFT JOIN triples rc_label_triple ON rc.object = rc_label_triple.subject AND rc_label_triple.predicate = ?
-                LEFT JOIN triples pp ON ci.subject = pp.subject AND pp.predicate = ?
-                LEFT JOIN triples pp_label_triple ON pp.object = pp_label_triple.subject AND pp_label_triple.predicate = ?
-                ORDER BY ci.subject;
-            """
-            cursor = db.execute(query, (
-                RDF_TYPE, query_target_value,
-                HAS_RESISTANCE_CLASS, RDFS_LABEL,
-                HAS_PREDICTED_PHENOTYPE, RDFS_LABEL
-            ))
-            results = cursor.fetchall()
-            app.logger.debug(f"Grouping query returned {len(results)} rows.")
+                    WHERE predicate = ? AND subject IN ({gene_placeholders})
+                """
+                cursor_classes = db.execute(query_classes, (HAS_RESISTANCE_CLASS, *all_genes_in_category))
+                gene_to_class_pairs = cursor_classes.fetchall()
+                app.logger.debug(f"Found {len(gene_to_class_pairs)} gene-class relationships.")
 
-            # --- Grouping Logic (remains the same) ---
-            for row in results:
-                gene_id = row['gene_id']
-                class_id = row['resistance_class_id']
-                class_label = row['resistance_class_label']
-                phenotype_id = row['phenotype_id']
-                phenotype_label = row['phenotype_label']
+                # 3. Fetch Gene -> Phenotype ID relationships
+                query_phenotypes = f"""
+                    SELECT subject AS gene_id, object AS phenotype_id
+                    FROM triples
+                    WHERE predicate = ? AND subject IN ({gene_placeholders})
+                """
+                cursor_phenotypes = db.execute(query_phenotypes, (HAS_PREDICTED_PHENOTYPE, *all_genes_in_category))
+                gene_to_phenotype_pairs = cursor_phenotypes.fetchall()
+                app.logger.debug(f"Found {len(gene_to_phenotype_pairs)} gene-phenotype relationships.")
 
-                all_genes_in_category.add(gene_id)
+                # 4. Get unique Class and Phenotype IDs
+                unique_class_ids = {pair['class_id'] for pair in gene_to_class_pairs if pair['class_id']}
+                unique_phenotype_ids = {pair['phenotype_id'] for pair in gene_to_phenotype_pairs if pair['phenotype_id']}
+                all_related_ids = unique_class_ids.union(unique_phenotype_ids)
+                app.logger.debug(f"Unique Class IDs: {len(unique_class_ids)}, Phenotype IDs: {len(unique_phenotype_ids)}")
 
-                if class_label:
-                    grouped_by_class_temp[class_label]['id'] = class_id
-                    grouped_by_class_temp[class_label]['genes'].add(gene_id)
-                elif class_id:
-                     grouped_by_class_temp[class_id]['id'] = class_id
-                     grouped_by_class_temp[class_id]['genes'].add(gene_id)
+                # 5. Fetch Labels for these unique IDs (if any)
+                labels = {}
+                if all_related_ids:
+                    id_placeholders = ','.join('?' * len(all_related_ids))
+                    query_labels = f"""
+                        SELECT subject AS id, object AS label
+                        FROM triples
+                        WHERE predicate = ? AND subject IN ({id_placeholders})
+                    """
+                    cursor_labels = db.execute(query_labels, (RDFS_LABEL, *all_related_ids))
+                    labels = {row['id']: row['label'] for row in cursor_labels.fetchall()}
+                    app.logger.debug(f"Fetched {len(labels)} labels for related IDs.")
 
-                if phenotype_label:
-                    grouped_by_phenotype_temp[phenotype_label]['id'] = phenotype_id
-                    grouped_by_phenotype_temp[phenotype_label]['genes'].add(gene_id)
-                elif phenotype_id:
-                    grouped_by_phenotype_temp[phenotype_id]['id'] = phenotype_id
-                    grouped_by_phenotype_temp[phenotype_id]['genes'].add(gene_id)
+                # 6. Group in Python using the fetched data
+                grouped_by_class_temp = defaultdict(lambda: {'id': None, 'genes': set()})
+                for pair in gene_to_class_pairs:
+                    class_id = pair['class_id']
+                    if not class_id: continue # Skip if class_id is null/empty
+                    # Use label if available, otherwise use the ID itself as the key
+                    display_key = labels.get(class_id, class_id)
+                    grouped_by_class_temp[display_key]['id'] = class_id
+                    grouped_by_class_temp[display_key]['genes'].add(pair['gene_id'])
 
-            # --- Final Processing (remains the same) ---
-            grouped_by_class = { label: {'id': data['id'], 'genes': sorted(list(data['genes']))}
-                                 for label, data in sorted(grouped_by_class_temp.items()) }
-            grouped_by_phenotype = { label: {'id': data['id'], 'genes': sorted(list(data['genes']))}
-                                     for label, data in sorted(grouped_by_phenotype_temp.items()) }
-            items = sorted(list(all_genes_in_category))
-            app.logger.debug(f"Finished grouping. Found {len(grouped_by_class)} classes and {len(grouped_by_phenotype)} phenotypes.")
+                grouped_by_phenotype_temp = defaultdict(lambda: {'id': None, 'genes': set()})
+                for pair in gene_to_phenotype_pairs:
+                    phenotype_id = pair['phenotype_id']
+                    if not phenotype_id: continue
+                    display_key = labels.get(phenotype_id, phenotype_id)
+                    grouped_by_phenotype_temp[display_key]['id'] = phenotype_id
+                    grouped_by_phenotype_temp[display_key]['genes'].add(pair['gene_id'])
+
+                # Convert sets to sorted lists and sort groups
+                grouped_by_class = {
+                    label: {'id': data['id'], 'genes': sorted(list(data['genes']))}
+                    for label, data in sorted(grouped_by_class_temp.items())
+                }
+                grouped_by_phenotype = {
+                    label: {'id': data['id'], 'genes': sorted(list(data['genes']))}
+                    for label, data in sorted(grouped_by_phenotype_temp.items())
+                }
+                app.logger.debug(f"Finished grouping (Revised). Found {len(grouped_by_class)} classes and {len(grouped_by_phenotype)} phenotypes.")
 
         else:
-            # --- Default handling for other categories ---
+            # --- Default handling for other categories (remains the same) ---
             app.logger.debug(f"Fetching simple list for Type: {query_type}, Target: {query_target_value}")
             if query_type == 'type':
                 cursor = db.execute(
                     "SELECT DISTINCT subject FROM triples WHERE predicate = ? AND object = ? ORDER BY subject",
-                    (RDF_TYPE, query_target_value) # Use target value
+                    (RDF_TYPE, query_target_value)
                 )
                 items = [row['subject'] for row in cursor.fetchall()]
             elif query_type == 'predicate_object':
                  cursor = db.execute(
                      "SELECT DISTINCT object FROM triples WHERE predicate = ? AND object_is_literal = 0 ORDER BY object",
-                     (query_target_value,) # Use target value
+                     (query_target_value,)
                  )
-                 # For these, we still just list the objects (e.g., database names, class names)
-                 # The template will link them appropriately (either to details or related genes)
                  items = [row['object'] for row in cursor.fetchall()]
-            # Add elif for 'predicate_subject' if needed
             else:
                  app.logger.error(f"Unsupported query_type '{query_type}' for category {decoded_category_key}")
                  abort(500, "Server configuration error.")
-
             app.logger.debug(f"Found {len(items)} items for category {decoded_category_key}.")
 
     except sqlite3.Error as e:
-        app.logger.error(f"Database error fetching list for {decoded_category_key}: {e}")
+        app.logger.error(f"Database error fetching list for {decoded_category_key}: {e}", exc_info=True)
         abort(500, description="Database error occurred.")
-    except NameError as ne: # Catch NameError specifically for debugging
-        app.logger.error(f"NameError encountered in list_items for {decoded_category_key}: {ne}", exc_info=True)
-        abort(500, description="A server programming error occurred (NameError).")
     except Exception as ex: # General exception handler
         app.logger.error(f"Unexpected error in list_items for {decoded_category_key}: {ex}", exc_info=True)
         abort(500, description="An unexpected server error occurred.")
 
-    # Check if items were found *after* the query attempt
+    # Check if items were found (for non-PanGene or empty PanGene)
     if not items and not (is_pangen_list and (grouped_by_class or grouped_by_phenotype)):
-         # If it's not PanGene view OR it is PanGene view but no groups were found AND no items either
-         app.logger.warning(f"No items found for category: {decoded_category_key}. Returning 404.")
-         # Return 200 with message in template instead of 404 for potentially valid but empty categories
-         # abort(404, description=f"No items found for category '{decoded_category_key}'.")
+         app.logger.warning(f"No items found for category: {decoded_category_key}. Rendering empty list.")
+         # Template will handle the display of "No items found"
 
     return render_template(
         'list.html',
-        # Pass the original key used in the URL/config for potential use in template logic if needed
         category_key=decoded_category_key,
-        # Pass the display name for the title
         category_display_name=category_display_name,
-        # Pass the actual target value used in the query (e.g., 'PanGene')
         query_target_value=query_target_value,
-        items=items, # This is the list of gene IDs for PanGene, or list of objects/subjects otherwise
+        items=items, # Still pass the full list of gene IDs for the count
         is_pangen_list=is_pangen_list,
         grouped_by_class=grouped_by_class,
         grouped_by_phenotype=grouped_by_phenotype,
-        # Pass the query type to help the template decide how to link items in the default list
         query_type=query_type
     )
 
