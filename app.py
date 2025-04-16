@@ -218,127 +218,150 @@ def get_item_details(item_id):
         # Decide if this is critical - maybe proceed without references? For now, return None.
         return None
 
-    # Check if item exists (basic check based on properties/references)
     if not raw_properties and not raw_references:
-        app.logger.warning(f"Helper: No data found for item_id: {item_id}.")
-        return None # Item not found
+        app.logger.warning(f"Helper: No properties or references found for '{item_id}'.")
+        return None # Item exists but has no data? Or doesn't exist.
 
-    # --- Process Properties and References ---
-    item_details = {
-        'id': item_id, # Store the ID itself
-        'label': None,
-        'comment': None,
-        'types': [],
-        'primary_type_display': None,
-        'primary_type_category_key': None,
-        'grouped_properties': defaultdict(list),
-        'grouped_references': defaultdict(list),
-        'is_pangen': False # Default to false
-    }
-    # Define predicates for the PanGene specific layout (used for classification)
-    pangen_key_info_preds = ['has_length', 'same_as', 'card_link', 'accession', 'is_from_database']
-    pangen_right_col_preds = ['has_resistance_class', 'has_predicted_phenotype', 'translates_to', 'member_of']
-    processed_predicates_for_grouping = set()
+    # --- Process Properties ---
+    grouped_properties = defaultdict(list)
+    types = []
+    primary_type_display = None
+    primary_type_rdf = None
+    primary_type_category_key = None
+    is_pangen = False
 
-    preferred_types = ['PanGene', 'OriginalGene']
-    found_preferred_type = None
-    index_categories = current_app.config.get('INDEX_CATEGORIES', {}) # Get categories for type mapping
+    # Fetch labels for object URIs in a batch for efficiency
+    object_uris = {prop['object'] for prop in raw_properties if not prop['object_is_literal']}
+    object_labels = {}
+    if object_uris:
+        placeholders = ','.join('?' * len(object_uris))
+        try:
+            cursor_labels = db.execute(
+                f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})",
+                (RDFS_LABEL, *object_uris)
+            )
+            object_labels = {row['subject']: row['object'] for row in cursor_labels.fetchall()}
+            app.logger.debug(f"Helper: Fetched {len(object_labels)} labels for object URIs.")
+        except sqlite3.Error as e:
+            app.logger.error(f"Helper: Error fetching labels for object URIs: {e}")
+            # Continue without labels if there's an error
 
-    # Process properties
-    for row in raw_properties:
-        predicate = row['predicate']
-        prop_value = row['object']
-        is_literal = row['object_is_literal'] == 1
+    for prop in raw_properties:
+        predicate = prop['predicate']
+        obj = prop['object']
+        is_literal = prop['object_is_literal']
 
-        prop_link = None
-        extra_info = None
-
+        # Handle rdf:type separately to determine primary type
         if predicate == RDF_TYPE:
-            item_details['types'].append(prop_value)
-            if prop_value in preferred_types and not found_preferred_type:
-                found_preferred_type = prop_value
-            continue # Don't add rdf:type to grouped_properties
+            types.append(obj)
+            if obj == 'PanGene':
+                is_pangen = True
+            continue # Don't add rdf:type to grouped_properties directly unless needed
 
-        if predicate == RDFS_LABEL and not item_details['label']:
-            item_details['label'] = prop_value # Capture first label
-            continue
+        # Determine link and display value
+        link = None
+        display_value = obj
+        extra_info = None # For things like database name on same_as links
 
-        if predicate in DESCRIPTION_PREDICATES and not item_details['comment']:
-            item_details['comment'] = prop_value # Capture first comment/description
-            continue
+        if not is_literal:
+            # It's a resource (URI)
+            display_value = object_labels.get(obj, obj) # Use label if found, else URI
+            # Decide if it should link to details page or related items page
+            if predicate in LINK_TO_RELATED_PREDICATES:
+                 # --- FIX url_for PARAMETERS HERE ---
+                 # Link to the page showing items related *to this object* via this predicate
+                 try:
+                     link = url_for('show_related_items', predicate=predicate, object_value=obj)
+                 except Exception as url_err:
+                      app.logger.error(f"Helper: Error building related_items URL for pred={predicate}, obj={obj}: {url_err}", exc_info=True)
+                      link = "#error" # Indicate error in link
+                 # --- END FIX ---
+            else:
+                 # Default link to the details page of the object URI
+                 try:
+                     link = url_for('details', item_id=obj)
+                 except Exception as url_err:
+                     app.logger.error(f"Helper: Error building details URL for obj={obj}: {url_err}", exc_info=True)
+                     link = "#error" # Indicate error in link
 
-        # Add extra info for OriginalGene links if it's a PanGene view later
-        # (This logic might need adjustment if called outside PanGene context, but okay for now)
-        if predicate == 'same_as' and not is_literal:
-             try:
-                 cursor_orig_db = db.execute(
-                     """SELECT T_db.object
-                        FROM Triples T_type
-                        JOIN Triples T_db ON T_type.subject = T_db.subject
-                        WHERE T_type.subject = ?
-                          AND T_type.predicate = ? AND T_type.object = ?
-                          AND T_db.predicate = ? LIMIT 1""",
-                     (prop_value, RDF_TYPE, 'OriginalGene', 'is_from_database')
-                 )
-                 db_info = cursor_orig_db.fetchone()
-                 if db_info:
-                     extra_info = f"(from {db_info['object']})"
-             except sqlite3.Error as e_extra:
-                 app.logger.warning(f"Helper: Could not fetch extra DB info for {prop_value}: {e_extra}")
+            # Special handling for 'same_as' to add source DB info if available
+            if predicate == 'same_as':
+                # Try to find the 'is_from_database' for this 'same_as' object URI
+                try:
+                    cursor_db = db.execute(
+                        "SELECT object FROM triples WHERE subject = ? AND predicate = ?",
+                        (obj, IS_FROM_DATABASE) # IS_FROM_DATABASE should be defined
+                    )
+                    db_result = cursor_db.fetchone()
+                    if db_result:
+                        extra_info = f"(from {db_result['object']})"
+                except sqlite3.Error as db_err:
+                    app.logger.warning(f"Helper: Could not fetch source DB for same_as link {obj}: {db_err}")
 
-        # --- MODIFIED LINK LOGIC ---
-        # Check if this predicate should link to the related items list
-        if predicate in LINK_TO_RELATED_PREDICATES:
-            prop_link = url_for('show_related_items', query_type=predicate, query_target_value=prop_value)
-        # Special case for 'same_as' potentially linking to external URLs or other internal items
-        elif predicate == 'same_as':
-             # Try generating a details link; could add logic here to detect external URLs if needed
-             prop_link = url_for('details', item_id=prop_value)
-             # Add extra info for 'same_as' if it comes from a specific DB
-             # Example: Check if prop_value contains hints like 'ResFinder', 'CARD', etc.
-             # This is simplified; a more robust way might involve querying the source of the 'same_as' triple
-             if '(from ' in prop_value and prop_value.endswith(')'):
-                 start = prop_value.rfind('(from ') + 7
-                 end = prop_value.rfind(')')
-                 if start < end:
-                     extra_info = f"(from {prop_value[start:end]})"
-                     # Clean the display value
-                     prop_value = prop_value[:prop_value.rfind(' (from ')].strip()
 
-        # Default: link to the details page of the object
-        else:
-            prop_link = url_for('details', item_id=prop_value)
-        # --- END MODIFIED LINK LOGIC ---
-
-        item_details['grouped_properties'][predicate].append({
-            'value': prop_value,
+        grouped_properties[predicate].append({
+            'value': display_value,
+            'raw_object': obj, # Keep original object value if needed
             'is_literal': is_literal,
-            'link': prop_link,
+            'link': link,
             'extra_info': extra_info
         })
 
-    # Determine primary type and category key
-    primary_type = found_preferred_type or next((t for t in item_details['types'] if t != 'owl:NamedIndividual'), None)
-    if primary_type:
-        item_details['is_pangen'] = (primary_type == 'PanGene')
-        # Find the display name and category key from INDEX_CATEGORIES
-        for key, config in index_categories.items():
-            if config['value'] == primary_type:
-                item_details['primary_type_display'] = key
-                item_details['primary_type_category_key'] = key
-                break
-        if not item_details['primary_type_display']: # Fallback if not in index categories
-             item_details['primary_type_display'] = primary_type
+    # --- Determine Primary Type Display ---
+    # Prioritize PanGene, then OriginalGene, then others based on INDEX_CATEGORIES
+    type_priority = ['PanGene', 'OriginalGene'] # Add more if needed
+    found_primary = False
+    for type_uri in type_priority:
+        if type_uri in types:
+            primary_type_rdf = type_uri
+            # Find the display name and category key from INDEX_CATEGORIES
+            for key, config in current_app.config['INDEX_CATEGORIES'].items():
+                if config['query_type'] == 'type' and config['value'] == type_uri:
+                    primary_type_display = key # Use the category key as display name
+                    primary_type_category_key = key
+                    found_primary = True
+                    break
+            if found_primary: break
 
-    # Group incoming references
+    # Fallback if no priority type found but other types exist
+    if not found_primary and types:
+        primary_type_rdf = types[0] # Just take the first one found
+        primary_type_display = primary_type_rdf # Display the RDF type directly
+        # Try to find a category key for it
+        for key, config in current_app.config['INDEX_CATEGORIES'].items():
+             if config['query_type'] == 'type' and config['value'] == primary_type_rdf:
+                 primary_type_category_key = key
+                 break
+
+    app.logger.debug(f"Helper: Determined primary type for {item_id}: {primary_type_display} (RDF: {primary_type_rdf}, Key: {primary_type_category_key})")
+
+
+    # --- Process References ---
+    referencing_items = []
     for ref in raw_references:
-         ref_data = {
-             'subject': ref['subject'],
-             'link': url_for('details', item_id=ref['subject'])
-         }
-         item_details['grouped_references'][ref['predicate']].append(ref_data)
+        referencing_items.append({
+            'ref_id': ref['subject'],
+            'predicate': ref['predicate']
+            # Link will be generated in the template using url_for('details', item_id=ref['subject'])
+        })
 
-    return item_details
+    # Sort properties within each group if needed (e.g., alphabetically by value)
+    for predicate in grouped_properties:
+        # Example: sort by display value
+        grouped_properties[predicate].sort(key=lambda x: x['value'])
+
+    return {
+        'id': item_id,
+        'grouped_properties': dict(grouped_properties), # Convert back to dict
+        'referencing_items': referencing_items,
+        'types': types, # List of all rdf:type URIs
+        'primary_type_rdf': primary_type_rdf,
+        'primary_type_display': primary_type_display,
+        'primary_type_category_key': primary_type_category_key,
+        'is_pangen': is_pangen,
+        # 'all_types_display' is removed as it wasn't being populated correctly
+    }
+
 # --- END HELPER FUNCTION ---
 
 
