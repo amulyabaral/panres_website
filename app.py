@@ -1,5 +1,5 @@
 import sqlite3
-from flask import Flask, render_template, g, abort, url_for
+from flask import Flask, render_template, g, abort, url_for, current_app
 import os
 import logging
 from urllib.parse import unquote # Needed for handling URL-encoded values
@@ -351,58 +351,134 @@ def index():
 
 @app.route('/list/<category_key>')
 def list_items(category_key):
-    """Lists items belonging to a specific category (e.g., PanGenes, Source Databases)."""
+    """Lists all items belonging to a specific category (RDF type)."""
     db = get_db()
+    decoded_category_key = category_key.replace('%20', ' ') # Handle spaces if any
+    app.logger.info(f"Listing items for category: {decoded_category_key}")
 
-    # Find the category config based on the key (display name)
-    if category_key not in INDEX_CATEGORIES:
-        app.logger.warning(f"Attempted to list items for an unrecognized category key: {category_key}")
-        abort(404, description=f"Category '{category_key}' not recognized.")
+    # Get the display name for the category title
+    category_display_name = decoded_category_key # Default
+    for key, info in current_app.config['INDEX_CATEGORIES'].items():
+        if info['query_target'] == decoded_category_key:
+            category_display_name = info['display_name']
+            break
 
-    config = INDEX_CATEGORIES[category_key]
-    query_type = config['query_type']
-    value = config['value'] # This is the type_id or predicate depending on query_type
-    list_title = category_key
     items = []
-    list_description = config.get('description', f"Items related to {category_key}")
-    link_target_template = 'details' # Default: links go to details page
-    link_params = {} # Default: item itself is the parameter
-
-    app.logger.info(f"Listing items for category: {category_key} (Query Type: {query_type}, Value: {value})")
+    grouped_by_class = None
+    grouped_by_phenotype = None
+    is_pangen_list = (decoded_category_key == 'PanGene') # Flag for template
 
     try:
-        if query_type == 'type':
-            # List distinct subjects for the given rdf:type
+        if is_pangen_list:
+            # --- Special handling for PanGene: Group by Class and Phenotype ---
+            app.logger.debug(f"Fetching and grouping PanGenes by class and phenotype.")
+
+            # Use defaultdict for easier grouping
+            # Structure: { 'Class Label': {'id': 'class_id', 'genes': {gene1, gene2}} }
+            # Use sets for genes initially to handle duplicates automatically
+            grouped_by_class_temp = defaultdict(lambda: {'id': None, 'genes': set()})
+            grouped_by_phenotype_temp = defaultdict(lambda: {'id': None, 'genes': set()})
+            all_genes_in_category = set() # Keep track of all genes
+
+            # More efficient query to get genes, classes, phenotypes, and their labels
+            query = f"""
+                WITH CategoryItems AS (
+                    SELECT DISTINCT subject
+                    FROM triples
+                    WHERE predicate = ? AND object = ?
+                )
+                SELECT
+                    ci.subject AS gene_id,
+                    rc.object AS resistance_class_id,
+                    rc_label_triple.object AS resistance_class_label,
+                    pp.object AS phenotype_id,
+                    pp_label_triple.object AS phenotype_label
+                FROM CategoryItems ci
+                LEFT JOIN triples rc ON ci.subject = rc.subject AND rc.predicate = ?
+                LEFT JOIN triples rc_label_triple ON rc.object = rc_label_triple.subject AND rc_label_triple.predicate = ?
+                LEFT JOIN triples pp ON ci.subject = pp.subject AND pp.predicate = ?
+                LEFT JOIN triples pp_label_triple ON pp.object = pp_label_triple.subject AND pp_label_triple.predicate = ?
+                ORDER BY ci.subject;
+            """
+            cursor = db.execute(query, (
+                RDF_TYPE, decoded_category_key,
+                HAS_RESISTANCE_CLASS, RDFS_LABEL,
+                HAS_PREDICTED_PHENOTYPE, RDFS_LABEL
+            ))
+            results = cursor.fetchall()
+            app.logger.debug(f"Grouping query returned {len(results)} rows.")
+
+            for row in results:
+                gene_id = row['gene_id']
+                class_id = row['resistance_class_id']
+                class_label = row['resistance_class_label']
+                phenotype_id = row['phenotype_id']
+                phenotype_label = row['phenotype_label']
+
+                all_genes_in_category.add(gene_id)
+
+                # Add to class group if class exists
+                if class_label:
+                    # Use label as key, store ID and add gene to set
+                    grouped_by_class_temp[class_label]['id'] = class_id
+                    grouped_by_class_temp[class_label]['genes'].add(gene_id)
+                elif class_id: # Handle classes without labels (use ID as fallback label)
+                     grouped_by_class_temp[class_id]['id'] = class_id
+                     grouped_by_class_temp[class_id]['genes'].add(gene_id)
+
+
+                # Add to phenotype group if phenotype exists
+                if phenotype_label:
+                    grouped_by_phenotype_temp[phenotype_label]['id'] = phenotype_id
+                    grouped_by_phenotype_temp[phenotype_label]['genes'].add(gene_id)
+                elif phenotype_id: # Handle phenotypes without labels
+                    grouped_by_phenotype_temp[phenotype_id]['id'] = phenotype_id
+                    grouped_by_phenotype_temp[phenotype_id]['genes'].add(gene_id)
+
+            # Convert sets to sorted lists and sort groups by label/key
+            grouped_by_class = {
+                label: {
+                    'id': data['id'],
+                    'genes': sorted(list(data['genes']))
+                } for label, data in sorted(grouped_by_class_temp.items())
+            }
+            grouped_by_phenotype = {
+                label: {
+                    'id': data['id'],
+                    'genes': sorted(list(data['genes']))
+                } for label, data in sorted(grouped_by_phenotype_temp.items())
+            }
+
+            # Also pass the total list of items found for the header count
+            items = sorted(list(all_genes_in_category))
+            app.logger.debug(f"Finished grouping. Found {len(grouped_by_class)} classes and {len(grouped_by_phenotype)} phenotypes.")
+
+        else:
+            # --- Default handling for other categories: Simple list ---
             cursor = db.execute(
-                "SELECT DISTINCT subject FROM Triples WHERE predicate = ? AND object = ? ORDER BY subject",
-                (RDF_TYPE, value)
+                "SELECT DISTINCT subject FROM triples WHERE predicate = ? AND object = ? ORDER BY subject",
+                (RDF_TYPE, decoded_category_key)
             )
-            items = [{'id': row['subject'], 'link': url_for('details', item_id=row['subject'])} for row in cursor.fetchall()]
-            list_description = f"Listing all {category_key} (Type: <code>{value}</code>)."
-
-        elif query_type == 'predicate_object':
-            # List distinct non-literal objects for the given predicate
-            cursor = db.execute(
-                "SELECT DISTINCT object FROM Triples WHERE predicate = ? AND object_is_literal = 0 ORDER BY object",
-                (value,)
-            )
-            # For these items (Databases, Classes, etc.), link to a page showing related genes
-            items = [{'id': row['object'], 'link': url_for('genes_related_to', predicate=value, object_value=row['object'])} for row in cursor.fetchall()]
-            list_description = f"Listing all {category_key} found in the data (via predicate <code>{value}</code>). Click an item to see associated genes."
-
-        # Add elif for 'predicate_subject' if needed
-
-        app.logger.info(f"Found {len(items)} items for category {category_key}")
+            items = [row['subject'] for row in cursor.fetchall()]
+            app.logger.debug(f"Found {len(items)} items for category {decoded_category_key}.")
 
     except sqlite3.Error as e:
-        app.logger.error(f"Error fetching list for category '{category_key}': {e}")
-        abort(500, description=f"Error retrieving list for {category_key}")
+        app.logger.error(f"Database error fetching list for {decoded_category_key}: {e}")
+        abort(500, description="Database error occurred.")
 
-    return render_template('list.html',
-                           items=items,
-                           list_title=list_title,
-                           list_description=list_description,
-                           category_key=category_key)
+    if not items and not is_pangen_list: # Only 404 if not PanGene and truly no items
+         app.logger.warning(f"No items found for category: {decoded_category_key}. Returning 404.")
+         abort(404, description=f"No items found for category '{decoded_category_key}'.")
+
+    return render_template(
+        'list.html',
+        category_key=decoded_category_key,
+        category_display_name=category_display_name,
+        items=items,
+        is_pangen_list=is_pangen_list, # Pass the flag
+        grouped_by_class=grouped_by_class, # Pass grouped data
+        grouped_by_phenotype=grouped_by_phenotype # Pass grouped data
+    )
 
 
 @app.route('/related/<predicate>/<path:object_value>')

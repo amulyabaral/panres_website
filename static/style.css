@@ -647,41 +647,132 @@ a:hover code {
 .item-list {
     list-style: none;
     padding-left: 0;
-    margin-top: 0.5rem;
+    margin-top: 1rem;
+    columns: 2; /* Basic multi-column layout for simple lists */
+    column-gap: 2rem;
+}
+.item-list li {
+    padding: 0.2rem 0;
+    break-inside: avoid-column; /* Prevent items breaking across columns */
+}
+.item-list li a code {
+    font-size: 0.9rem;
+}
+
+.category-info {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+.category-info code {
+    font-size: 0.95em; /* Slightly smaller code tag */
+    background-color: var(--color-code-bg);
+    border: var(--border-default);
+    padding: 0.1em 0.3em;
+    border-radius: var(--border-radius-sm);
+}
+
+/* --- PanGene Grouping Styles --- */
+.list-grouping-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive columns */
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.grouping-card {
     background-color: var(--color-surface);
     border: var(--border-default);
     border-radius: var(--border-radius);
-    overflow: hidden;
+    padding: 1rem 1.2rem;
 }
-.item-list li {
-    margin-bottom: 0;
-    padding: 0;
+
+.grouping-card h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0.5rem;
+}
+
+/* Accordion Styles */
+.accordion {
+    border-top: var(--border-default); /* Add top border to the whole accordion */
+}
+
+.accordion-item {
     border-bottom: var(--border-default);
-    transition: background-color 0.15s ease;
 }
-.item-list li:last-child {
-    border-bottom: none;
-}
-.item-list li:hover {
-    background-color: var(--color-code-bg);
-}
-.item-list li a {
+
+.accordion-header {
+    background-color: transparent; /* Make button background transparent */
+    border: none; /* Remove button border */
+    padding: 0.8rem 0.5rem 0.8rem 0; /* Adjust padding */
+    width: 100%;
+    text-align: left;
     font-size: 0.95rem;
-    display: block;
-    padding: 0.6rem 1rem;
-    text-decoration: none;
-    color: var(--color-primary-dark);
+    font-weight: 500;
+    cursor: pointer;
+    display: flex; /* Use flexbox for alignment */
+    justify-content: space-between; /* Space out elements */
+    align-items: center;
+    color: var(--color-text); /* Ensure text color is standard */
 }
-.item-list li a:hover {
-    text-decoration: none;
-    color: var(--color-primary);
+.accordion-header:hover {
+    background-color: #f1f3f5; /* Slight hover effect */
 }
-.item-list li a code {
+
+.accordion-header .group-label-link {
+    color: var(--color-primary-dark); /* Make link stand out */
+    text-decoration: none;
+    flex-grow: 1; /* Allow label to take available space */
+    margin-right: 0.5rem; /* Space before count */
+}
+.accordion-header .group-label-link:hover {
+    text-decoration: underline;
+}
+.accordion-header code { /* Style code tag within header */
     font-size: 0.95em;
-    background-color: transparent;
+    background-color: transparent; /* Match header background */
     border: none;
     padding: 0;
-    color: inherit;
+    color: inherit; /* Inherit color from parent (link or header) */
+}
+
+.accordion-count {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-right: 0.5rem; /* Space before icon */
+    white-space: nowrap; /* Prevent count from wrapping */
+}
+
+.accordion-icon {
+    font-weight: bold;
+    font-size: 1.1rem;
+    min-width: 1em; /* Ensure icon takes some space */
+    text-align: right;
+}
+
+.accordion-content {
+    padding: 0.5rem 0.5rem 1rem 0.5rem; /* Padding for the list */
+    background-color: #fdfdfe; /* Slightly different background for content */
+    /* display: none; is handled by inline style initially */
+}
+
+.grouped-item-list {
+    list-style: none;
+    padding-left: 1rem; /* Indent the gene list */
+    margin: 0;
+    max-height: 300px; /* Limit height and add scroll if needed */
+    overflow-y: auto; /* Add scrollbar if content exceeds max-height */
+}
+.grouped-item-list li {
+    padding: 0.15rem 0;
+}
+.grouped-item-list li a code {
+    font-size: 0.9rem;
 }
 
 .details-header {
