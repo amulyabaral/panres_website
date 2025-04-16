@@ -66,11 +66,11 @@ body {
 
 .site-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid var(--color-border);
-    gap: 1rem;
+    gap: 1.5rem;
 }
 
 .header-logo-link {
@@ -85,6 +85,22 @@ body {
 
 .header-content {
     flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.site-name {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+.site-name a {
+    color: var(--color-text);
+    text-decoration: none;
+}
+.site-name a:hover {
+    color: var(--color-primary-dark);
 }
 
 .header-content h1,
@@ -841,5 +857,145 @@ footer {
 
 @keyframes growBar {
     from { width: 0; }
+}
+
+/* Style for the citation block in the header */
+.header-citation {
+    background-color: var(--color-code-bg);
+    border: var(--border-default);
+    border-radius: var(--border-radius);
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+    line-height: 1.4;
+}
+.header-citation h4 {
+    margin-top: 0;
+    margin-bottom: 0.3rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+.header-citation p {
+    margin-bottom: 0;
+    color: var(--color-text-muted);
+}
+.header-citation a {
+    color: var(--color-primary-dark);
+    word-break: break-word;
+}
+
+/* --- PanGene Details Specific Styles --- */
+.pangen-details-container {
+    margin-top: 1rem;
+}
+
+.gene-id-highlight {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--color-primary-dark);
+    margin-bottom: 0.2rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 2px solid var(--color-primary);
+    display: inline-block;
+}
+.gene-id-highlight code {
+    font-size: inherit;
+    font-weight: inherit;
+    color: inherit;
+    background-color: transparent;
+    border: none;
+    padding: 0;
+}
+
+.gene-type-subheader {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+}
+.gene-type-subheader a {
+    color: var(--color-text-muted);
+    text-decoration: underline;
+}
+.gene-type-subheader a:hover {
+    color: var(--color-primary-dark);
+}
+.gene-type-subheader code {
+    font-size: 0.9em;
+    background-color: var(--color-code-bg);
+    border: var(--border-default);
+    padding: 0.1em 0.3em;
+}
+
+.details-pangen-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.details-pangen-left {
+}
+
+.details-pangen-right {
+}
+
+.details-card {
+    background-color: var(--color-surface);
+    border: var(--border-default);
+    border-radius: var(--border-radius);
+    padding: 1rem 1.2rem;
+    margin-bottom: 1rem;
+}
+.details-card:last-child {
+    margin-bottom: 0;
+}
+
+.details-card h3 {
+    margin-top: 0;
+    margin-bottom: 0.8rem;
+    font-size: 1.0rem;
+    font-weight: 600;
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0.4rem;
+}
+
+.details-card-stack {
+    display: flex;
+    flex-direction: column;
+}
+
+.details-card .details-list dt {
+    font-size: 0.8rem;
+    margin-bottom: 0.3rem;
+    color: var(--color-text-muted);
+}
+.details-card .details-list dd {
+    margin-bottom: 0.8rem;
+    font-size: 0.9rem;
+}
+.details-card .details-list dd ul {
+    margin-top: 0.1rem;
+}
+.details-card .details-list dd ul li {
+    padding: 0.15rem 0;
+    border: none;
+    margin-bottom: 0.1rem;
+}
+
+.details-card .details-list.single-item dt {
+    display: none;
+}
+.details-card .details-list.single-item dd {
+    margin-bottom: 0;
+}
+
+.external-link::after {
+    content: ' \2197';
+    font-size: 0.8em;
+    vertical-align: super;
+    margin-left: 2px;
 }
 

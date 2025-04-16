@@ -11,15 +11,17 @@
 <body>
     <div class="container">
         <header class="site-header">
-            {# H1 with linked logo - looks correct #}
+            {# Logo Link #}
             <a href="{{ url_for('index') }}" class="header-logo-link">
                 <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="header-logo">
-                {# Text removed, only logo remains #}
             </a>
             {# Container for header text content #}
             <div class="header-content">
+                 {# Site Name - Placed here, can be styled #}
+                 <h1 class="site-name"><a href="{{ url_for('index') }}">{{ site_name }}</a></h1>
+                 {# Block for additional header content like descriptions or citations #}
                  {% block header_content %}
-                 {# Default content can go here, or be overridden by child templates #}
+                 {# Default content (e.g., for index page) can go here, or be overridden #}
                  {% endblock %}
             </div>
         </header>

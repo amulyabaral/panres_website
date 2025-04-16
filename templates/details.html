@@ -1,8 +1,122 @@
 {% extends "base.html" %}
 
-{% block title %}Details for {{ item_id }} - PanRes Database Explorer{% endblock %}
+{% block title %}Details for {{ item_id }} - {{ site_name }}{% endblock %}
+
+{# Override header content specifically for details page to add citation #}
+{% block header_content %}
+    <div class="header-citation">
+        <h4>Please Cite:</h4>
+        <p>{{ citation_text|safe }}</p>
+    </div>
+{% endblock %}
+
 
 {% block content %}
+
+{# --- PanGene Specific Layout --- #}
+{% if is_pangen %}
+    <div class="pangen-details-container">
+        {# Highlighted Gene Name #}
+        <h2 class="gene-id-highlight"><code>{{ item_id }}</code></h2>
+        {# Display primary type (PanRes Gene) #}
+        {% if details.primary_type_display %}
+            <p class="gene-type-subheader">
+                <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}">{{ details.primary_type_display }}</a>
+                {# Optionally list other types like AntimicrobialResistanceGene #}
+                {% set other_types = [] %}
+                {% for type in details.types if type != 'PanGene' and type != 'owl:NamedIndividual' %}
+                    {% set _ = other_types.append("<code>" ~ type ~ "</code>") %}
+                {% endfor %}
+                {% if other_types %}
+                    (Type: {{ other_types|join(', ')|safe }})
+                {% endif %}
+            </p>
+        {% endif %}
+
+        {# Two-column grid for details #}
+        <div class="details-pangen-grid">
+
+            {# Left Column: Key Info Card #}
+            <div class="details-pangen-left">
+                <div class="details-card">
+                    {# No explicit "Key Info" heading needed per request #}
+                    <dl class="details-list">
+                        {# Iterate through predefined key info predicates #}
+                        {% for predicate in pangen_key_info_preds %}
+                            {% if predicate in details.pangen_key_info %}
+                                <dt>{{ predicate_map.get(predicate, predicate) }}</dt>
+                                <dd>
+                                    <ul class="property-values">
+                                        {% for prop in details.pangen_key_info[predicate] %}
+                                            <li>
+                                                {% if predicate == 'card_link' and not prop.is_literal %}
+                                                    {# Special handling for clickable CARD link #}
+                                                    <a href="{{ prop.value }}" target="_blank" rel="noopener noreferrer" class="value-link external-link">
+                                                        {{ prop.value }}
+                                                    </a>
+                                                {% elif prop.is_literal %}
+                                                    <span class="value-literal">{{ prop.value }}</span>
+                                                {% else %}
+                                                    {# Default link for non-literal objects #}
+                                                    <a href="{{ prop.link }}" class="value-link"><code>{{ prop.value }}</code></a>
+                                                {% endif %}
+                                                {% if prop.extra_info %}
+                                                    <span class="extra-info">{{ prop.extra_info }}</span>
+                                                {% endif %}
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </dd>
+                            {% endif %}
+                        {% endfor %}
+                    </dl>
+                </div>
+            </div>
+
+            {# Right Column: Stacked Cards #}
+            <div class="details-pangen-right">
+                <div class="details-card-stack">
+                    {# Iterate through predefined right column predicates #}
+                    {% for predicate in pangen_right_col_preds %}
+                        {% if predicate in details.pangen_right_col %}
+                            <div class="details-card">
+                                <h3>{{ predicate_map.get(predicate, predicate) }}</h3>
+                                <dl class="details-list single-item"> {# Simplified dl for single predicate cards #}
+                                    <dd>
+                                        <ul class="property-values">
+                                            {% for prop in details.pangen_right_col[predicate] %}
+                                                <li>
+                                                    {% if prop.is_literal %}
+                                                        <span class="value-literal">{{ prop.value }}</span>
+                                                    {% else %}
+                                                        {# Assign classes based on predicate for potential styling #}
+                                                        {% set value_class = 'value-link' %}
+                                                        {% if predicate == 'has_resistance_class' %}
+                                                            {% set value_class = value_class + ' value-resistance-class' %}
+                                                        {% elif predicate == 'has_predicted_phenotype' %}
+                                                            {% set value_class = value_class + ' value-phenotype' %}
+                                                        {% endif %}
+                                                        <a href="{{ prop.link }}" class="{{ value_class }}"><code>{{ prop.value }}</code></a>
+                                                    {% endif %}
+                                                    {% if prop.extra_info %}
+                                                         <span class="extra-info">{{ prop.extra_info }}</span>
+                                                    {% endif %}
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </dd>
+                                </dl>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div> {# End Right Column #}
+
+        </div> {# End details-pangen-grid #}
+    </div> {# End pangen-details-container #}
+
+{# --- Default Layout for Non-PanGene Items --- #}
+{% else %}
     <div class="details-header">
         {# Use a less prominent tag for the item ID itself #}
         <span class="item-id-tag">{{ item_id }}</span>
@@ -109,6 +223,7 @@
             {% endif %}
         </div>
     </div> {# End details-grid #}
+{% endif %} {# End PanGene vs Default Layout #}
 
 
     <div class="back-links-footer">
