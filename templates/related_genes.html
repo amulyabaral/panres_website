@@ -1,32 +1,109 @@
 {% extends "base.html" %}
 
-{% block title %}{{ page_title }} - PanRes Database Explorer{% endblock %}
+{% block title %}{{ page_title }} - {{ site_name }}{% endblock %}
 
 {% block content %}
     <h2>{{ page_title }}</h2>
     <p>{{ description|safe }}</p> {# Use safe filter because description contains <code> tags #}
 
-    {% if genes %}
+    {# --- Conditional Display: Grouped View or Flat List --- #}
+    {% if is_grouped_view and grouped_genes %}
+        {# --- Grouped View (by Resistance Class) --- #}
+        <p>Found {{ grouped_genes.values() | map(attribute='genes') | sum(attribute='length') }} related gene(s), grouped by Resistance Class:</p>
+
+        <div class="list-grouping-container related-genes-grouping"> {# Add specific class #}
+            <div class="accordion">
+                {% for class_label, data in grouped_genes.items() %}
+                    <div class="accordion-item">
+                        <button class="accordion-header" aria-expanded="false">
+                            {# Link the class label if its ID is known and it's not 'No Class Assigned' #}
+                            {% if data.id %}
+                                <a href="{{ url_for('details', item_id=data.id) }}" class="group-label-link" title="View details for {{ class_label }}"><code>{{ class_label }}</code></a>
+                            {% else %}
+                                {# Display label without link (e.g., for 'No Class Assigned') #}
+                                <code>{{ class_label }}</code>
+                            {% endif %}
+                            <span class="accordion-count">({{ data.genes|length }})</span>
+                            <span class="accordion-icon">+</span>
+                        </button>
+                        <div class="accordion-content" style="display: none;"> {# Content hidden by default #}
+                            <ul class="grouped-item-list"> {# Reuse class from list.html #}
+                                {% for gene in data.genes %}
+                                    <li><a href="{{ gene.link }}"><code>{{ gene.id }}</code></a></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                {% else %}
+                    {# This part should ideally not be reached if grouped_genes is not empty,
+                       but added as a fallback inside the loop context #}
+                    <p>No resistance classes found for grouping.</p>
+                {% endfor %}
+            </div> {# End accordion #}
+        </div> {# End list-grouping-container #}
+
+    {% elif genes %}
+        {# --- Flat List View (Fallback or other predicates) --- #}
         <p>Found {{ genes|length }} related gene(s):</p>
         <ul class="item-list"> {# Reuse item-list style #}
             {% for gene in genes %}
                 <li>
-                    {# Link each gene ID to its details page #}
                     <a href="{{ gene.link }}"><code>{{ gene.id }}</code></a>
                 </li>
             {% endfor %}
         </ul>
     {% else %}
+        {# --- No Genes Found --- #}
         <p>No genes found related to <code>{{ object_value }}</code> via the predicate <code>{{ predicate }}</code>.</p>
     {% endif %}
+    {# --- End Conditional Display --- #}
+
 
     {# Add back links for navigation #}
     <div class="back-links-footer">
          <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
-         {# Attempt to find the original category list link #}
+         {# Attempt to find the original category list link (e.g., Source Databases) #}
          {% set category_key = index_categories | selectattr('value', 'equalto', predicate) | map(attribute='key') | first %}
          {% if category_key and index_categories[category_key].query_type == 'predicate_object' %}
+             {# Link back to the list of items for that predicate (e.g., list of databases) #}
              <p class="back-link"><a href="{{ url_for('list_items', category_key=category_key) }}">&laquo; Back to {{ category_key }} list</a></p>
          {% endif %}
     </div>
+
+    {# --- Add Simple Accordion JavaScript (copied from list.html) --- #}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const accordionHeaders = document.querySelectorAll('.accordion-header');
+
+            accordionHeaders.forEach(header => {
+                header.addEventListener('click', function() {
+                    const content = this.nextElementSibling;
+                    const icon = this.querySelector('.accordion-icon');
+                    const isExpanded = this.getAttribute('aria-expanded') === 'true';
+
+                    // Close other open accordions (optional, uncomment if desired)
+                    // accordionHeaders.forEach(otherHeader => {
+                    //     if (otherHeader !== this) {
+                    //         otherHeader.setAttribute('aria-expanded', 'false');
+                    //         otherHeader.nextElementSibling.style.display = 'none';
+                    //         const otherIcon = otherHeader.querySelector('.accordion-icon');
+                    //         if(otherIcon) otherIcon.textContent = '+';
+                    //     }
+                    // });
+
+                    // Toggle current accordion item
+                    if (content.style.display === 'none' || content.style.display === '') {
+                        content.style.display = 'block';
+                        this.setAttribute('aria-expanded', 'true');
+                        if(icon) icon.textContent = '−'; // Use minus sign when expanded
+                    } else {
+                        content.style.display = 'none';
+                        this.setAttribute('aria-expanded', 'false');
+                         if(icon) icon.textContent = '+'; // Use plus sign when collapsed
+                    }
+                });
+            });
+        });
+    </script>
+
 {% endblock %} 

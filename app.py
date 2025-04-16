@@ -16,7 +16,6 @@ SITE_NAME = "PanRes 2.0 Database"
 # 'query_type': 'predicate_subject' -> count/list distinct subjects for predicate = value (less common)
 INDEX_CATEGORIES = {
     "PanRes Genes": {'query_type': 'type', 'value': 'PanGene', 'description': 'Unique gene sequences curated in PanRes.'},
-    "Source Genes": {'query_type': 'type', 'value': 'OriginalGene', 'description': 'Genes as found in their original source databases.'},
     "Source Databases": {'query_type': 'predicate_object', 'value': 'is_from_database', 'description': 'Databases contributing genes to PanRes.'},
     "Antibiotic Classes": {'query_type': 'predicate_object', 'value': 'has_resistance_class', 'description': 'Classes of antibiotics genes confer resistance to.'},
     "Predicted Phenotypes": {'query_type': 'predicate_object', 'value': 'has_predicted_phenotype', 'description': 'Specific antibiotic resistances predicted for genes.'},
@@ -641,70 +640,99 @@ def list_items(category_key=None, query_type=None, query_target_value=None):
 @app.route('/related/<predicate>/<path:object_value>')
 def genes_related_to(predicate, object_value):
     """
-    Shows genes (or other subjects) related to a specific object via a predicate.
-    Modified to specifically show ONLY OriginalGenes if predicate is 'is_from_database'.
+    Lists genes (subjects) related to a specific object via a predicate.
+    Example: /related/is_from_database/CARD lists genes from CARD.
+    Enhancement: If predicate is 'is_from_database', group genes by resistance class.
     """
     db = get_db()
-    decoded_predicate = unquote(predicate)
-    decoded_object_value = unquote(object_value)
-    app.logger.info(f"Fetching items related to '{decoded_object_value}' via predicate '{decoded_predicate}'")
+    cursor = db.cursor()
+    decoded_object_value = unquote(object_value) # Decode URL-encoded values
 
-    genes = []
-    page_title = f"Items related to '{decoded_object_value}'"
-    description = f"Listing items (subjects) where the predicate <code>{decoded_predicate}</code> points to the object <code>{decoded_object_value}</code>."
+    app.logger.info(f"Fetching subjects related to object '{decoded_object_value}' via predicate '{predicate}'")
 
-    try:
-        # --- Special Handling for is_from_database ---
-        if decoded_predicate == IS_FROM_DATABASE:
-            page_title = f"Source Genes from Database: {decoded_object_value}"
-            description = f"Listing Source Genes (<code>OriginalGene</code>) originating from the database <code>{decoded_object_value}</code>."
-            # Query for subjects that are 'is_from_database' the object AND are of type 'OriginalGene'
-            query = """
-                SELECT DISTINCT T_rel.subject
-                FROM triples T_rel
-                JOIN triples T_type ON T_rel.subject = T_type.subject
-                WHERE T_rel.predicate = ?
-                  AND T_rel.object = ?
-                  AND T_type.predicate = ?
-                  AND T_type.object = ?
-                ORDER BY T_rel.subject
-            """
-            cursor = db.execute(query, (
-                decoded_predicate,
-                decoded_object_value,
-                RDF_TYPE,
-                'OriginalGene' # Ensure we only get OriginalGenes
-            ))
-            genes = [{'id': row['subject'], 'link': url_for('details', item_id=row['subject'])} for row in cursor.fetchall()]
-            app.logger.debug(f"Found {len(genes)} OriginalGenes for database {decoded_object_value}.")
+    # Basic query to find related subjects (genes)
+    cursor.execute(
+        "SELECT DISTINCT subject FROM statements WHERE predicate = ? AND object = ?",
+        (predicate, decoded_object_value)
+    )
+    genes_raw = cursor.fetchall()
+    gene_ids = [row['subject'] for row in genes_raw]
 
-        else:
-            # --- Default behavior for other predicates ---
-            # Find subjects pointing to this object via the predicate
-            query = """
-                SELECT DISTINCT subject
-                FROM triples
-                WHERE predicate = ? AND object = ?
-                ORDER BY subject
-            """
-            cursor = db.execute(query, (decoded_predicate, decoded_object_value))
-            # Assume these related items are genes for linking, adjust if needed
-            genes = [{'id': row['subject'], 'link': url_for('details', item_id=row['subject'])} for row in cursor.fetchall()]
-            app.logger.debug(f"Found {len(genes)} items related via predicate {decoded_predicate}.")
+    page_title = f"Source Genes from {predicate_map.get(predicate, predicate)}: {decoded_object_value}"
+    description = f"Listing Source Genes (<code>OriginalGene</code>) originating from the {predicate_map.get(predicate, predicate)} <code>{decoded_object_value}</code>."
 
-    except sqlite3.Error as e:
-        app.logger.error(f"Database error fetching related items for {decoded_object_value} via {decoded_predicate}: {e}")
-        abort(500, description="Database error occurred.")
+    grouped_genes = None
+    genes_list_for_template = [] # Default flat list
+
+    # --- Grouping Logic for 'is_from_database' ---
+    if predicate == IS_FROM_DATABASE and gene_ids:
+        grouped_genes = defaultdict(lambda: {'id': None, 'genes': []}) # Use defaultdict
+        genes_processed = set() # Keep track of genes added to avoid duplicates if one gene has multiple classes
+
+        # Fetch resistance class for each gene
+        # Use IN clause for efficiency if many genes
+        placeholders = ','.join('?' for _ in gene_ids)
+        query_classes = f"""
+            SELECT subject, object
+            FROM statements
+            WHERE predicate = ? AND subject IN ({placeholders})
+        """
+        try:
+            cursor_classes = db.cursor()
+            cursor_classes.execute(query_classes, [HAS_RESISTANCE_CLASS] + gene_ids)
+            gene_class_pairs = cursor_classes.fetchall()
+
+            # Map genes to their classes
+            gene_to_classes = defaultdict(list)
+            for row in gene_class_pairs:
+                gene_to_classes[row['subject']].append(row['object'])
+
+            # Populate the grouped_genes structure
+            for gene_id in gene_ids:
+                classes = gene_to_classes.get(gene_id)
+                gene_data = {'id': gene_id, 'link': url_for('details', item_id=gene_id)}
+
+                if classes:
+                    for resistance_class in classes:
+                        # Attempt to get a display label for the class (optional, nice to have)
+                        # cursor_label = db.cursor()
+                        # cursor_label.execute("SELECT object FROM statements WHERE subject = ? AND predicate = ?", (resistance_class, RDFS_LABEL))
+                        # label_row = cursor_label.fetchone()
+                        # display_label = label_row['object'] if label_row else resistance_class
+                        display_label = resistance_class # Use ID as label for simplicity now
+
+                        grouped_genes[display_label]['id'] = resistance_class # Store class ID for potential linking
+                        grouped_genes[display_label]['genes'].append(gene_data)
+                else:
+                    # Group genes without a class under a specific key
+                    grouped_genes['No Class Assigned']['genes'].append(gene_data)
+
+            # Sort groups by class name (case-insensitive), put 'No Class Assigned' last
+            grouped_genes = dict(sorted(grouped_genes.items(), key=lambda item: (item[0] == 'No Class Assigned', item[0].lower())))
+
+
+        except sqlite3.Error as e:
+             app.logger.error(f"Error fetching resistance classes for genes from {decoded_object_value}: {e}")
+             # Fallback to flat list if grouping fails
+             grouped_genes = None
+             genes_list_for_template = [{'id': gid, 'link': url_for('details', item_id=gid)} for gid in gene_ids]
+
+    else:
+        # For predicates other than 'is_from_database', prepare the simple list
+         genes_list_for_template = [{'id': gid, 'link': url_for('details', item_id=gid)} for gid in gene_ids]
+
 
     return render_template(
-        'related_genes.html', # Using a separate template might be cleaner, but modifying description works too
+        'related_genes.html',
         page_title=page_title,
         description=description,
-        predicate=decoded_predicate,
+        predicate=predicate,
         object_value=decoded_object_value,
-        genes=genes,
-        # Pass index_categories for potential back link logic in template
-        index_categories=current_app.config['INDEX_CATEGORIES']
+        genes=genes_list_for_template, # Pass the flat list (used if not grouping)
+        grouped_genes=grouped_genes,   # Pass the grouped structure
+        is_grouped_view=(predicate == IS_FROM_DATABASE and grouped_genes is not None), # Flag for template
+        index_categories=INDEX_CATEGORIES, # For back links
+        predicate_map=PREDICATE_DISPLAY_NAMES # For back links
     )
 
 
