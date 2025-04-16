@@ -651,11 +651,11 @@ def genes_related_to(predicate, object_value):
     app.logger.info(f"Fetching subjects related to object '{decoded_object_value}' via predicate '{predicate}'")
 
     # Basic query to find related subjects (genes)
-    cursor.execute(
-        "SELECT DISTINCT subject FROM statements WHERE predicate = ? AND object = ?",
+    cursor_subjects = db.execute(
+        "SELECT DISTINCT subject FROM Triples WHERE predicate = ? AND object = ?",
         (predicate, decoded_object_value)
     )
-    genes_raw = cursor.fetchall()
+    genes_raw = cursor_subjects.fetchall()
     gene_ids = [row['subject'] for row in genes_raw]
 
     page_title = f"Source Genes from {predicate_map.get(predicate, predicate)}: {decoded_object_value}"
@@ -667,14 +667,13 @@ def genes_related_to(predicate, object_value):
     # --- Grouping Logic for 'is_from_database' ---
     if predicate == IS_FROM_DATABASE and gene_ids:
         grouped_genes = defaultdict(lambda: {'id': None, 'genes': []}) # Use defaultdict
-        genes_processed = set() # Keep track of genes added to avoid duplicates if one gene has multiple classes
 
         # Fetch resistance class for each gene
         # Use IN clause for efficiency if many genes
         placeholders = ','.join('?' for _ in gene_ids)
         query_classes = f"""
             SELECT subject, object
-            FROM statements
+            FROM Triples
             WHERE predicate = ? AND subject IN ({placeholders})
         """
         try:
@@ -694,12 +693,12 @@ def genes_related_to(predicate, object_value):
 
                 if classes:
                     for resistance_class in classes:
-                        # Attempt to get a display label for the class (optional, nice to have)
+                        # Optional: Fetch label for class_id here if needed, using Triples table
                         # cursor_label = db.cursor()
-                        # cursor_label.execute("SELECT object FROM statements WHERE subject = ? AND predicate = ?", (resistance_class, RDFS_LABEL))
+                        # cursor_label.execute("SELECT object FROM Triples WHERE subject = ? AND predicate = ?", (resistance_class, RDFS_LABEL))
                         # label_row = cursor_label.fetchone()
                         # display_label = label_row['object'] if label_row else resistance_class
-                        display_label = resistance_class # Use ID as label for simplicity now
+                        display_label = resistance_class # Use ID as label for now
 
                         grouped_genes[display_label]['id'] = resistance_class # Store class ID for potential linking
                         grouped_genes[display_label]['genes'].append(gene_data)
