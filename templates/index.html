@@ -36,6 +36,7 @@
             <div class="visualization-section source-db-chart">
                 <div class="visualization-header">
                     <h4>ARGs by Source Database</h4>
+                    {# Link to the list of databases #}
                     <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button">Browse Sources</a>
                 </div>
                 <div class="v-barplot-container">
@@ -44,15 +45,21 @@
                         {% set bar_width_percent = [0, bar_width_percent] | max %}
                         {% set bar_width_percent = [100, bar_width_percent] | min %}
                         {% set formatted_count = "{:,}".format(row.gene_count) %}
-                        <div class="v-bar-row">
-                            <span class="v-bar-label">
-                                <a href="{{ url_for('genes_related_to', predicate='is_from_database', object_value=row.database_name) }}" title="View genes from {{ row.database_name }}">
+                        {# --- RESTORED STRUCTURE --- #}
+                        <div class="v-barplot-item" title="{{ row.database_name }} ({{ formatted_count }} genes)">
+                            {# Link the label to the related genes page for that specific database #}
+                            <div class="v-barplot-label">
+                                 <a href="{{ url_for('genes_related_to', predicate='is_from_database', object_value=row.database_name) }}" title="View genes from {{ row.database_name }}">
                                     {{ row.database_name }}
-                                </a>
-                            </span>
-                            <div class="v-bar" data-target-width="{{ bar_width_percent }}%" style="width: 0%;"></div>
-                            <span class="v-bar-value">{{ formatted_count }}</span>
+                                 </a>
+                            </div>
+                            <div class="v-barplot-bar-wrapper">
+                                <div class="v-barplot-bar" data-target-width="{{ bar_width_percent }}%" style="width: 0%;">
+                                </div>
+                            </div>
+                            <div class="v-barplot-count">{{ formatted_count }}</div>
                         </div>
+                        {# --- END RESTORED STRUCTURE --- #}
                     {% endfor %}
                 </div>
             </div>
@@ -177,7 +184,7 @@
             Chart.defaults.maintainAspectRatio = false; // Allow charts to fill container height
 
             // --- Bar Plot Animation ---
-            const bars = document.querySelectorAll('.v-bar');
+            const bars = document.querySelectorAll('.v-barplot-bar');
             bars.forEach(bar => {
                 const targetWidth = bar.getAttribute('data-target-width');
                 setTimeout(() => {
