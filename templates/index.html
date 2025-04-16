@@ -302,6 +302,50 @@
     </div>
     {# --- END PanRes Example Section --- #}
 
+    {# --- Phenotype Distribution Chart --- #}
+    {% if phenotype_chart_data and phenotype_chart_data.segments %}
+        <div class="content-card chart-card">
+            <h3>Predicted Phenotype Distribution</h3>
+            <p>Distribution of predicted phenotypes across PanRes Genes.</p>
+            <div class="stacked-bar-chart-container">
+                <div class="stacked-bar">
+                    {% for segment in phenotype_chart_data.segments %}
+                        {# Optional: Make the bar segments clickable too? For now, just legend. #}
+                        <span class="stacked-bar-segment"
+                              data-target-width="{{ segment.percentage }}%"
+                              style="width: 0%; background-color: {{ segment.color }};"
+                              title="{{ segment.name }} ({{ '{:,}'.format(segment.count) }} genes, {{ '%.1f'|format(segment.percentage) }}%)">
+                        </span>
+                    {% endfor %}
+                </div>
+                <div class="chart-legend">
+                    {% for segment in phenotype_chart_data.segments %}
+                    {# Wrap legend item in a link to the related page #}
+                    <a href="/related/has_predicted_phenotype/{{ segment.name | urlencode }}" class="legend-link">
+                        <div class="legend-item">
+                            <span class="legend-color-box" style="background-color: {{ segment.color }};"></span>
+                            <span class="legend-label">{{ segment.name }}</span>
+                            <span class="legend-count">({{ '{:,}'.format(segment.count) }})</span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {# Animate the bars on load #}
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const segments = document.querySelectorAll('.stacked-bar-segment');
+                    segments.forEach(segment => {
+                        // Use setTimeout to ensure the transition happens after initial render
+                        setTimeout(() => {
+                            segment.style.width = segment.getAttribute('data-target-width');
+                        }, 100); // Small delay
+                    });
+                });
+            </script>
+        </div>
+    {% endif %}
+
     {# --- JavaScript for Charts and Animations --- #}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -343,61 +387,54 @@
 
                 if (ctxAntibiotic) {
                     new Chart(ctxAntibiotic, {
-                        type: 'doughnut',
+                        type: 'pie',
                         data: {
                             labels: antibioticLabels,
                             datasets: [{
                                 label: 'Gene Count',
                                 data: antibioticDataPoints,
                                 backgroundColor: antibioticColors,
+                                hoverOffset: 4
                             }]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            animation: {
-                                duration: 1200,
-                                easing: 'easeOutQuart',
-                                animateRotate: true,
-                                animateScale: false
-                            },
-                            cutout: '60%',
                             plugins: {
                                 legend: {
-                                    position: 'bottom',
-                                    labels: {
-                                        boxWidth: 12,
-                                        padding: 10,
-                                        color: getComputedStyle(document.body).getPropertyValue('--color-text').trim(),
-                                        font: {
-                                            size: 11
-                                        }
-                                    }
+                                    position: 'right',
                                 },
                                 tooltip: {
-                                    callbacks: {
+                                     callbacks: {
                                         label: function(context) {
                                             let label = context.label || '';
-                                            if (label) { label += ': '; }
+                                            if (label) {
+                                                label += ': ';
+                                            }
                                             if (context.parsed !== null) {
-                                                const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                                const value = context.parsed;
-                                                const percentage = ((value / total) * 100).toFixed(1);
-                                                label += value.toLocaleString() + ` (${percentage}%)`;
+                                                // Format number with commas
+                                                label += context.parsed.toLocaleString();
                                             }
                                             return label;
                                         }
-                                    },
-                                    backgroundColor: 'rgba(0,0,0,0.7)',
-                                    titleFont: { size: 14 },
-                                    bodyFont: { size: 12 },
-                                    padding: 10,
-                                    cornerRadius: 3
-                                },
-                                datalabels: {
-                                    display: false
+                                    }
+                                }
+                            },
+                            // --- UPDATE: Add onClick handler ---
+                            onClick: (event, elements) => {
+                                if (elements.length > 0) {
+                                    const chartElement = elements[0];
+                                    const index = chartElement.index;
+                                    const label = antibioticLabels[index];
+                                    if (label) {
+                                        // Construct the URL for the related items page
+                                        const relatedUrl = `/related/has_resistance_class/${encodeURIComponent(label)}`;
+                                        // Navigate to the URL
+                                        window.location.href = relatedUrl;
+                                    }
                                 }
                             }
+                            // --- END UPDATE ---
                         }
                     });
                 }

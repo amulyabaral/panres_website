@@ -810,102 +810,16 @@ def list_items(category_key=None, query_type=None, query_target_value=None):
     )
 
 
-@app.route('/related/<predicate>/<path:object_value>')
-def genes_related_to(predicate, object_value):
+# Renamed function and explicitly set endpoint name to avoid conflict with list_items
+@app.route('/related/<query_type>/<query_target_value>', endpoint='show_related_items')
+def show_related_items(query_type, query_target_value):
     """
-    Lists genes (subjects) related to a specific object via a predicate.
-    Example: /related/is_from_database/CARD lists genes from CARD.
-    Enhancement: If predicate is 'is_from_database', group genes by resistance class.
+    Route to display items related to a specific target value via a specific property.
+    This acts as a wrapper and calls the main list_items function/template.
     """
-    db = get_db()
-    decoded_object_value = unquote(object_value)
-
-    app.logger.info(f"Fetching subjects related to object '{decoded_object_value}' via predicate '{predicate}'")
-
-    # --- FIX: Get predicate map from app config ---
-    predicate_map = current_app.config.get('PREDICATE_DISPLAY_NAMES', {})
-    index_categories = current_app.config.get('INDEX_CATEGORIES', {}) # Also get index_categories here
-    # --- END FIX ---
-
-    # Basic query to find related subjects (genes)
-    cursor_subjects = db.execute(
-        "SELECT DISTINCT subject FROM Triples WHERE predicate = ? AND object = ?",
-        (predicate, decoded_object_value)
-    )
-    genes_raw = cursor_subjects.fetchall()
-    gene_ids = [row['subject'] for row in genes_raw]
-    # --- Calculate total count ---
-    total_gene_count = len(gene_ids)
-    # --- End calculation ---
-
-    page_title = f"Source Genes from {predicate_map.get(predicate, predicate)}: {decoded_object_value}"
-    description = f"Listing Source Genes (<code>OriginalGene</code>) originating from the {predicate_map.get(predicate, predicate)} <code>{decoded_object_value}</code>."
-
-    grouped_genes = None
-    genes_list_for_template = []
-
-    # --- Grouping Logic for 'is_from_database' ---
-    if predicate == IS_FROM_DATABASE and gene_ids:
-        grouped_genes = defaultdict(lambda: {'id': None, 'genes': []})
-
-        # Fetch resistance class for each gene
-        placeholders = ','.join('?' for _ in gene_ids)
-        query_classes = f"""
-            SELECT subject, object
-            FROM Triples
-            WHERE predicate = ? AND subject IN ({placeholders})
-        """
-        try:
-            cursor_classes = db.execute(query_classes, [HAS_RESISTANCE_CLASS] + gene_ids)
-            gene_class_pairs = cursor_classes.fetchall()
-
-            # Map genes to their classes
-            gene_to_classes = defaultdict(list)
-            for row in gene_class_pairs:
-                gene_to_classes[row['subject']].append(row['object'])
-
-            # Populate the grouped_genes structure
-            for gene_id in gene_ids:
-                classes = gene_to_classes.get(gene_id)
-                gene_data = {'id': gene_id, 'link': url_for('details', item_id=gene_id)}
-
-                if classes:
-                    for resistance_class in classes:
-                        display_label = resistance_class # Use ID as label for now
-                        grouped_genes[display_label]['id'] = resistance_class
-                        grouped_genes[display_label]['genes'].append(gene_data)
-                else:
-                    grouped_genes['No Class Assigned']['genes'].append(gene_data)
-
-            # Sort groups
-            grouped_genes = dict(sorted(grouped_genes.items(), key=lambda item: (item[0] == 'No Class Assigned', item[0].lower())))
-
-        except sqlite3.Error as e:
-             app.logger.error(f"Error fetching resistance classes for genes from {decoded_object_value}: {e}")
-             grouped_genes = None
-             # Prepare flat list only if grouping fails
-             genes_list_for_template = [{'id': gid, 'link': url_for('details', item_id=gid)} for gid in gene_ids]
-
-    # Prepare flat list if not grouping or if grouping failed
-    if not grouped_genes:
-         genes_list_for_template = [{'id': gid, 'link': url_for('details', item_id=gid)} for gid in gene_ids]
-
-
-    return render_template(
-        'related_genes.html',
-        page_title=page_title,
-        description=description,
-        predicate=predicate,
-        object_value=decoded_object_value,
-        genes=genes_list_for_template, # Pass the flat list (used if not grouping or if grouping failed)
-        grouped_genes=grouped_genes,   # Pass the grouped structure (can be None)
-        is_grouped_view=(predicate == IS_FROM_DATABASE and grouped_genes is not None),
-        # --- Pass the total count ---
-        total_gene_count=total_gene_count,
-        # --- End passing count ---
-        index_categories=index_categories,
-        predicate_map=predicate_map
-    )
+    app.logger.info(f"Showing related items for type '{query_type}' and value '{query_target_value}'")
+    # Call the same function but indicate it's a related query
+    return list_items(query_type=query_type, query_target_value=query_target_value)
 
 
 @app.route('/details/<path:item_id>')
