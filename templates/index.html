@@ -172,8 +172,7 @@
     {# --- NEW: PanRes Example Section --- #}
     <div class="example-section">
         <p class="example-intro">
-            Unique gene sequences are then curated in PanRes, consolidating information from multiple sources.
-            Take a look at this example:
+            Unique gene sequences are then curated in PanRes. Take a look at this example:
         </p>
         {% if pan_1_details %}
         <div class="gene-example-container">
@@ -257,17 +256,6 @@
                 {# Column 3: Source Info #}
                 <div class="example-column">
                      <dl class="example-details-list">
-                         {% if pan_1_details.grouped_properties['is_from_database'] %}
-                         <dt>Source Database</dt>
-                         <dd>
-                             <ul>
-                             {% for prop in pan_1_details.grouped_properties['is_from_database'] %}
-                                 <li><a href="{{ prop.link }}"><code>{{ prop.value }}</code></a></li>
-                             {% endfor %}
-                             </ul>
-                         </dd>
-                         {% endif %}
-
                          {% if pan_1_details.grouped_properties['same_as'] %}
                          <dt>Equivalent To / Also Known As</dt>
                          <dd>
