@@ -86,34 +86,96 @@
 
         </div> {# End list-grouping-container #}
 
-    {% elif is_sourcegen_list and grouped_by_database %}
-        {# --- NEW: Source Gene Grouped View --- #}
-        <div class="list-grouping-container single-column"> {# Use single-column layout #}
-            <div class="grouping-card">
-                <h3>Grouped by Source Database</h3>
-                <div class="accordion">
-                    {% for db_name, gene_list in grouped_by_database.items() %}
-                        <div class="accordion-item">
-                            <button class="accordion-header" aria-expanded="false">
-                                {# Display Database Name - Link to the filtered list page #}
-                                <a href="{{ url_for('genes_related_to', predicate='is_from_database', object_value=db_name) }}" class="group-label-link" title="View only genes from {{ db_name }}">
-                                    {{ db_name }}
-                                </a>
-                                <span class="accordion-count">({{ gene_list|length }})</span>
-                                <span class="accordion-icon">+</span>
-                            </button>
-                            <div class="accordion-content" style="display: none;"> {# Content hidden by default #}
-                                <ul class="grouped-item-list">
-                                    {% for gene_id in gene_list %}
-                                        <li><a href="{{ url_for('details', item_id=gene_id) }}"><code>{{ gene_id }}</code></a></li>
+    {% elif is_sourcegen_list and grouped_data %}
+        {# --- NEW: Source Gene Nested Grouped View --- #}
+        <p>Displaying Source Genes grouped by their original database, then by class and phenotype.</p>
+        {# Outer Accordion for Databases #}
+        <div class="accordion">
+            {% for db_name, db_data in grouped_data.items() %}
+                <div class="accordion-item">
+                    {# Database Header #}
+                    <button class="accordion-header" aria-expanded="false">
+                        {# Link to a filtered list (optional, could be complex) or just display name #}
+                        {# <a href="{{ url_for('genes_related_to', predicate=IS_FROM_DATABASE, object_value=db_name) }}" class="group-label-link" title="View only genes from {{ db_name }}"> #}
+                            {{ db_name }}
+                        {# </a> #}
+                        <span class="accordion-count">({{ db_data.genes|length }} genes)</span>
+                        <span class="accordion-icon">+</span>
+                    </button>
+
+                    {# Content for this Database Group #}
+                    <div class="accordion-content" style="display: none;">
+                        {# Container for Class/Phenotype cards within this DB #}
+                        {# Using single-column for simplicity as requested, nested #}
+                        <div class="list-grouping-container single-column nested-grouping">
+
+                            {# Card for Resistance Classes within this DB #}
+                            {% if db_data.classes %}
+                            <div class="grouping-card">
+                                <h4>Grouped by Resistance Class</h4>
+                                <div class="accordion nested-accordion">
+                                    {% for class_label, gene_list in db_data.classes.items() %}
+                                        <div class="accordion-item">
+                                            <button class="accordion-header" aria-expanded="false">
+                                                {# Link to the general class list page #}
+                                                <a href="{{ url_for('list_items', query_type='class', query_target_value=class_label) }}" class="group-label-link" title="View all items in class '{{ class_label }}'">{{ class_label }}</a>
+                                                <span class="accordion-count">({{ gene_list|length }})</span>
+                                                <span class="accordion-icon">+</span>
+                                            </button>
+                                            <div class="accordion-content" style="display: none;">
+                                                <ul class="grouped-item-list">
+                                                    {% for gene_id in gene_list %}
+                                                        <li><a href="{{ url_for('details', item_id=gene_id) }}"><code>{{ gene_id }}</code></a></li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <p>No specific classes found for genes from this database.</p>
                                     {% endfor %}
-                                </ul>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div> {# End list-grouping-container #}
+                                </div> {# End nested-accordion for classes #}
+                            </div> {# End grouping-card for classes #}
+                            {% else %}
+                                <div class="grouping-card"><p>No resistance class information found for genes from this database.</p></div>
+                            {% endif %}
+
+                            {# Card for Phenotypes within this DB #}
+                            {% if db_data.phenotypes %}
+                            <div class="grouping-card">
+                                <h4>Grouped by Predicted Phenotype</h4>
+                                 <div class="accordion nested-accordion">
+                                    {% for phenotype_label, gene_list in db_data.phenotypes.items() %}
+                                        <div class="accordion-item">
+                                            <button class="accordion-header" aria-expanded="false">
+                                                {# Link to the general phenotype list page #}
+                                                <a href="{{ url_for('list_items', query_type='phenotype', query_target_value=phenotype_label) }}" class="group-label-link" title="View all items with phenotype '{{ phenotype_label }}'">{{ phenotype_label }}</a>
+                                                <span class="accordion-count">({{ gene_list|length }})</span>
+                                                <span class="accordion-icon">+</span>
+                                            </button>
+                                            <div class="accordion-content" style="display: none;">
+                                                <ul class="grouped-item-list">
+                                                    {% for gene_id in gene_list %}
+                                                        <li><a href="{{ url_for('details', item_id=gene_id) }}"><code>{{ gene_id }}</code></a></li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                         <p>No specific phenotypes found for genes from this database.</p>
+                                    {% endfor %}
+                                </div> {# End nested-accordion for phenotypes #}
+                            </div> {# End grouping-card for phenotypes #}
+                            {% else %}
+                                 <div class="grouping-card"><p>No predicted phenotype information found for genes from this database.</p></div>
+                            {% endif %}
+
+                        </div> {# End nested list-grouping-container #}
+                    </div> {# End DB accordion-content #}
+                </div> {# End DB accordion-item #}
+            {% else %}
+                <p>No source genes found matching the criteria.</p>
+            {% endfor %}
+        </div> {# End outer accordion for databases #}
 
     {% else %}
         {# --- Default Simple List View --- #}

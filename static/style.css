@@ -1095,3 +1095,56 @@ footer {
     margin-left: 2px;
 }
 
+.details-card .details-list.single-item dd {
+    margin-bottom: 0;
+}
+
+/* Style for nested grouping container within an accordion */
+.nested-grouping {
+    padding-left: 1.5rem; /* Indent nested groups */
+    margin-top: 0.8rem;  /* Space above nested groups */
+    margin-bottom: 0.8rem; /* Space below nested groups */
+    border-left: 3px solid var(--color-border); /* Visual cue for nesting */
+    padding-top: 0.5rem;
+    padding-bottom: 0.1rem; /* Reduce bottom padding */
+    background-color: #fdfdfd; /* Slightly different background for nested area */
+}
+
+/* Adjust nested accordion headers */
+.nested-accordion .accordion-header {
+    /* Slightly smaller font and less padding */
+    font-size: 0.95em;
+    padding: 0.6rem 1rem;
+    background-color: #f0f0f0; /* Different background for nested headers */
+    border-bottom: 1px solid var(--color-border);
+}
+.nested-accordion .accordion-header:hover {
+    background-color: #e9ecef;
+}
+
+
+.nested-grouping .grouping-card {
+    margin-bottom: 0.8rem; /* Space between nested cards */
+    box-shadow: none; /* Remove shadow for nested cards if desired */
+    border: 1px solid var(--color-border); /* Add border instead? */
+}
+
+.nested-grouping .grouping-card h4 {
+    font-size: 1.05rem; /* Slightly smaller heading for nested groups */
+    margin-bottom: 0.6rem;
+    color: var(--color-text-muted);
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.nested-accordion .accordion-content {
+    padding-top: 0.5rem;
+}
+
+.external-link::after {
+    content: ' \2197';
+    font-size: 0.8em;
+    vertical-align: super;
+    margin-left: 2px;
+}
+

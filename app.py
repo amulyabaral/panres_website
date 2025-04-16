@@ -375,10 +375,11 @@ def index():
 
 
 @app.route('/list/<category_key>')
-def list_items(category_key):
+@app.route('/list/<query_type>/<path:query_target_value>')
+def list_items(category_key=None, query_type=None, query_target_value=None):
     """Lists all items belonging to a specific category."""
     db = get_db()
-    decoded_category_key = unquote(category_key)
+    decoded_category_key = unquote(category_key) if category_key else unquote(query_target_value)
     app.logger.info(f"Listing items for category key: {decoded_category_key}")
 
     # --- Get Configuration ---
@@ -388,8 +389,8 @@ def list_items(category_key):
 
     category_config = current_app.config['INDEX_CATEGORIES'][decoded_category_key]
     category_display_name = decoded_category_key
-    query_type = category_config.get('query_type')
-    query_target_value = category_config.get('value')
+    query_type = query_type or category_config.get('query_type')
+    query_target_value = query_target_value or category_config.get('value')
 
     if not query_type or not query_target_value:
          app.logger.error(f"Incomplete configuration for category key: {decoded_category_key}")
@@ -400,12 +401,12 @@ def list_items(category_key):
     items = []
     grouped_by_class = None
     grouped_by_phenotype = None
-    grouped_by_database = None # Add variable for source gene grouping
+    grouped_data = None # Changed from grouped_by_database
     is_pangen_list = (query_type == 'type' and query_target_value == 'PanGene')
-    # --- Add flag for Source Gene list ---
     is_sourcegen_list = (query_type == 'type' and query_target_value == 'OriginalGene')
 
     try:
+        # --- PanGene Grouping (remains the same) ---
         if is_pangen_list:
             # --- Revised PanGene Grouping Strategy ---
             app.logger.debug(f"Fetching PanGenes and grouping (Revised Strategy)")
@@ -496,9 +497,9 @@ def list_items(category_key):
                 }
                 app.logger.debug(f"Finished grouping (Revised). Found {len(grouped_by_class)} classes and {len(grouped_by_phenotype)} phenotypes.")
 
+        # --- NEW: Source Gene Nested Grouping Strategy ---
         elif is_sourcegen_list:
-            # --- NEW: Source Gene Grouping Strategy ---
-            app.logger.debug(f"Fetching SourceGenes (target: {query_target_value}) and grouping by database.")
+            app.logger.debug(f"Fetching SourceGenes (target: {query_target_value}) and grouping by database, class, and phenotype.")
 
             # 1. Get all OriginalGene IDs
             cursor_genes = db.execute(
@@ -512,33 +513,78 @@ def list_items(category_key):
             if not all_genes_in_category:
                  app.logger.info("No OriginalGenes found, skipping grouping.")
             else:
-                # Create placeholders for the IN clause
+                # 2. Fetch all relevant triples for these genes efficiently
                 gene_placeholders = ','.join('?' * len(all_genes_in_category))
-
-                # 2. Fetch Gene -> Database Name relationships
-                query_databases = f"""
-                    SELECT subject AS gene_id, object AS database_name
+                query_triples = f"""
+                    SELECT subject, predicate, object, object_is_literal
                     FROM triples
-                    WHERE predicate = ? AND subject IN ({gene_placeholders})
-                      AND object_is_literal = 1 -- Ensure database name is literal
+                    WHERE subject IN ({gene_placeholders})
+                      AND predicate IN (?, ?, ?, ?) -- Fetch Type, DB, Class, Phenotype triples
                 """
-                cursor_databases = db.execute(query_databases, (IS_FROM_DATABASE, *all_genes_in_category))
-                gene_to_db_pairs = cursor_databases.fetchall()
-                app.logger.debug(f"Found {len(gene_to_db_pairs)} gene-database relationships.")
+                # Ensure the order of predicates matches the placeholders
+                predicates_to_fetch = [RDF_TYPE, IS_FROM_DATABASE, HAS_RESISTANCE_CLASS, HAS_PREDICTED_PHENOTYPE]
+                cursor_triples = db.execute(query_triples, (*all_genes_in_category, *predicates_to_fetch))
+                all_triples = cursor_triples.fetchall()
+                app.logger.debug(f"Fetched {len(all_triples)} relevant triples for {len(all_genes_in_category)} genes.")
 
-                # 3. Group in Python
-                grouped_by_database_temp = defaultdict(set) # Simpler structure: {db_name: {gene1, gene2}}
-                for pair in gene_to_db_pairs:
-                    db_name = pair['database_name']
-                    if db_name: # Should always be true based on query, but check anyway
-                        grouped_by_database_temp[db_name].add(pair['gene_id'])
+                # 3. Process triples to build the nested structure
+                # { db_name: { 'genes': {gene1, gene2}, 'classes': {class_label: {gene1, gene3}}, 'phenotypes': {pheno_label: {gene2, gene3}} } }
+                grouped_data_temp = defaultdict(lambda: {
+                    'genes': set(),
+                    'classes': defaultdict(set),
+                    'phenotypes': defaultdict(set)
+                })
+                gene_to_db = {} # Helper to know which DB a gene belongs to
 
-                # Convert sets to sorted lists and sort groups by database name
-                grouped_by_database = {
-                    db_name: sorted(list(genes))
-                    for db_name, genes in sorted(grouped_by_database_temp.items())
-                }
-                app.logger.debug(f"Finished grouping by database. Found {len(grouped_by_database)} databases.")
+                # First pass: Assign genes to databases
+                for triple in all_triples:
+                    gene_id = triple['subject']
+                    predicate = triple['predicate']
+                    obj = triple['object']
+                    if predicate == IS_FROM_DATABASE and triple['object_is_literal']:
+                        db_name = obj
+                        if db_name:
+                            # Use a canonical name if needed, e.g., strip whitespace
+                            db_name = db_name.strip()
+                            grouped_data_temp[db_name]['genes'].add(gene_id)
+                            gene_to_db[gene_id] = db_name # Store mapping
+
+                # Second pass: Assign classes and phenotypes within the correct database
+                for triple in all_triples:
+                    gene_id = triple['subject']
+                    predicate = triple['predicate']
+                    obj = triple['object']
+                    db_name = gene_to_db.get(gene_id)
+
+                    if db_name: # Only process if gene belongs to a known database
+                        if predicate == HAS_RESISTANCE_CLASS and not triple['object_is_literal']:
+                            # Fetch label for the class URI (object)
+                            class_label = get_label(db, obj) or obj # Fallback to URI if no label
+                            if class_label:
+                                grouped_data_temp[db_name]['classes'][class_label.strip()].add(gene_id)
+                        elif predicate == HAS_PREDICTED_PHENOTYPE and not triple['object_is_literal']:
+                            # Fetch label for the phenotype URI (object)
+                            phenotype_label = get_label(db, obj) or obj # Fallback to URI if no label
+                            if phenotype_label:
+                                grouped_data_temp[db_name]['phenotypes'][phenotype_label.strip()].add(gene_id)
+
+                # 4. Convert sets to sorted lists and sort groups
+                grouped_data = {}
+                for db_name, data in sorted(grouped_data_temp.items()):
+                    # Only include databases that actually have genes associated
+                    if data['genes']:
+                        grouped_data[db_name] = {
+                            'genes': sorted(list(data['genes'])), # Total genes in this DB group
+                            'classes': {
+                                class_label: sorted(list(genes))
+                                for class_label, genes in sorted(data['classes'].items())
+                            },
+                            'phenotypes': {
+                                phenotype_label: sorted(list(genes))
+                                for phenotype_label, genes in sorted(data['phenotypes'].items())
+                            }
+                        }
+                app.logger.debug(f"Finished nested grouping for SourceGenes. Found {len(grouped_data)} databases.")
 
         else:
             # --- Default handling for other categories (remains the same) ---
@@ -571,7 +617,7 @@ def list_items(category_key):
     # Adjusted condition to handle different grouping scenarios
     no_items_found = not items and not (
         (is_pangen_list and (grouped_by_class or grouped_by_phenotype)) or
-        (is_sourcegen_list and grouped_by_database)
+        (is_sourcegen_list and grouped_data)
     )
     if no_items_found:
          app.logger.warning(f"No items found for category: {decoded_category_key}. Rendering empty list.")
@@ -586,8 +632,8 @@ def list_items(category_key):
         is_pangen_list=is_pangen_list,
         grouped_by_class=grouped_by_class,
         grouped_by_phenotype=grouped_by_phenotype,
-        is_sourcegen_list=is_sourcegen_list, # Pass new flag
-        grouped_by_database=grouped_by_database, # Pass new grouped data
+        grouped_data=grouped_data, # Pass the new nested structure
+        is_sourcegen_list=is_sourcegen_list,
         query_type=query_type
     )
 
