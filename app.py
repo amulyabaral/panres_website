@@ -661,13 +661,15 @@ def genes_related_to(predicate, object_value):
     )
     genes_raw = cursor_subjects.fetchall()
     gene_ids = [row['subject'] for row in genes_raw]
+    # --- Calculate total count ---
+    total_gene_count = len(gene_ids)
+    # --- End calculation ---
 
-    # Now use the fetched predicate_map
     page_title = f"Source Genes from {predicate_map.get(predicate, predicate)}: {decoded_object_value}"
     description = f"Listing Source Genes (<code>OriginalGene</code>) originating from the {predicate_map.get(predicate, predicate)} <code>{decoded_object_value}</code>."
 
     grouped_genes = None
-    genes_list_for_template = [] # Default flat list
+    genes_list_for_template = []
 
     # --- Grouping Logic for 'is_from_database' ---
     if predicate == IS_FROM_DATABASE and gene_ids:
@@ -708,10 +710,11 @@ def genes_related_to(predicate, object_value):
         except sqlite3.Error as e:
              app.logger.error(f"Error fetching resistance classes for genes from {decoded_object_value}: {e}")
              grouped_genes = None
+             # Prepare flat list only if grouping fails
              genes_list_for_template = [{'id': gid, 'link': url_for('details', item_id=gid)} for gid in gene_ids]
 
-    else:
-        # For other predicates, prepare the simple list
+    # Prepare flat list if not grouping or if grouping failed
+    if not grouped_genes:
          genes_list_for_template = [{'id': gid, 'link': url_for('details', item_id=gid)} for gid in gene_ids]
 
 
@@ -721,10 +724,12 @@ def genes_related_to(predicate, object_value):
         description=description,
         predicate=predicate,
         object_value=decoded_object_value,
-        genes=genes_list_for_template,
-        grouped_genes=grouped_genes,
+        genes=genes_list_for_template, # Pass the flat list (used if not grouping or if grouping failed)
+        grouped_genes=grouped_genes,   # Pass the grouped structure (can be None)
         is_grouped_view=(predicate == IS_FROM_DATABASE and grouped_genes is not None),
-        # Pass the maps fetched earlier
+        # --- Pass the total count ---
+        total_gene_count=total_gene_count,
+        # --- End passing count ---
         index_categories=index_categories,
         predicate_map=predicate_map
     )

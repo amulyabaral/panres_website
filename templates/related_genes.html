@@ -9,7 +9,7 @@
     {# --- Conditional Display: Grouped View or Flat List --- #}
     {% if is_grouped_view and grouped_genes %}
         {# --- Grouped View (by Resistance Class) --- #}
-        <p>Found {{ grouped_genes.values() | map(attribute='genes') | sum(attribute='length') }} related gene(s), grouped by Resistance Class:</p>
+        <p>Found {{ total_gene_count }} related gene(s), grouped by Resistance Class:</p>
 
         <div class="list-grouping-container related-genes-grouping"> {# Add specific class #}
             <div class="accordion">
@@ -23,7 +23,7 @@
                                 {# Display label without link (e.g., for 'No Class Assigned') #}
                                 <code>{{ class_label }}</code>
                             {% endif %}
-                            <span class="accordion-count">({{ data.genes|length }})</span>
+                            <span class="accordion-count">({{ data.genes | length }})</span>
                             <span class="accordion-icon">+</span>
                         </button>
                         <div class="accordion-content" style="display: none;"> {# Content hidden by default #}
@@ -44,7 +44,7 @@
 
     {% elif genes %}
         {# --- Flat List View (Fallback or other predicates) --- #}
-        <p>Found {{ genes|length }} related gene(s):</p>
+        <p>Found {{ total_gene_count }} related gene(s):</p>
         <ul class="item-list"> {# Reuse item-list style #}
             {% for gene in genes %}
                 <li>
