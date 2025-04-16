@@ -190,7 +190,11 @@
                         {% elif query_type == 'predicate_object' %}
                             {# Items are objects (like Databases, Classes), link to related genes page #}
                             {# We need the predicate (query_target_value) for the related genes link #}
-                            <a href="{{ url_for('genes_related_to', predicate=query_target_value, object_value=item) }}">{{ item }}</a>
+                            {# --- UPDATE url_for HERE --- #}
+                            {# The 'query_type' for the related page is the predicate we are currently listing objects for #}
+                            {# The 'query_target_value' for the related page is the specific object (item) clicked #}
+                            <a href="{{ url_for('show_related_items', query_type=query_target_value, query_target_value=item) }}">{{ item }}</a>
+                            {# --- END UPDATE --- #}
                         {% else %}
                             {# Fallback or handle other query_types if added #}
                             {{ item }}

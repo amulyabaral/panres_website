@@ -94,6 +94,14 @@ DONUT_CHART_COLORS = PIE_CHART_COLORS[1:] + PIE_CHART_COLORS[:1]
 # Ensure RDF_TYPE, RDFS_LABEL, HAS_RESISTANCE_CLASS, HAS_PREDICTED_PHENOTYPE are defined globally
 IS_FROM_DATABASE = 'is_from_database' # Define constant for clarity
 
+# --- Define Predicates that should link to related items list ---
+LINK_TO_RELATED_PREDICATES = {
+    'is_from_database',
+    'has_resistance_class',
+    'has_predicted_phenotype',
+    # Add others if needed, e.g., 'member_of' if clusters should link to members
+}
+
 # --- Flask App Setup ---
 app = Flask(__name__)
 app.config['DATABASE'] = DATABASE
@@ -188,11 +196,11 @@ def get_item_details(item_id):
     # Fetch outgoing properties
     try:
         cursor_props = db.execute(
-            "SELECT predicate, object, object_is_literal, object_datatype FROM Triples WHERE subject = ?",
+            "SELECT predicate, object, object_is_literal FROM Triples WHERE subject = ?",
             (item_id,)
         )
-        properties = [dict(row) for row in cursor_props.fetchall()]
-        app.logger.debug(f"Helper: Found {len(properties)} outgoing properties for {item_id}")
+        raw_properties = cursor_props.fetchall()
+        app.logger.debug(f"Helper: Found {len(raw_properties)} outgoing properties for {item_id}")
     except sqlite3.Error as e:
         app.logger.error(f"Helper: Error fetching properties for '{item_id}': {e}")
         return None # Indicate error or not found
@@ -203,15 +211,15 @@ def get_item_details(item_id):
             "SELECT subject, predicate FROM Triples WHERE object = ? AND object_is_literal = 0",
             (item_id,)
         )
-        references = [dict(row) for row in cursor_refs.fetchall()]
-        app.logger.debug(f"Helper: Found {len(references)} incoming references for {item_id}")
+        raw_references = cursor_refs.fetchall()
+        app.logger.debug(f"Helper: Found {len(raw_references)} incoming references for {item_id}")
     except sqlite3.Error as e:
         app.logger.error(f"Helper: Error fetching references for '{item_id}': {e}")
         # Decide if this is critical - maybe proceed without references? For now, return None.
         return None
 
     # Check if item exists (basic check based on properties/references)
-    if not properties and not references:
+    if not raw_properties and not raw_references:
         app.logger.warning(f"Helper: No data found for item_id: {item_id}.")
         return None # Item not found
 
@@ -237,30 +245,26 @@ def get_item_details(item_id):
     index_categories = current_app.config.get('INDEX_CATEGORIES', {}) # Get categories for type mapping
 
     # Process properties
-    for prop in properties:
-        predicate = prop['predicate']
-        value = prop['object']
-        is_literal = prop['object_is_literal']
+    for row in raw_properties:
+        predicate = row['predicate']
+        prop_value = row['object']
+        is_literal = row['object_is_literal'] == 1
 
-        prop_data = {
-            'value': value,
-            'is_literal': is_literal,
-            'link': None if is_literal else url_for('details', item_id=value),
-            'extra_info': None
-        }
+        prop_link = None
+        extra_info = None
 
         if predicate == RDF_TYPE:
-            item_details['types'].append(value)
-            if value in preferred_types and not found_preferred_type:
-                found_preferred_type = value
+            item_details['types'].append(prop_value)
+            if prop_value in preferred_types and not found_preferred_type:
+                found_preferred_type = prop_value
             continue # Don't add rdf:type to grouped_properties
 
         if predicate == RDFS_LABEL and not item_details['label']:
-            item_details['label'] = value # Capture first label
+            item_details['label'] = prop_value # Capture first label
             continue
 
         if predicate in DESCRIPTION_PREDICATES and not item_details['comment']:
-            item_details['comment'] = value # Capture first comment/description
+            item_details['comment'] = prop_value # Capture first comment/description
             continue
 
         # Add extra info for OriginalGene links if it's a PanGene view later
@@ -274,15 +278,44 @@ def get_item_details(item_id):
                         WHERE T_type.subject = ?
                           AND T_type.predicate = ? AND T_type.object = ?
                           AND T_db.predicate = ? LIMIT 1""",
-                     (value, RDF_TYPE, 'OriginalGene', 'is_from_database')
+                     (prop_value, RDF_TYPE, 'OriginalGene', 'is_from_database')
                  )
                  db_info = cursor_orig_db.fetchone()
                  if db_info:
-                     prop_data['extra_info'] = f"(from {db_info['object']})"
+                     extra_info = f"(from {db_info['object']})"
              except sqlite3.Error as e_extra:
-                 app.logger.warning(f"Helper: Could not fetch extra DB info for {value}: {e_extra}")
+                 app.logger.warning(f"Helper: Could not fetch extra DB info for {prop_value}: {e_extra}")
 
-        item_details['grouped_properties'][predicate].append(prop_data)
+        # --- MODIFIED LINK LOGIC ---
+        # Check if this predicate should link to the related items list
+        if predicate in LINK_TO_RELATED_PREDICATES:
+            prop_link = url_for('show_related_items', query_type=predicate, query_target_value=prop_value)
+        # Special case for 'same_as' potentially linking to external URLs or other internal items
+        elif predicate == 'same_as':
+             # Try generating a details link; could add logic here to detect external URLs if needed
+             prop_link = url_for('details', item_id=prop_value)
+             # Add extra info for 'same_as' if it comes from a specific DB
+             # Example: Check if prop_value contains hints like 'ResFinder', 'CARD', etc.
+             # This is simplified; a more robust way might involve querying the source of the 'same_as' triple
+             if '(from ' in prop_value and prop_value.endswith(')'):
+                 start = prop_value.rfind('(from ') + 7
+                 end = prop_value.rfind(')')
+                 if start < end:
+                     extra_info = f"(from {prop_value[start:end]})"
+                     # Clean the display value
+                     prop_value = prop_value[:prop_value.rfind(' (from ')].strip()
+
+        # Default: link to the details page of the object
+        else:
+            prop_link = url_for('details', item_id=prop_value)
+        # --- END MODIFIED LINK LOGIC ---
+
+        item_details['grouped_properties'][predicate].append({
+            'value': prop_value,
+            'is_literal': is_literal,
+            'link': prop_link,
+            'extra_info': extra_info
+        })
 
     # Determine primary type and category key
     primary_type = found_preferred_type or next((t for t in item_details['types'] if t != 'owl:NamedIndividual'), None)
@@ -298,7 +331,7 @@ def get_item_details(item_id):
              item_details['primary_type_display'] = primary_type
 
     # Group incoming references
-    for ref in references:
+    for ref in raw_references:
          ref_data = {
              'subject': ref['subject'],
              'link': url_for('details', item_id=ref['subject'])
