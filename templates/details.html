@@ -174,18 +174,26 @@
                                     <li>
                                         {% if prop.is_literal %}
                                             <span class="value-literal">{{ prop.value }}</span>
-                                            {# Removed datatype display #}
                                         {% else %}
-                                            {# Assign classes based on predicate for potential styling #}
-                                            {% set value_class = 'value-link' %}
-                                            {% if predicate == 'is_from_database' %}
-                                                {% set value_class = value_class + ' value-database' %}
-                                            {% elif predicate == 'has_resistance_class' %}
-                                                {% set value_class = value_class + ' value-resistance-class' %}
-                                            {% elif predicate == 'has_predicted_phenotype' %}
-                                                {% set value_class = value_class + ' value-phenotype' %}
+                                            {# --- ADD/MODIFY CARD LINK HANDLING --- #}
+                                            {% if predicate == 'card_link' %}
+                                                {# Special handling for clickable CARD link, remove code tag #}
+                                                <a href="{{ prop.value }}" target="_blank" rel="noopener noreferrer" class="value-link external-link">
+                                                    {{ prop.value }} {# Display URL directly #}
+                                                </a>
+                                            {% else %}
+                                                {# Default link for other non-literal objects #}
+                                                {% set value_class = 'value-link' %}
+                                                {% if predicate == 'is_from_database' %}
+                                                    {% set value_class = value_class + ' value-database' %}
+                                                {% elif predicate == 'has_resistance_class' %}
+                                                    {% set value_class = value_class + ' value-resistance-class' %}
+                                                {% elif predicate == 'has_predicted_phenotype' %}
+                                                    {% set value_class = value_class + ' value-phenotype' %}
+                                                {% endif %}
+                                                <a href="{{ prop.link }}" class="{{ value_class }}"><code>{{ prop.value }}</code></a>
                                             {% endif %}
-                                            <a href="{{ prop.link }}" class="{{ value_class }}"><code>{{ prop.value }}</code></a>
+                                            {# --- END CARD LINK HANDLING --- #}
                                             {% if prop.extra_info %}
                                                 <span class="extra-info">{{ prop.extra_info }}</span>
                                             {% endif %}

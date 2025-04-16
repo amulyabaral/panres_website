@@ -987,13 +987,13 @@ footer {
 }
 
 .gene-id-highlight {
-    font-size: 1.8rem;
-    font-weight: 600;
-    color: var(--color-primary-dark);
+    font-size: 1.6rem;
     margin-bottom: 0.2rem;
-    padding-bottom: 0.3rem;
-    border-bottom: 2px solid var(--color-primary);
-    display: inline-block;
+    font-family: var(--font-mono);
+    color: var(--color-text);
+    font-weight: 700;
+    text-decoration: none;
+    margin-top: 0;
 }
 .gene-id-highlight code {
     font-size: inherit;
@@ -1005,23 +1005,26 @@ footer {
 }
 
 .gene-type-subheader {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     color: var(--color-text-muted);
     margin-top: 0;
     margin-bottom: 1.5rem;
+    font-weight: normal;
+    text-decoration: none;
 }
 .gene-type-subheader a {
-    color: var(--color-text-muted);
-    text-decoration: underline;
+    color: var(--color-primary-dark);
+    text-decoration: none;
+    font-weight: normal;
 }
 .gene-type-subheader a:hover {
-    color: var(--color-primary-dark);
+    text-decoration: underline;
 }
 .gene-type-subheader code {
     font-size: 0.9em;
-    background-color: var(--color-code-bg);
-    border: var(--border-default);
-    padding: 0.1em 0.3em;
+    background-color: transparent;
+    color: var(--color-text-muted);
+    padding: 0;
 }
 
 .details-pangen-grid {
@@ -1056,6 +1059,7 @@ footer {
     color: var(--color-text);
     border-bottom: 1px solid var(--color-border);
     padding-bottom: 0.4rem;
+    text-decoration: none;
 }
 
 .details-card-stack {
@@ -1066,7 +1070,9 @@ footer {
 .details-card .details-list dt {
     font-size: 0.8rem;
     margin-bottom: 0.3rem;
-    color: var(--color-text-muted);
+    color: var(--color-text);
+    font-weight: 600;
+    text-decoration: none;
 }
 .details-card .details-list dd {
     margin-bottom: 0.8rem;
@@ -1146,5 +1152,41 @@ footer {
     font-size: 0.8em;
     vertical-align: super;
     margin-left: 2px;
+}
+
+/* Remove underline from accordion headers if they were links */
+.accordion-header a,
+.accordion-header a:visited {
+    text-decoration: none;
+    color: inherit; /* Inherit color from button/header */
+}
+.accordion-header a:hover {
+    text-decoration: underline; /* Optional hover effect */
+}
+
+/* Style for group label links within accordions */
+.group-label-link {
+    color: var(--color-primary-dark); /* Make class/phenotype links blue */
+    text-decoration: none;
+    font-weight: 600; /* Match header weight */
+}
+.group-label-link code {
+    color: inherit; /* Inherit link color */
+    background-color: transparent;
+    padding: 0;
+    font-size: 1em; /* Match surrounding text size */
+}
+.group-label-link:hover {
+    text-decoration: underline;
+}
+
+/* Ensure general links are not bold unless specified */
+a {
+    color: var(--color-primary-dark);
+    text-decoration: none; /* Remove default underline */
+}
+a:hover {
+    color: var(--color-primary);
+    text-decoration: underline; /* Add underline on hover */
 }
 
