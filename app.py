@@ -30,6 +30,10 @@ INDEX_CATEGORIES = {
 RDF_TYPE = 'rdf:type'
 RDFS_LABEL = 'rdfs:label'
 RDFS_COMMENT = 'rdfs:comment'
+# --- ADD THESE CONSTANTS BACK ---
+HAS_RESISTANCE_CLASS = 'has_resistance_class'
+HAS_PREDICTED_PHENOTYPE = 'has_predicted_phenotype'
+# --- END ADDITION ---
 DESCRIPTION_PREDICATES = [RDFS_COMMENT, 'description', 'dc:description', 'skos:definition']
 
 PREDICATE_DISPLAY_NAMES = {
@@ -37,8 +41,8 @@ PREDICATE_DISPLAY_NAMES = {
     RDFS_LABEL: "Label",
     RDFS_COMMENT: "Description",
     "is_from_database": "Source Database",
-    "has_resistance_class": "Resistance Class",
-    "has_predicted_phenotype": "Predicted Phenotype",
+    HAS_RESISTANCE_CLASS: "Resistance Class", # Use constant here too
+    HAS_PREDICTED_PHENOTYPE: "Predicted Phenotype", # Use constant here too
     "has_resistance_mechanism": "Resistance Mechanism", # Example
     "confers_resistance_to_metal": "Confers Resistance To Metal", # Example
     "confers_resistance_to_biocide": "Confers Resistance To Biocide", # Example
@@ -51,6 +55,21 @@ PREDICATE_DISPLAY_NAMES = {
     "member_of": "Member Of Cluster", # Assuming this based on example
     # Add more mappings as needed based on your ontology predicates
 }
+
+# --- Define Predicates for PanGene Details Layout ---
+pangen_key_info_preds = [
+    'has_length',
+    'same_as',
+    'card_link',
+    'accession',
+    'is_from_database' # Include source DB in key info
+]
+pangen_right_col_preds = [
+    HAS_RESISTANCE_CLASS, # Use constant
+    HAS_PREDICTED_PHENOTYPE, # Use constant
+    'translates_to',
+    'member_of'
+]
 
 # --- Define Colors for Pie Chart ---
 # Use hex codes matching the CSS pastel variables for consistency
@@ -95,7 +114,11 @@ def inject_global_data():
         # Make constants available for templates if needed directly
         RDF_TYPE=RDF_TYPE,
         RDFS_LABEL=RDFS_LABEL,
-        RDFS_COMMENT=RDFS_COMMENT
+        RDFS_COMMENT=RDFS_COMMENT,
+        # --- ADD CONSTANTS TO CONTEXT IF NEEDED IN TEMPLATES (Optional) ---
+        # Not strictly needed for current templates, but good practice if used directly
+        # HAS_RESISTANCE_CLASS=HAS_RESISTANCE_CLASS,
+        # HAS_PREDICTED_PHENOTYPE=HAS_PREDICTED_PHENOTYPE
     )
 
 # --- Database Helper Functions ---
@@ -353,7 +376,6 @@ def index():
 def list_items(category_key):
     """Lists all items belonging to a specific category."""
     db = get_db()
-    # Use unquote to handle URL-encoded spaces etc.
     decoded_category_key = unquote(category_key)
     app.logger.info(f"Listing items for category key: {decoded_category_key}")
 
@@ -410,7 +432,7 @@ def list_items(category_key):
                 ORDER BY ci.subject;
             """
             cursor = db.execute(query, (
-                RDF_TYPE, query_target_value, # Use the target value here
+                RDF_TYPE, query_target_value,
                 HAS_RESISTANCE_CLASS, RDFS_LABEL,
                 HAS_PREDICTED_PHENOTYPE, RDFS_LABEL
             ))
@@ -476,6 +498,12 @@ def list_items(category_key):
     except sqlite3.Error as e:
         app.logger.error(f"Database error fetching list for {decoded_category_key}: {e}")
         abort(500, description="Database error occurred.")
+    except NameError as ne: # Catch NameError specifically for debugging
+        app.logger.error(f"NameError encountered in list_items for {decoded_category_key}: {ne}", exc_info=True)
+        abort(500, description="A server programming error occurred (NameError).")
+    except Exception as ex: # General exception handler
+        app.logger.error(f"Unexpected error in list_items for {decoded_category_key}: {ex}", exc_info=True)
+        abort(500, description="An unexpected server error occurred.")
 
     # Check if items were found *after* the query attempt
     if not items and not (is_pangen_list and (grouped_by_class or grouped_by_phenotype)):
