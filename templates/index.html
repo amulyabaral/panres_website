@@ -49,7 +49,7 @@
                         <div class="v-barplot-item" title="{{ row.database_name }} ({{ formatted_count }} genes)">
                             {# Link the label to the related genes page for that specific database #}
                             <div class="v-barplot-label">
-                                 <a href="{{ url_for('show_related_items', query_type='is_from_database', query_target_value=row.database_name) }}" title="View genes from {{ row.database_name }}">
+                                 <a href="{{ url_for('show_related_items', predicate='is_from_database', object_value=row.database_name) }}" title="View genes from {{ row.database_name }}">
                                     {{ row.database_name }}
                                  </a>
                             </div>
@@ -92,9 +92,11 @@
                 <div class="stacked-bar-legend">
                     {% for segment in phenotype_chart_data.segments %}
                     <div class="legend-item">
-                        <span class="legend-color-box" style="background-color: {{ segment.color }};"></span>
-                        <span class="legend-label">{{ segment.name }}</span>
-                        <span class="legend-count">({{ '{:,}'.format(segment.count) }})</span>
+                        <a href="{{ url_for('show_related_items', predicate='has_predicted_phenotype', object_value=segment.name) }}" title="View genes with phenotype {{ segment.name }}">
+                            <span class="legend-color-box" style="background-color: {{ segment.color }};"></span>
+                            <span class="legend-label">{{ segment.name }}</span>
+                            <span class="legend-count">({{ '{:,}'.format(segment.count) }})</span>
+                        </a>
                     </div>
                     {% endfor %}
                 </div>
