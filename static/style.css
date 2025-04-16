@@ -680,6 +680,11 @@ a:hover code {
     margin-top: 1.5rem;
 }
 
+/* NEW: Modifier for single column layout */
+.list-grouping-container.single-column {
+    grid-template-columns: 1fr; /* Force single column */
+}
+
 .grouping-card {
     background-color: var(--color-surface);
     border: var(--border-default);

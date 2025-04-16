@@ -6,7 +6,12 @@
     {# Keep the header consistent #}
     <h2>{{ category_display_name }}</h2>
     <p class="category-info">
-        Listing all items of type <code>{{ category_key }}</code>.
+        {# Display the target value (e.g., PanGene, OriginalGene) if different from key #}
+        {% if category_key != query_target_value %}
+             Listing items of type <code>{{ query_target_value }}</code> (Category: {{ category_key }}).
+        {% else %}
+             Listing items for category: {{ category_key }}.
+        {% endif %}
         Found {{ items|length }} item(s).
     </p>
 
@@ -79,6 +84,35 @@
                 {% endif %}
             </div>
 
+        </div> {# End list-grouping-container #}
+
+    {% elif is_sourcegen_list and grouped_by_database %}
+        {# --- NEW: Source Gene Grouped View --- #}
+        <div class="list-grouping-container single-column"> {# Use single-column layout #}
+            <div class="grouping-card">
+                <h3>Grouped by Source Database</h3>
+                <div class="accordion">
+                    {% for db_name, gene_list in grouped_by_database.items() %}
+                        <div class="accordion-item">
+                            <button class="accordion-header" aria-expanded="false">
+                                {# Display Database Name - Link to the filtered list page #}
+                                <a href="{{ url_for('genes_related_to', predicate='is_from_database', object_value=db_name) }}" class="group-label-link" title="View only genes from {{ db_name }}">
+                                    {{ db_name }}
+                                </a>
+                                <span class="accordion-count">({{ gene_list|length }})</span>
+                                <span class="accordion-icon">+</span>
+                            </button>
+                            <div class="accordion-content" style="display: none;"> {# Content hidden by default #}
+                                <ul class="grouped-item-list">
+                                    {% for gene_id in gene_list %}
+                                        <li><a href="{{ url_for('details', item_id=gene_id) }}"><code>{{ gene_id }}</code></a></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div> {# End list-grouping-container #}
 
     {% else %}

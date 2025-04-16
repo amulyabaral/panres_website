@@ -90,6 +90,8 @@ PIE_CHART_COLORS = [
 # Let's reuse the same colors for simplicity, but shifted slightly
 DONUT_CHART_COLORS = PIE_CHART_COLORS[1:] + PIE_CHART_COLORS[:1]
 
+# Ensure RDF_TYPE, RDFS_LABEL, HAS_RESISTANCE_CLASS, HAS_PREDICTED_PHENOTYPE are defined globally
+IS_FROM_DATABASE = 'is_from_database' # Define constant for clarity
 
 # --- Flask App Setup ---
 app = Flask(__name__)
@@ -398,7 +400,10 @@ def list_items(category_key):
     items = []
     grouped_by_class = None
     grouped_by_phenotype = None
+    grouped_by_database = None # Add variable for source gene grouping
     is_pangen_list = (query_type == 'type' and query_target_value == 'PanGene')
+    # --- Add flag for Source Gene list ---
+    is_sourcegen_list = (query_type == 'type' and query_target_value == 'OriginalGene')
 
     try:
         if is_pangen_list:
@@ -491,6 +496,50 @@ def list_items(category_key):
                 }
                 app.logger.debug(f"Finished grouping (Revised). Found {len(grouped_by_class)} classes and {len(grouped_by_phenotype)} phenotypes.")
 
+        elif is_sourcegen_list:
+            # --- NEW: Source Gene Grouping Strategy ---
+            app.logger.debug(f"Fetching SourceGenes (target: {query_target_value}) and grouping by database.")
+
+            # 1. Get all OriginalGene IDs
+            cursor_genes = db.execute(
+                "SELECT DISTINCT subject FROM triples WHERE predicate = ? AND object = ?",
+                (RDF_TYPE, query_target_value)
+            )
+            all_genes_in_category = {row['subject'] for row in cursor_genes.fetchall()}
+            items = sorted(list(all_genes_in_category)) # Keep the total list for count
+            app.logger.debug(f"Found {len(all_genes_in_category)} OriginalGene IDs.")
+
+            if not all_genes_in_category:
+                 app.logger.info("No OriginalGenes found, skipping grouping.")
+            else:
+                # Create placeholders for the IN clause
+                gene_placeholders = ','.join('?' * len(all_genes_in_category))
+
+                # 2. Fetch Gene -> Database Name relationships
+                query_databases = f"""
+                    SELECT subject AS gene_id, object AS database_name
+                    FROM triples
+                    WHERE predicate = ? AND subject IN ({gene_placeholders})
+                      AND object_is_literal = 1 -- Ensure database name is literal
+                """
+                cursor_databases = db.execute(query_databases, (IS_FROM_DATABASE, *all_genes_in_category))
+                gene_to_db_pairs = cursor_databases.fetchall()
+                app.logger.debug(f"Found {len(gene_to_db_pairs)} gene-database relationships.")
+
+                # 3. Group in Python
+                grouped_by_database_temp = defaultdict(set) # Simpler structure: {db_name: {gene1, gene2}}
+                for pair in gene_to_db_pairs:
+                    db_name = pair['database_name']
+                    if db_name: # Should always be true based on query, but check anyway
+                        grouped_by_database_temp[db_name].add(pair['gene_id'])
+
+                # Convert sets to sorted lists and sort groups by database name
+                grouped_by_database = {
+                    db_name: sorted(list(genes))
+                    for db_name, genes in sorted(grouped_by_database_temp.items())
+                }
+                app.logger.debug(f"Finished grouping by database. Found {len(grouped_by_database)} databases.")
+
         else:
             # --- Default handling for other categories (remains the same) ---
             app.logger.debug(f"Fetching simple list for Type: {query_type}, Target: {query_target_value}")
@@ -518,8 +567,13 @@ def list_items(category_key):
         app.logger.error(f"Unexpected error in list_items for {decoded_category_key}: {ex}", exc_info=True)
         abort(500, description="An unexpected server error occurred.")
 
-    # Check if items were found (for non-PanGene or empty PanGene)
-    if not items and not (is_pangen_list and (grouped_by_class or grouped_by_phenotype)):
+    # Check if items were found
+    # Adjusted condition to handle different grouping scenarios
+    no_items_found = not items and not (
+        (is_pangen_list and (grouped_by_class or grouped_by_phenotype)) or
+        (is_sourcegen_list and grouped_by_database)
+    )
+    if no_items_found:
          app.logger.warning(f"No items found for category: {decoded_category_key}. Rendering empty list.")
          # Template will handle the display of "No items found"
 
@@ -528,55 +582,84 @@ def list_items(category_key):
         category_key=decoded_category_key,
         category_display_name=category_display_name,
         query_target_value=query_target_value,
-        items=items, # Still pass the full list of gene IDs for the count
+        items=items,
         is_pangen_list=is_pangen_list,
         grouped_by_class=grouped_by_class,
         grouped_by_phenotype=grouped_by_phenotype,
+        is_sourcegen_list=is_sourcegen_list, # Pass new flag
+        grouped_by_database=grouped_by_database, # Pass new grouped data
         query_type=query_type
     )
 
 
 @app.route('/related/<predicate>/<path:object_value>')
 def genes_related_to(predicate, object_value):
-    """Lists genes (subjects) related to a specific predicate and object value."""
+    """
+    Shows genes (or other subjects) related to a specific object via a predicate.
+    Modified to specifically show ONLY OriginalGenes if predicate is 'is_from_database'.
+    """
     db = get_db()
-    # Decode the object_value which might contain URL-encoded characters like '/'
+    decoded_predicate = unquote(predicate)
     decoded_object_value = unquote(object_value)
+    app.logger.info(f"Fetching items related to '{decoded_object_value}' via predicate '{decoded_predicate}'")
 
-    app.logger.info(f"Fetching genes related to predicate='{predicate}', object='{decoded_object_value}'")
-
-    # Find a display name for the predicate
-    predicate_display = PREDICATE_DISPLAY_NAMES.get(predicate, predicate)
-    page_title = f"Genes related to {predicate_display}: {decoded_object_value}"
-    description = f"Showing genes where <code>{predicate}</code> is <code>{decoded_object_value}</code>."
+    genes = []
+    page_title = f"Items related to '{decoded_object_value}'"
+    description = f"Listing items (subjects) where the predicate <code>{decoded_predicate}</code> points to the object <code>{decoded_object_value}</code>."
 
     try:
-        cursor = db.execute(
-            """SELECT DISTINCT T.subject
-               FROM Triples T
-               JOIN Triples type_t ON T.subject = type_t.subject
-               WHERE T.predicate = ?
-                 AND T.object = ?
-                 AND type_t.predicate = ?
-                 AND type_t.object IN (?, ?) -- Look for PanGene or OriginalGene types
-               ORDER BY T.subject""",
-            (predicate, decoded_object_value, RDF_TYPE, 'PanGene', 'OriginalGene') # Ensure we list actual genes
-        )
-        genes = [{'id': row['subject'], 'link': url_for('details', item_id=row['subject'])} for row in cursor.fetchall()]
-        app.logger.info(f"Found {len(genes)} related genes.")
+        # --- Special Handling for is_from_database ---
+        if decoded_predicate == IS_FROM_DATABASE:
+            page_title = f"Source Genes from Database: {decoded_object_value}"
+            description = f"Listing Source Genes (<code>OriginalGene</code>) originating from the database <code>{decoded_object_value}</code>."
+            # Query for subjects that are 'is_from_database' the object AND are of type 'OriginalGene'
+            query = """
+                SELECT DISTINCT T_rel.subject
+                FROM triples T_rel
+                JOIN triples T_type ON T_rel.subject = T_type.subject
+                WHERE T_rel.predicate = ?
+                  AND T_rel.object = ?
+                  AND T_type.predicate = ?
+                  AND T_type.object = ?
+                ORDER BY T_rel.subject
+            """
+            cursor = db.execute(query, (
+                decoded_predicate,
+                decoded_object_value,
+                RDF_TYPE,
+                'OriginalGene' # Ensure we only get OriginalGenes
+            ))
+            genes = [{'id': row['subject'], 'link': url_for('details', item_id=row['subject'])} for row in cursor.fetchall()]
+            app.logger.debug(f"Found {len(genes)} OriginalGenes for database {decoded_object_value}.")
+
+        else:
+            # --- Default behavior for other predicates ---
+            # Find subjects pointing to this object via the predicate
+            query = """
+                SELECT DISTINCT subject
+                FROM triples
+                WHERE predicate = ? AND object = ?
+                ORDER BY subject
+            """
+            cursor = db.execute(query, (decoded_predicate, decoded_object_value))
+            # Assume these related items are genes for linking, adjust if needed
+            genes = [{'id': row['subject'], 'link': url_for('details', item_id=row['subject'])} for row in cursor.fetchall()]
+            app.logger.debug(f"Found {len(genes)} items related via predicate {decoded_predicate}.")
 
     except sqlite3.Error as e:
-        app.logger.error(f"Error fetching related genes for {predicate}={decoded_object_value}: {e}")
-        abort(500, description="Error retrieving related genes.")
+        app.logger.error(f"Database error fetching related items for {decoded_object_value} via {decoded_predicate}: {e}")
+        abort(500, description="Database error occurred.")
 
-    # Use a different template for this specific view
-    return render_template('related_genes.html',
-                           genes=genes,
-                           page_title=page_title,
-                           description=description,
-                           predicate=predicate,
-                           object_value=decoded_object_value,
-                           index_categories=app.config['INDEX_CATEGORIES']) # Pass categories for back link
+    return render_template(
+        'related_genes.html', # Using a separate template might be cleaner, but modifying description works too
+        page_title=page_title,
+        description=description,
+        predicate=decoded_predicate,
+        object_value=decoded_object_value,
+        genes=genes,
+        # Pass index_categories for potential back link logic in template
+        index_categories=current_app.config['INDEX_CATEGORIES']
+    )
 
 
 @app.route('/details/<path:item_id>')
