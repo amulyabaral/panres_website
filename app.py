@@ -645,10 +645,14 @@ def genes_related_to(predicate, object_value):
     Enhancement: If predicate is 'is_from_database', group genes by resistance class.
     """
     db = get_db()
-    cursor = db.cursor()
-    decoded_object_value = unquote(object_value) # Decode URL-encoded values
+    decoded_object_value = unquote(object_value)
 
     app.logger.info(f"Fetching subjects related to object '{decoded_object_value}' via predicate '{predicate}'")
+
+    # --- FIX: Get predicate map from app config ---
+    predicate_map = current_app.config.get('PREDICATE_DISPLAY_NAMES', {})
+    index_categories = current_app.config.get('INDEX_CATEGORIES', {}) # Also get index_categories here
+    # --- END FIX ---
 
     # Basic query to find related subjects (genes)
     cursor_subjects = db.execute(
@@ -658,6 +662,7 @@ def genes_related_to(predicate, object_value):
     genes_raw = cursor_subjects.fetchall()
     gene_ids = [row['subject'] for row in genes_raw]
 
+    # Now use the fetched predicate_map
     page_title = f"Source Genes from {predicate_map.get(predicate, predicate)}: {decoded_object_value}"
     description = f"Listing Source Genes (<code>OriginalGene</code>) originating from the {predicate_map.get(predicate, predicate)} <code>{decoded_object_value}</code>."
 
@@ -666,10 +671,9 @@ def genes_related_to(predicate, object_value):
 
     # --- Grouping Logic for 'is_from_database' ---
     if predicate == IS_FROM_DATABASE and gene_ids:
-        grouped_genes = defaultdict(lambda: {'id': None, 'genes': []}) # Use defaultdict
+        grouped_genes = defaultdict(lambda: {'id': None, 'genes': []})
 
         # Fetch resistance class for each gene
-        # Use IN clause for efficiency if many genes
         placeholders = ','.join('?' for _ in gene_ids)
         query_classes = f"""
             SELECT subject, object
@@ -677,8 +681,7 @@ def genes_related_to(predicate, object_value):
             WHERE predicate = ? AND subject IN ({placeholders})
         """
         try:
-            cursor_classes = db.cursor()
-            cursor_classes.execute(query_classes, [HAS_RESISTANCE_CLASS] + gene_ids)
+            cursor_classes = db.execute(query_classes, [HAS_RESISTANCE_CLASS] + gene_ids)
             gene_class_pairs = cursor_classes.fetchall()
 
             # Map genes to their classes
@@ -693,31 +696,22 @@ def genes_related_to(predicate, object_value):
 
                 if classes:
                     for resistance_class in classes:
-                        # Optional: Fetch label for class_id here if needed, using Triples table
-                        # cursor_label = db.cursor()
-                        # cursor_label.execute("SELECT object FROM Triples WHERE subject = ? AND predicate = ?", (resistance_class, RDFS_LABEL))
-                        # label_row = cursor_label.fetchone()
-                        # display_label = label_row['object'] if label_row else resistance_class
                         display_label = resistance_class # Use ID as label for now
-
-                        grouped_genes[display_label]['id'] = resistance_class # Store class ID for potential linking
+                        grouped_genes[display_label]['id'] = resistance_class
                         grouped_genes[display_label]['genes'].append(gene_data)
                 else:
-                    # Group genes without a class under a specific key
                     grouped_genes['No Class Assigned']['genes'].append(gene_data)
 
-            # Sort groups by class name (case-insensitive), put 'No Class Assigned' last
+            # Sort groups
             grouped_genes = dict(sorted(grouped_genes.items(), key=lambda item: (item[0] == 'No Class Assigned', item[0].lower())))
-
 
         except sqlite3.Error as e:
              app.logger.error(f"Error fetching resistance classes for genes from {decoded_object_value}: {e}")
-             # Fallback to flat list if grouping fails
              grouped_genes = None
              genes_list_for_template = [{'id': gid, 'link': url_for('details', item_id=gid)} for gid in gene_ids]
 
     else:
-        # For predicates other than 'is_from_database', prepare the simple list
+        # For other predicates, prepare the simple list
          genes_list_for_template = [{'id': gid, 'link': url_for('details', item_id=gid)} for gid in gene_ids]
 
 
@@ -727,11 +721,12 @@ def genes_related_to(predicate, object_value):
         description=description,
         predicate=predicate,
         object_value=decoded_object_value,
-        genes=genes_list_for_template, # Pass the flat list (used if not grouping)
-        grouped_genes=grouped_genes,   # Pass the grouped structure
-        is_grouped_view=(predicate == IS_FROM_DATABASE and grouped_genes is not None), # Flag for template
-        index_categories=INDEX_CATEGORIES, # For back links
-        predicate_map=PREDICATE_DISPLAY_NAMES # For back links
+        genes=genes_list_for_template,
+        grouped_genes=grouped_genes,
+        is_grouped_view=(predicate == IS_FROM_DATABASE and grouped_genes is not None),
+        # Pass the maps fetched earlier
+        index_categories=index_categories,
+        predicate_map=predicate_map
     )
 
 
