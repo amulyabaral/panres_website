@@ -63,18 +63,27 @@
     <div class="back-links-footer">
          <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
          {# Attempt to find the original category list link (e.g., Source Databases) #}
-         {# Find the category key where the 'value' matches the current predicate #}
-         {% set source_category_key = None %}
+         {# Find the category key where the 'value' matches the current predicate using filters #}
+         {% set source_category_key = index_categories.values()
+              | selectattr('query_type', 'equalto', 'predicate_object')
+              | selectattr('value', 'equalto', predicate)
+              | map(attribute='key')
+              | first
+         %}
+         {# The above replaces the previous for loop with break #}
+         {# {% set source_category_key = None %}
          {% for cat_key, cat_config in index_categories.items() %}
              {% if cat_config.query_type == 'predicate_object' and cat_config.value == predicate %}
                  {% set source_category_key = cat_key %}
-                 {% break %}
+                 {% break %} {# This caused the error #}
              {% endif %}
-         {% endfor %}
+         {% endfor %} #}
 
          {% if source_category_key %}
              {# Link back to the list of items for that predicate (e.g., list of databases) #}
-             <p class="back-link"><a href="{{ url_for('list_items', category_key=source_category_key) }}">&laquo; Back to {{ source_category_key }} list</a></p>
+             {# Find the display name associated with the key #}
+             {% set source_category_display_name = index_categories.get(source_category_key, {}).get('display_name', source_category_key) %}
+             <p class="back-link"><a href="{{ url_for('list_items', category_key=source_category_key) }}">&laquo; Back to {{ source_category_display_name }} list</a></p>
          {% endif %}
          {# Optionally, add a link back to the details page of the object_value if it's not a literal #}
          {# {% if not object_value.isdigit() %}
