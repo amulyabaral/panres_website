@@ -65,11 +65,16 @@
          {# Attempt to find the original category list link (e.g., Source Databases) #}
          {# Find the category key where the 'value' matches the current predicate using filters on items() #}
          {% set source_category_key = index_categories.items()
-              | selectattr('1.query_type', 'equalto', 'predicate_object')  {# Check query_type in value (index 1) #}
-              | selectattr('1.value', 'equalto', predicate)             {# Check value in value (index 1) #}
-              | map(attribute='0')                                      {# Map to the key (index 0) #}
+              | selectattr('1.query_type', 'equalto', 'predicate_object')
+              | selectattr('1.value', 'equalto', predicate)
+              | map(attribute='0')
               | first
          %}
+         {# Comments moved outside:
+            - selectattr('1.query_type', 'equalto', 'predicate_object') -> Check query_type in value (index 1)
+            - selectattr('1.value', 'equalto', predicate) -> Check value in value (index 1)
+            - map(attribute='0') -> Map to the key (index 0)
+         #}
          {# The above replaces the previous filter chain and the original for loop #}
 
          {% if source_category_key %}
