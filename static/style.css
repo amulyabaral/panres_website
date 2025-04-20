@@ -855,7 +855,7 @@ a:hover code {
 .details-list dd ul li {
     margin-bottom: 0.2rem;
     padding: 0.1rem 0;
-    border-bottom: 1px dotted var(--color-border);
+    border-bottom: none;
 }
 .details-list dd ul li:last-child {
     margin-bottom: 0;
@@ -1331,5 +1331,144 @@ a:hover {
      .example-column:last-child {
         margin-bottom: 0;
     }
+}
+
+/* --- NEW: Grid for Property Cards --- */
+.details-property-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Responsive columns */
+    gap: 1rem; /* Gap between cards */
+    margin-bottom: 1.5rem; /* Space below the grid */
+}
+
+/* --- NEW: Styles for Property Links as Buttons/Tags --- */
+.property-values {
+    /* Default list style */
+    list-style: none;
+    padding: 0;
+    margin: 0.2rem 0 0 0;
+}
+
+.property-values-buttons {
+    /* Style for lists where items should look like buttons */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.5rem; /* Spacing between buttons */
+}
+
+.property-values-buttons li {
+    margin-bottom: 0; /* Remove bottom margin for button list items */
+    padding: 0; /* Remove padding for button list items */
+}
+
+.prop-link {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    border-radius: var(--border-radius);
+    font-size: 0.85em;
+    font-weight: 500;
+    line-height: 1.4;
+    margin: 0.1em 0;
+    border: 1px solid transparent; /* Start with transparent border */
+    text-decoration: none !important;
+    transition: filter 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
+    color: var(--color-text); /* Default text color */
+    background-color: var(--color-code-bg); /* Default background */
+}
+.prop-link:hover {
+    filter: brightness(95%);
+    text-decoration: none !important;
+    transform: translateY(-1px);
+    border-color: rgba(0,0,0,0.1); /* Subtle border on hover */
+}
+
+.prop-link code {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    font-size: 1em; /* Match parent font size */
+    color: inherit; /* Inherit text color */
+    font-weight: inherit; /* Inherit font weight */
+}
+
+/* Specific Button Colors */
+.prop-link-db { /* Source Database */
+    background-color: var(--color-pastel-blue);
+    border-color: var(--color-pastel-blue);
+}
+.prop-link-class { /* Resistance Class */
+    background-color: var(--color-pastel-green);
+    border-color: var(--color-pastel-green);
+}
+.prop-link-pheno { /* Phenotype */
+    background-color: var(--color-pastel-yellow);
+    border-color: var(--color-pastel-yellow);
+    color: #5f4b00; /* Darker text for yellow */
+}
+.prop-link-equiv { /* Equivalent/Alias */
+    background-color: var(--color-pastel-purple);
+    border-color: var(--color-pastel-purple);
+}
+.prop-link-bio { /* Biological Context (Protein, Cluster) */
+    background-color: var(--color-pastel-cyan);
+    border-color: var(--color-pastel-cyan);
+}
+.prop-link-general { /* General links */
+    background-color: var(--color-pastel-gray);
+    border-color: var(--color-pastel-gray);
+}
+.prop-link-external { /* External links like CARD */
+    background-color: var(--color-pastel-orange);
+    border-color: var(--color-pastel-orange);
+}
+.prop-link-external .external-icon {
+    font-size: 0.9em;
+    margin-left: 2px;
+    display: inline-block;
+}
+
+
+.value-literal {
+    color: var(--color-text);
+}
+
+/* Adjustments for details card content */
+.details-card .details-list dt {
+    font-size: 0.8rem;
+    margin-bottom: 0.3rem;
+    color: var(--color-text);
+    font-weight: 600;
+    text-decoration: none;
+    text-transform: uppercase; /* Make terms uppercase */
+    letter-spacing: 0.5px;
+}
+.details-card .details-list dd {
+    margin-bottom: 0.8rem;
+    font-size: 0.9rem;
+}
+.details-card .details-list dd:last-child {
+    margin-bottom: 0; /* Remove margin from last dd in a card */
+}
+
+/* Ensure Referenced By card uses standard list style */
+.details-card.referenced-by .details-list dd {
+    margin-bottom: 0.6rem; /* Restore default margin if needed */
+}
+.details-card.referenced-by .details-list dd a code {
+    /* Ensure default code styling if not a button */
+    font-family: var(--font-mono);
+    background-color: var(--color-code-bg);
+    padding: 0.15em 0.3em;
+    border-radius: var(--border-radius);
+    font-size: 0.85em;
+    color: var(--color-code-text);
+    border: var(--border-default);
+    word-break: break-word;
+}
+.details-card.referenced-by .details-list dd a {
+    color: var(--color-primary-dark); /* Standard link color */
+}
+.details-card.referenced-by .details-list dd a:hover code {
+     text-decoration: underline;
 }
 
