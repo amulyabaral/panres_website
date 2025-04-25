@@ -1,56 +1,36 @@
+/* --- Simplified Theme using Corporate Palette --- */
 :root {
-    --color-text: #212529;
-    --color-text-muted: #6c757d;
-    --color-background: #f8f9fa;
-    --color-surface: #ffffff;
-    --color-border: #dee2e6;
-    --color-primary: #4dabf7;
-    --color-primary-dark: #228be6;
-    --color-secondary: #74c0fc;
-    --color-accent: #8ce99a;
-    --color-accent-dark: #51cf66;
-    --color-danger: #ff8787;
-    --color-warning: #ffd43b;
-    --color-info: #99e9f2;
-    --color-code-bg: #e9ecef;
-    --color-code-text: #495057;
-    --color-tag-database: #e5dbff;
-    --color-tag-database-text: #5f3dc4;
-    --color-tag-class: #d0ebff;
-    --color-tag-class-text: #1c7ed6;
-    --color-tag-phenotype: #fff3bf;
-    --color-tag-phenotype-text: #f59f00;
+    /* Core Palette */
+    --color-primary: #990000; /* Corporate Red */
+    --color-background: #ffffff; /* White */
+    --color-surface: #ffffff; /* White */
+    --color-text: #000000; /* Black */
+    --color-white: #ffffff;
+    --color-black: #000000;
 
-    --color-pastel-blue: #a5d8ff;
-    --color-pastel-green: #b2f2bb;
-    --color-pastel-yellow: #ffec99;
-    --color-pastel-purple: #d0bfff;
-    --color-pastel-pink: #ffc9c9;
-    --color-pastel-cyan: #a3e1d4;
-    --color-pastel-orange: #ffd8a8;
-    --color-pastel-lime: #d4f8d4;
-    --color-pastel-indigo: #dbe4ff;
-    --color-pastel-teal: #a0e9e5;
-    --color-pastel-red: #ffb3ba;
-    --color-pastel-sky: #bae1ff;
-    --color-pastel-mint: #baffc9;
-    --color-pastel-cream: #ffffba;
-    --color-pastel-lavender: #f1cbff;
-    --color-pastel-peach: #ffdfba;
-    --color-pastel-aqua: #ace5ee;
-    --color-pastel-gray: #bac8d3;
+    /* Neutrals & Accents */
+    --color-border: #dddddd; /* Light Gray */
+    --color-text-muted: #666666; /* Medium Gray */
+    --color-code-bg: #f0f0f0; /* Very Light Gray */
+    --color-code-text: #333333; /* Dark Gray */
+    --color-hover-bg: #f5f5f5; /* Slightly off-white for hover */
+    --color-link: var(--color-primary);
+    --color-link-hover: #6d0000; /* Darker Red */
 
-    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --font-mono: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-    --font-family-sans-serif: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-    --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    /* Fonts */
+    /* User must ensure 'Neo Sans' is available (e.g., @font-face or system font) */
+    --font-sans: "Neo Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; /* Keep mono for code */
+
+    /* Layout */
     --border-radius: 3px;
     --border-default: 1px solid var(--color-border);
 }
 
+/* --- Base Styles --- */
 body {
-    font-family: var(--font-mono);
-    line-height: 1.4;
+    font-family: var(--font-sans); /* Use Neo Sans */
+    line-height: 1.5; /* Slightly increased line-height */
     margin: 0;
     padding: 0;
     background-color: var(--color-background);
@@ -61,20 +41,33 @@ body {
 .container {
     max-width: 1100px;
     margin: 1rem auto;
-    padding: 0.5rem 1rem;
+    padding: 0 1rem; /* Simplified padding */
 }
 
+/* --- Header --- */
 .site-header {
     display: flex;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--color-border);
+    align-items: center; /* Vertically center items */
+    margin-bottom: 1.5rem;
+    padding: 1rem; /* Add padding */
+    border-bottom: 2px solid var(--color-primary); /* Thicker red border */
     gap: 1.5rem;
+    background-color: var(--color-primary); /* Red background */
+    background-image: url('DTU_Background_Pattern_Corporate_Red_RGB.jpg');
+    background-size: cover; /* Cover the area */
+    background-position: center center; /* Center the image */
+    background-repeat: no-repeat;
+    min-height: 80px; /* Ensure minimum height */
+    border-radius: var(--border-radius); /* Optional: rounded corners */
 }
 
 .header-logo-link {
     flex-shrink: 0;
+    background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background for logo */
+    padding: 5px;
+    border-radius: var(--border-radius);
+    display: inline-block; /* Fit content */
+    line-height: 0; /* Prevent extra space below image */
 }
 
 .header-logo {
@@ -85,84 +78,108 @@ body {
 
 .header-content {
     flex-grow: 1;
-    display: flex;
-    flex-direction: column;
+    /* Text inside header needs contrast */
+    color: var(--color-white);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* Add shadow for readability */
 }
 
 .site-name {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.6rem;
+    margin: 0;
+    font-size: 1.8rem; /* Slightly larger */
     font-weight: 700;
     line-height: 1.2;
 }
 .site-name a {
-    color: var(--color-text);
+    color: var(--color-white); /* White link */
     text-decoration: none;
 }
 .site-name a:hover {
-    color: var(--color-primary-dark);
+    text-decoration: underline;
 }
 
-.header-content h1,
-.header-content h2 {
+/* Header Citation (if used) */
+.header-citation {
+    background-color: rgba(0, 0, 0, 0.3); /* Darker overlay for citation */
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+    line-height: 1.4;
+    color: var(--color-white); /* White text */
+}
+.header-citation h4 {
     margin-top: 0;
-    margin-bottom: 0.25rem;
-    color: var(--color-text);
+    margin-bottom: 0.3rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-white);
 }
-.header-content p {
+.header-citation p {
     margin-bottom: 0;
-    color: var(--color-text-muted);
-    font-size: 0.9rem;
+    color: var(--color-white); /* Ensure paragraph text is white */
+}
+.header-citation a {
+    color: #ffdddd; /* Lighter red/pink for links within citation */
+    text-decoration: underline;
+}
+.header-citation a:hover {
+    color: var(--color-white);
 }
 
-main h2 {
-    color: var(--color-primary-dark);
+/* --- Main Content --- */
+main h2, .content-card h3, .details-card h3, .grouping-card h3 {
+    color: var(--color-primary); /* Red headings */
+    margin-top: 1.5rem;
     margin-bottom: 0.8rem;
     font-size: 1.4rem;
     font-weight: 600;
     padding-bottom: 0.3rem;
-    border-bottom: 2px solid var(--color-primary);
-    display: inline-block;
+    border-bottom: 1px solid var(--color-border);
+    display: block; /* Make block for full border */
 }
-
-main h3 {
+main h2:first-child, .content-card h3:first-child {
+    margin-top: 0;
+}
+main h3 { /* Sub-headings */
+    font-size: 1.2rem;
     color: var(--color-text);
-    margin-top: 1.2rem;
-    margin-bottom: 0.6rem;
-    font-size: 1.1rem;
+    border-bottom: none;
+}
+main h4 { /* Sub-sub-headings */
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    margin-bottom: 0.5rem;
     font-weight: 600;
-    border-bottom: var(--border-default);
-    padding-bottom: 0.3rem;
 }
 
 a {
-    color: var(--color-primary-dark);
+    color: var(--color-link);
     text-decoration: none;
     transition: color 0.2s ease;
 }
 a:hover {
-    color: var(--color-primary);
+    color: var(--color-link-hover);
     text-decoration: underline;
 }
 
 code, pre {
     font-family: var(--font-mono);
     background-color: var(--color-code-bg);
-    padding: 0.15em 0.3em;
+    padding: 0.15em 0.4em;
     border-radius: var(--border-radius);
-    font-size: 0.85em;
+    font-size: 0.9em; /* Slightly larger code */
     color: var(--color-code-text);
     border: var(--border-default);
     word-break: break-word;
+    vertical-align: baseline; /* Align better with text */
 }
 pre {
-    padding: 0.5em 0.8em;
+    padding: 0.8em 1em;
     overflow-x: auto;
-    border: var(--border-default);
-    border-radius: var(--border-radius);
 }
-a code {
-    color: inherit;
+a code { /* Code inside links */
+    color: inherit; /* Inherit link color */
     background-color: transparent;
     border: none;
     padding: 0;
@@ -171,22 +188,93 @@ a:hover code {
      text-decoration: underline;
 }
 
-/* --- NEW: Style for intro paragraph in viz column --- */
-.intro-paragraph {
+/* --- Buttons --- */
+.button, a.button, .browse-button, a.browse-button, .category-card .button, a.category-card .button {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--border-radius);
+    text-decoration: none !important;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
+    font-weight: 500;
     font-size: 0.9rem;
-    color: var(--color-text-muted);
-    margin-bottom: 0rem; /* Adjust spacing below the paragraph */
-    padding: 0 0.5rem; /* Add slight horizontal padding */
-    line-height: 1.4;
+    font-family: var(--font-sans); /* Use main font */
+    text-align: center;
+    white-space: nowrap;
+    background-color: var(--color-primary);
+    color: var(--color-white) !important;
 }
-/* --- End NEW --- */
+.button:hover, a.button:hover, .browse-button:hover, a.browse-button:hover, .category-card .button:hover, a.category-card .button:hover {
+    background-color: var(--color-link-hover);
+    border-color: var(--color-link-hover);
+    color: var(--color-white) !important;
+    text-decoration: none !important;
+    transform: translateY(-1px);
+}
+/* Smaller button variant */
+.browse-button, a.browse-button, .category-card .button, a.category-card .button {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
+    background-color: var(--color-surface);
+    color: var(--color-primary) !important;
+    border: 1px solid var(--color-border);
+}
+.browse-button:hover, a.browse-button:hover, .category-card .button:hover, a.category-card .button:hover {
+    background-color: var(--color-hover-bg);
+    border-color: var(--color-primary);
+    color: var(--color-primary) !important;
+    transform: none; /* No lift for smaller buttons */
+}
+
+/* --- Cards (General) --- */
+.content-card, .details-card, .grouping-card, .visualization-section, .gene-example-container, .citation-section {
+    background-color: var(--color-surface);
+    border: var(--border-default);
+    border-radius: var(--border-radius);
+    padding: 1rem 1.2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow */
+}
+.content-card:last-child, .details-card:last-child, .grouping-card:last-child, .visualization-section:last-child, .gene-example-container:last-child, .citation-section:last-child {
+    margin-bottom: 0;
+}
+
+/* --- Index Page Specific --- */
+.citation-section {
+    font-size: 0.9rem;
+    background-color: var(--color-code-bg); /* Light gray background */
+    border-color: var(--color-border);
+    box-shadow: none;
+}
+.citation-section h4 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    color: var(--color-text);
+    border: none;
+    font-size: 1rem;
+}
+.citation-section p {
+    margin-bottom: 0;
+    line-height: 1.5;
+    color: var(--color-text-muted);
+}
+
+.intro-paragraph {
+    font-size: 1rem; /* Larger intro text */
+    color: var(--color-text-muted);
+    margin-bottom: 1rem;
+    padding: 0 0.5rem;
+    line-height: 1.4;
+    text-align: center;
+}
 
 .viz-grid-container {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive */
     gap: 1.5rem;
     margin-bottom: 2rem;
-    align-items: stretch;
+    align-items: stretch; /* Make columns equal height */
 }
 
 .viz-column-left {
@@ -196,23 +284,19 @@ a:hover code {
 }
 
 .visualization-section {
-    background-color: var(--color-surface);
-    border: var(--border-default);
-    border-radius: var(--border-radius);
-    padding: 0.5rem 1.2rem;
+    padding: 0.8rem 1rem; /* Consistent padding */
     display: flex;
     flex-direction: column;
-    transition: background-color 0.2s ease;
-    overflow: hidden;
+    min-height: 150px; /* Minimum height */
 }
 
 .visualization-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.8rem; /* Increased spacing */
     padding-bottom: 0.5rem;
-    padding-top: 0.5rem;
+    border-bottom: var(--border-default);
 }
 
 .visualization-header h4 {
@@ -220,66 +304,29 @@ a:hover code {
     padding: 0;
     border: none;
     font-size: 1.1rem;
-    font-weight: 700;
+    font-weight: 600;
     color: var(--color-text);
-    font-family: var(--font-mono);
     line-height: 1.2;
     flex-grow: 1;
     margin-right: 1rem;
-    padding-bottom: 0.2rem;
-    margin-bottom: 0.5rem;
-}
-
-.visualization-header .browse-button {
-    padding: 0.3rem 0.8rem;
-    font-size: 0.8rem;
-    text-decoration: none;
-    background-color: var(--color-background);
-    color: var(--color-primary-dark);
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius);
-    white-space: nowrap;
-    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-    flex-shrink: 0;
-    font-family: var(--font-mono);
-}
-
-.visualization-header .browse-button:hover {
-    background-color: var(--color-code-bg);
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-}
-
-.visualization-section.source-db-chart {
-    min-height: 200px;
-    padding: 0.2rem 0.5rem;
-}
-
-.visualization-section.antibiotic-class-chart {
-    min-height: 420px;
-    padding: 0.2rem 0.5rem;
-}
-
-.visualization-section.phenotype-stacked-bar {
-    min-height: 120px;
-    padding: 0.2rem 0.5rem;
 }
 
 .visualization-section.placeholder {
-    background-color: var(--color-background);
+    background-color: var(--color-hover-bg);
     text-align: center;
-    padding: 2rem 1rem;
     color: var(--color-text-muted);
     font-style: italic;
-    min-height: 200px;
-    justify-content: center;
+    justify-content: center; /* Center content vertically */
     align-items: center;
+    box-shadow: none;
+    border-style: dashed; /* Dashed border for placeholder */
 }
 .visualization-section.placeholder h4 {
     border-bottom: none;
     margin-bottom: 0.5rem;
 }
 
+/* Bar Plot (Source DB) */
 .v-barplot-container {
     padding: 0.1rem;
     flex-grow: 1;
@@ -287,30 +334,27 @@ a:hover code {
     overflow-y: auto;
     border: none;
 }
-
 .v-barplot-item {
     display: flex;
     align-items: center;
-    margin-bottom: 2px;
-    min-height: 18px;
+    margin-bottom: 3px; /* Slightly more space */
+    min-height: 20px; /* Slightly taller */
 }
-
 .v-barplot-label {
-    width: 110px;
-    font-size: 0.7rem;
-    font-weight: bold;
+    width: 120px; /* Wider label */
+    font-size: 0.8rem; /* Larger font */
+    font-weight: normal; /* Normal weight */
     color: var(--color-text);
     text-align: right;
-    margin-right: 4px;
+    margin-right: 5px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     flex-shrink: 0;
 }
-
 .v-barplot-bar-wrapper {
     flex-grow: 1;
-    height: 16px;
+    height: 18px; /* Taller bar */
     background-color: var(--color-code-bg);
     border-radius: var(--border-radius);
     display: flex;
@@ -318,38 +362,84 @@ a:hover code {
     overflow: hidden;
     border: 1px solid var(--color-border);
 }
-
 .v-barplot-bar {
     height: 100%;
-    width: 0;
-    background-color: var(--color-primary);
+    width: 0; /* Initial width for animation */
+    background-color: var(--color-primary); /* Red bars */
     border-radius: var(--border-radius);
     transition: width 1s ease-out;
     box-sizing: border-box;
 }
-
+/* Remove nth-child coloring */
 .v-barplot-count {
-    width: 45px;
-    font-size: 0.7rem;
-    font-weight: bold;
+    width: 50px; /* Wider count */
+    font-size: 0.8rem; /* Larger font */
+    font-weight: normal;
     color: var(--color-text-muted);
-    margin-left: 4px;
+    margin-left: 5px;
     text-align: left;
     white-space: nowrap;
     flex-shrink: 0;
 }
 
-.v-barplot-container .v-barplot-item:nth-child(10n+1) .v-barplot-bar { background-color: var(--color-pastel-blue); }
-.v-barplot-container .v-barplot-item:nth-child(10n+2) .v-barplot-bar { background-color: var(--color-pastel-green); }
-.v-barplot-container .v-barplot-item:nth-child(10n+3) .v-barplot-bar { background-color: var(--color-pastel-yellow); }
-.v-barplot-container .v-barplot-item:nth-child(10n+4) .v-barplot-bar { background-color: var(--color-pastel-purple); }
-.v-barplot-container .v-barplot-item:nth-child(10n+5) .v-barplot-bar { background-color: var(--color-pastel-pink); }
-.v-barplot-container .v-barplot-item:nth-child(10n+6) .v-barplot-bar { background-color: var(--color-pastel-cyan); }
-.v-barplot-container .v-barplot-item:nth-child(10n+7) .v-barplot-bar { background-color: var(--color-pastel-orange); }
-.v-barplot-container .v-barplot-item:nth-child(10n+8) .v-barplot-bar { background-color: var(--color-pastel-lime); }
-.v-barplot-container .v-barplot-item:nth-child(10n+9) .v-barplot-bar { background-color: var(--color-pastel-indigo); }
-.v-barplot-container .v-barplot-item:nth-child(10n+10) .v-barplot-bar { background-color: var(--color-pastel-teal); }
+/* Stacked Bar (Phenotypes) */
+.stacked-bar-container {
+    display: flex;
+    width: 100%;
+    height: 20px; /* Taller bar */
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    margin: 0.5rem 0; /* More vertical margin */
+    border: 1px solid var(--color-border);
+}
+.stacked-bar-segment {
+    display: block;
+    height: 100%;
+    transition: filter 0.2s ease, width 1s ease-out;
+    width: 0; /* Initial width for animation */
+    /* Colors applied inline via style attribute */
+}
+.stacked-bar-segment:hover {
+    filter: brightness(85%); /* Darken on hover */
+    cursor: default;
+}
+.stacked-bar-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.8rem; /* More gap */
+    margin-top: 0.5rem;
+    padding: 0;
+    overflow-y: auto;
+    flex-grow: 1;
+    max-height: 80px; /* Limit height */
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem; /* Larger font */
+    line-height: 1.3;
+}
+.legend-color-box {
+    width: 10px; /* Larger box */
+    height: 10px;
+    margin-right: 4px;
+    border-radius: 2px;
+    display: inline-block;
+    border: 1px solid rgba(0,0,0,0.2); /* Darker border */
+    flex-shrink: 0;
+}
+.legend-label {
+    color: var(--color-text);
+    margin-right: 3px;
+    white-space: nowrap;
+}
+.legend-count {
+    color: var(--color-text-muted);
+    font-size: 0.9em;
+    white-space: nowrap;
+}
 
+/* Chart Containers */
 .chart-container {
     position: relative;
     flex-grow: 1;
@@ -357,1118 +447,411 @@ a:hover code {
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 100%;
+    height: 100%; /* Fill available space */
+    min-height: 250px; /* Ensure minimum height for chart */
     padding: 0.5rem;
     margin: 0;
 }
-
-.chart-container.large {
-    height: 400px;
-    max-height: 400px;
-}
-.chart-container.medium {
-    height: 300px;
-    max-height: 300px;
-}
-.chart-container.note {
-    background-color: var(--color-background);
-    text-align: center;
-    font-style: italic;
-    color: var(--color-text-muted);
-    height: auto;
-    padding: 1.5rem;
-    max-width: none;
-    max-height: none;
-}
-
-.chart-container h5 {
-    margin-top: 0;
-    margin-bottom: 1rem;
-    text-align: center;
-    color: var(--color-text-muted);
-    position: absolute;
-    top: 0.5rem;
-    left: 0.5rem;
-    right: 0.5rem;
-}
-
-#antibioticClassChart, #phenotypeChart {
+#antibioticClassChart { /* Ensure canvas is block */
     display: block;
     max-width: 100%;
     max-height: 100%;
 }
 
-.stacked-bar-container {
-    display: flex;
-    width: 100%;
-    height: 18px;
-    border-radius: var(--border-radius);
-    overflow: hidden;
-    margin-top: 0.2rem;
-    margin-bottom: 0.2rem;
-    border: 1px solid var(--color-border);
-}
-
-.stacked-bar-segment {
-    display: block;
-    height: 100%;
-    transition: filter 0.2s ease, width 1s ease-out;
-    width: 0;
-}
-.stacked-bar-segment:hover {
-    filter: brightness(90%);
-    cursor: default;
-}
-
-.stacked-bar-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.1rem 0.5rem;
-    margin-top: 0.2rem;
-    padding-left: 0.1rem;
-    margin-bottom: 0;
-    overflow-y: auto;
-    flex-grow: 1;
-    max-height: 80px;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    font-size: 0.7rem;
-    line-height: 1.2;
-}
-
-.legend-color-box {
-    width: 8px;
-    height: 8px;
-    margin-right: 3px;
-    border-radius: 1px;
-    display: inline-block;
-    border: 1px solid rgba(0,0,0,0.1);
-    flex-shrink: 0;
-}
-
-.legend-label {
-    color: var(--color-text);
-    margin-right: 2px;
-    white-space: nowrap;
-}
-
-.legend-count {
-    color: var(--color-text-muted);
-    font-size: 0.9em;
-    white-space: nowrap;
-}
-
-.content-card {
-    background-color: var(--color-surface);
-    border: var(--border-default);
-    border-radius: var(--border-radius);
-    padding: 0.8rem 1rem;
-    margin-top: 1.5rem;
-    margin-bottom: 1rem;
-}
-
-.content-card h3 {
-    margin-top: 0;
-    color: var(--color-text);
-    margin-bottom: 0.5rem;
-    font-size: 1.2rem;
-    font-weight: 600;
-    padding-bottom: 0.2rem;
-    border-bottom: 2px solid var(--color-primary);
-    display: inline-block;
-    font-family: var(--font-mono);
-}
-
-.content-card p:first-of-type {
-    margin-bottom: 0.6rem;
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.85rem;
-}
-
-.content-card .category-grid {
-    margin-top: 0;
-}
-
+/* Category Grid */
 .category-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 0.5rem;
-    margin-top: 0.8rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Wider min */
+    gap: 1rem; /* More gap */
+    margin-top: 1rem;
 }
-
 .category-card {
     border: var(--border-default);
     border-radius: var(--border-radius);
-    padding: 0.5rem 0.7rem;
+    padding: 1rem; /* More padding */
     background-color: var(--color-surface);
-    transition: border-color 0.2s ease-in-out;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
 .category-card:hover {
     border-color: var(--color-primary);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Add shadow on hover */
 }
-
 .category-card h4 {
     margin-top: 0;
-    margin-bottom: 0.2rem;
-    color: var(--color-text);
-    font-size: 0.9rem;
+    margin-bottom: 0.3rem;
+    color: var(--color-primary); /* Red heading */
+    font-size: 1rem;
     font-weight: 600;
-    font-family: var(--font-mono);
 }
 .category-card .category-description {
-    font-size: 0.75rem;
+    font-size: 0.85rem; /* Larger description */
     color: var(--color-text-muted);
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.8rem; /* More space */
     flex-grow: 1;
-    min-height: 2em;
-    font-family: var(--font-mono);
-    line-height: 1.3;
-}
-.category-card .count {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--color-accent-dark);
-    margin-bottom: 1rem;
-    text-align: right;
-}
-.category-card .count .error-count {
-    color: var(--color-danger);
-    font-weight: normal;
-    font-size: 0.85rem;
-}
-
-.button, a.button,
-.class-button, a.class-button,
-.category-card .button, .category-card a.button
-{
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: var(--border-radius);
-    text-decoration: none !important;
-    cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.1s ease, border-color 0.2s ease, color 0.2s ease, filter 0.2s ease;
-    font-weight: 500;
-    font-size: 0.9rem;
-    font-family: var(--font-mono);
-    text-align: center;
-    white-space: nowrap;
-}
-
-.button, a.button {
-    background-color: var(--color-primary);
-    color: white !important;
-    align-self: flex-start;
-    margin-top: auto;
-}
-.button:hover, a.button:hover {
-    background-color: var(--color-primary-dark);
-    color: white;
-    text-decoration: none !important;
-    transform: translateY(-1px);
-}
-
-.category-card .button, .category-card a.button {
-    background-color: var(--color-background);
-    color: var(--color-primary-dark) !important;
-    border: 1px solid var(--color-border);
-    padding: 0.2rem 0.5rem;
-    font-size: 0.8rem;
-    font-weight: normal;
-    transform: none;
-    align-self: flex-start;
-    margin-top: auto;
-}
-.category-card .button:hover, .category-card a.button:hover {
-    background-color: var(--color-code-bg);
-    border-color: var(--color-primary);
-    color: var(--color-primary) !important;
-    transform: none;
-}
-
-.class-button, a.class-button {
-    padding: 0.3rem 0.7rem;
-    font-size: 0.8rem;
-    color: var(--color-text-muted) !important;
-    border: 1px solid transparent;
-}
-.class-button:hover, a.class-button:hover {
-    filter: brightness(90%);
-    color: var(--color-text-muted) !important;
-    transform: translateY(-1px);
-}
-.class-button .count-number {
-    font-weight: bold;
-    margin-left: 0.3em;
-    display: inline-block;
-    min-width: 1.5em;
-    text-align: right;
-}
-
-.antibiotic-classes-buttons {
-}
-.antibiotic-classes-buttons h4 {
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--color-text);
-    border-bottom: 1px dashed var(--color-border);
-    padding-bottom: 0.5rem;
-}
-
-.class-buttons-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    justify-content: flex-start;
-    margin-top: 1rem;
-}
-
-.class-buttons-container .class-button:nth-child(10n+1) { background-color: var(--color-pastel-blue); border-color: var(--color-pastel-blue); }
-.class-buttons-container .class-button:nth-child(10n+2) { background-color: var(--color-pastel-green); border-color: var(--color-pastel-green); }
-.class-buttons-container .class-button:nth-child(10n+3) { background-color: var(--color-pastel-yellow); border-color: var(--color-pastel-yellow); }
-.class-buttons-container .class-button:nth-child(10n+4) { background-color: var(--color-pastel-purple); border-color: var(--color-pastel-purple); }
-.class-buttons-container .class-button:nth-child(10n+5) { background-color: var(--color-pastel-pink); border-color: var(--color-pastel-pink); }
-.class-buttons-container .class-button:nth-child(10n+6) { background-color: var(--color-pastel-cyan); border-color: var(--color-pastel-cyan); }
-.class-buttons-container .class-button:nth-child(10n+7) { background-color: var(--color-pastel-orange); border-color: var(--color-pastel-orange); }
-.class-buttons-container .class-button:nth-child(10n+8) { background-color: var(--color-pastel-lime); border-color: var(--color-pastel-lime); }
-.class-buttons-container .class-button:nth-child(10n+9) { background-color: var(--color-pastel-indigo); border-color: var(--color-pastel-indigo); }
-.class-buttons-container .class-button:nth-child(10n+10) { background-color: var(--color-pastel-teal); border-color: var(--color-pastel-teal); }
-
-
-.item-list {
-    list-style: none;
-    padding-left: 0;
-    margin-top: 1rem;
-    columns: 2; /* Basic multi-column layout for simple lists */
-    column-gap: 2rem;
-}
-.item-list li {
-    padding: 0.2rem 0;
-    break-inside: avoid-column; /* Prevent items breaking across columns */
-}
-.item-list li a code {
-    font-size: 0.9rem;
-}
-
-.category-info {
-    color: var(--color-text-muted);
-    font-size: 0.9rem;
-    margin-bottom: 1.5rem;
-}
-.category-info code {
-    font-size: 0.95em; /* Slightly smaller code tag */
-    background-color: var(--color-code-bg);
-    border: var(--border-default);
-    padding: 0.1em 0.3em;
-    border-radius: var(--border-radius-sm);
-}
-
-/* --- PanGene Grouping Styles --- */
-.list-grouping-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive columns */
-    gap: 1.5rem;
-    margin-top: 1.5rem;
-}
-
-/* NEW: Modifier for single column layout */
-.list-grouping-container.single-column {
-    grid-template-columns: 1fr; /* Force single column */
-}
-
-.grouping-card {
-    background-color: var(--color-surface);
-    border: var(--border-default);
-    border-radius: var(--border-radius);
-    padding: 1rem 1.2rem;
-}
-
-.grouping-card h3 {
-    margin-top: 0;
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--color-text);
-    border-bottom: 1px solid var(--color-border);
-    padding-bottom: 0.5rem;
-}
-
-/* Accordion Styles */
-.accordion {
-    border-top: var(--border-default); /* Add top border to the whole accordion */
-}
-
-.accordion-item {
-    border-bottom: var(--border-default);
-}
-
-.accordion-header {
-    background-color: transparent; /* Make button background transparent */
-    border: none; /* Remove button border */
-    padding: 0.8rem 0.5rem 0.8rem 0; /* Adjust padding */
-    width: 100%;
-    text-align: left;
-    font-size: 0.95rem;
-    font-weight: 500;
-    cursor: pointer;
-    display: flex; /* Use flexbox for alignment */
-    justify-content: space-between; /* Space out elements */
-    align-items: center;
-    color: var(--color-text); /* Ensure text color is standard */
-}
-.accordion-header:hover {
-    background-color: #f1f3f5; /* Slight hover effect */
-}
-
-.accordion-header .group-label-link {
-    color: var(--color-primary-dark); /* Make link stand out */
-    text-decoration: none;
-    flex-grow: 1; /* Allow label to take available space */
-    margin-right: 0.5rem; /* Space before count */
-}
-.accordion-header .group-label-link:hover {
-    text-decoration: underline;
-}
-.accordion-header code { /* Style code tag within header */
-    font-size: 0.95em;
-    background-color: transparent; /* Match header background */
-    border: none;
-    padding: 0;
-    color: inherit; /* Inherit color from parent (link or header) */
-}
-
-.accordion-count {
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
-    margin-right: 0.5rem; /* Space before icon */
-    white-space: nowrap; /* Prevent count from wrapping */
-}
-
-.accordion-icon {
-    font-weight: bold;
-    font-size: 1.1rem;
-    min-width: 1em; /* Ensure icon takes some space */
-    text-align: right;
-}
-
-.accordion-content {
-    padding: 0.5rem 0.5rem 1rem 0.5rem; /* Padding for the list */
-    background-color: #fdfdfe; /* Slightly different background for content */
-    /* display: none; is handled by inline style initially */
-}
-
-.grouped-item-list {
-    list-style: none;
-    padding-left: 1rem; /* Indent the gene list */
-    margin: 0;
-    max-height: 300px; /* Limit height and add scroll if needed */
-    overflow-y: auto; /* Add scrollbar if content exceeds max-height */
-}
-.grouped-item-list li {
-    padding: 0.15rem 0;
-}
-.grouped-item-list li a code {
-    font-size: 0.9rem;
-}
-
-.details-header {
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: var(--border-default);
-}
-.item-id-tag {
-    display: inline-block;
-    font-family: var(--font-mono);
-    font-size: 0.8em;
-    color: var(--color-text-muted);
-    background-color: var(--color-code-bg);
-    padding: 0.2em 0.4em;
-    border-radius: var(--border-radius);
-    margin-bottom: 0.3rem;
-    border: var(--border-default);
-}
-.category-title a {
-    color: var(--color-primary-dark);
-    font-size: 1.4rem;
-    font-weight: 600;
-    text-decoration: none;
-    padding-bottom: 0.3rem;
-    display: inline-block;
-    border-bottom: 2px solid transparent;
-    transition: color 0.2s ease, border-color 0.2s ease;
-}
-.category-title a:hover {
-    color: var(--color-primary);
-    border-bottom-color: var(--color-primary);
-}
-
-.details-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
-}
-
-.details-section {
-    background-color: var(--color-surface);
-    padding: 0.8rem;
-    border-radius: var(--border-radius);
-    border: var(--border-default);
-}
-.details-section h3 {
-    margin-top: 0;
-    margin-bottom: 0.8rem;
-    font-size: 1.0rem;
-    padding-bottom: 0.3rem;
-}
-
-.details-list dt {
-    font-weight: 600;
-    color: var(--color-text);
-    margin-bottom: 0.2rem;
-    font-size: 0.85rem;
-}
-.details-list dd {
-    margin-left: 0;
-    margin-bottom: 0.6rem;
-    color: var(--color-text);
-    font-size: 0.9rem;
-    line-height: 1.3;
-}
-.details-list dd:last-child {
-    margin-bottom: 0;
-}
-
-.details-list dd ul {
-    list-style: none;
-    padding: 0;
-    margin: 0.2rem 0 0 0;
-}
-.details-list dd ul li {
-    margin-bottom: 0.2rem;
-    padding: 0.1rem 0;
-    border-bottom: none;
-}
-.details-list dd ul li:last-child {
-    margin-bottom: 0;
-    border-bottom: none;
-}
-
-.value-literal {
-    color: var(--color-text);
-}
-
-.extra-info {
-    font-size: 0.85em;
-    color: var(--color-text-muted);
-    margin-left: 0.5em;
-}
-
-.value-database code,
-.value-resistance-class code,
-.value-phenotype code {
-    display: inline-block;
-    padding: 0.2em 0.6em;
-    border-radius: var(--border-radius);
-    font-size: 0.85em;
-    font-weight: 500;
-    line-height: 1.4;
-    margin: 0.1em 0;
-    border: none;
-}
-
-.value-database code {
-    background-color: var(--color-tag-database);
-    color: var(--color-tag-database-text);
-}
-.value-resistance-class code {
-    background-color: var(--color-tag-class);
-    color: var(--color-tag-class-text);
-}
-.value-phenotype code {
-    background-color: var(--color-tag-phenotype);
-    color: var(--color-tag-phenotype-text);
-}
-a.value-database:hover code,
-a.value-resistance-class:hover code,
-a.value-phenotype:hover code {
-    text-decoration: none;
-    opacity: 0.85;
-}
-
-footer {
-    margin-top: 1.5rem;
-    padding-top: 0.8rem;
-    border-top: var(--border-default);
-    text-align: center;
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-}
-
-.back-links-footer {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: var(--border-default);
-}
-.back-link {
-    display: inline-block;
-    margin-bottom: 0.3rem;
-    margin-right: 0.8rem;
-    font-size: 0.85rem;
-}
-.back-link:last-child {
-    margin-right: 0;
-}
-
-.citation-section {
-    background-color: var(--color-surface);
-    padding: 1rem 1.5rem;
-    margin-bottom: 2rem;
-    border-radius: var(--border-radius);
-    border: 1px solid var(--color-border);
-    font-size: 0.9rem;
-}
-.citation-section h4 {
-    margin-top: 0;
-    margin-bottom: 0.5rem;
-    color: var(--color-text);
-}
-.citation-section p {
-    margin-bottom: 0;
-    line-height: 1.5;
-    color: var(--color-text-muted);
-}
-.citation-section a {
-    color: var(--color-primary-dark);
-    word-break: break-all;
-}
-
-@keyframes growBar {
-    from { width: 0; }
-}
-
-/* Style for the citation block in the header */
-.header-citation {
-    background-color: var(--color-code-bg);
-    border: var(--border-default);
-    border-radius: var(--border-radius);
-    padding: 0.6rem 1rem;
-    font-size: 0.8rem;
-    margin-top: 0.5rem;
+    min-height: 3em; /* Ensure space */
     line-height: 1.4;
 }
-.header-citation h4 {
-    margin-top: 0;
-    margin-bottom: 0.3rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--color-text);
-}
-.header-citation p {
-    margin-bottom: 0;
-    color: var(--color-text-muted);
-}
-.header-citation a {
-    color: var(--color-primary-dark);
-    word-break: break-word;
+.category-card .button { /* Button at bottom */
+    align-self: flex-start;
+    margin-top: auto; /* Push to bottom */
 }
 
-/* --- PanGene Details Specific Styles --- */
-.pangen-details-container {
-    margin-top: 1rem;
-}
-
-.gene-id-highlight {
-    font-size: 1.6rem;
-    margin-bottom: 0.2rem;
-    font-family: var(--font-mono);
-    color: var(--color-text);
-    font-weight: 700;
-    text-decoration: none;
-    margin-top: 0;
-}
-.gene-id-highlight code {
-    font-size: inherit;
-    font-weight: inherit;
-    color: inherit;
-    background-color: transparent;
-    border: none;
-    padding: 0;
-}
-
-.gene-type-subheader {
-    font-size: 0.95rem;
-    color: var(--color-text-muted);
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-    font-weight: normal;
-    text-decoration: none;
-}
-.gene-type-subheader a {
-    color: var(--color-primary-dark);
-    text-decoration: none;
-    font-weight: normal;
-}
-.gene-type-subheader a:hover {
-    text-decoration: underline;
-}
-.gene-type-subheader code {
-    font-size: 0.9em;
-    background-color: transparent;
-    color: var(--color-text-muted);
-    padding: 0;
-}
-
-.details-pangen-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
-    align-items: start;
-}
-
-.details-pangen-left {
-}
-
-.details-pangen-right {
-}
-
-.details-card {
-    background-color: var(--color-surface);
-    border: var(--border-default);
-    border-radius: var(--border-radius);
-    padding: 1rem 1.2rem;
-    margin-bottom: 1rem;
-}
-.details-card:last-child {
-    margin-bottom: 0;
-}
-
-.details-card h3 {
-    margin-top: 0;
-    margin-bottom: 0.8rem;
-    font-size: 1.0rem;
-    font-weight: 600;
-    color: var(--color-text);
-    border-bottom: 1px solid var(--color-border);
-    padding-bottom: 0.4rem;
-    text-decoration: none;
-}
-
-.details-card-stack {
-    display: flex;
-    flex-direction: column;
-}
-
-.details-card .details-list dt {
-    font-size: 0.8rem;
-    margin-bottom: 0.3rem;
-    color: var(--color-text);
-    font-weight: 600;
-    text-decoration: none;
-}
-.details-card .details-list dd {
-    margin-bottom: 0.8rem;
-    font-size: 0.9rem;
-}
-.details-card .details-list dd ul {
-    margin-top: 0.1rem;
-}
-.details-card .details-list dd ul li {
-    padding: 0.15rem 0;
-    border: none;
-    margin-bottom: 0.1rem;
-}
-
-.details-card .details-list.single-item dt {
-    display: none;
-}
-.details-card .details-list.single-item dd {
-    margin-bottom: 0;
-}
-
-.external-link::after {
-    content: ' \2197';
-    font-size: 0.8em;
-    vertical-align: super;
-    margin-left: 2px;
-}
-
-.details-card .details-list.single-item dd {
-    margin-bottom: 0;
-}
-
-/* Style for nested grouping container within an accordion */
-.nested-grouping {
-    padding-left: 1.5rem; /* Indent nested groups */
-    margin-top: 0.8rem;  /* Space above nested groups */
-    margin-bottom: 0.8rem; /* Space below nested groups */
-    border-left: 3px solid var(--color-border); /* Visual cue for nesting */
-    padding-top: 0.5rem;
-    padding-bottom: 0.1rem; /* Reduce bottom padding */
-    background-color: #fdfdfd; /* Slightly different background for nested area */
-}
-
-/* Adjust nested accordion headers */
-.nested-accordion .accordion-header {
-    /* Slightly smaller font and less padding */
-    font-size: 0.95em;
-    padding: 0.6rem 1rem;
-    background-color: #f0f0f0; /* Different background for nested headers */
-    border-bottom: 1px solid var(--color-border);
-}
-.nested-accordion .accordion-header:hover {
-    background-color: #e9ecef;
-}
-
-
-.nested-grouping .grouping-card {
-    margin-bottom: 0.8rem; /* Space between nested cards */
-    box-shadow: none; /* Remove shadow for nested cards if desired */
-    border: 1px solid var(--color-border); /* Add border instead? */
-}
-
-.nested-grouping .grouping-card h4 {
-    font-size: 1.05rem; /* Slightly smaller heading for nested groups */
-    margin-bottom: 0.6rem;
-    color: var(--color-text-muted);
-    padding-bottom: 0.3rem;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.nested-accordion .accordion-content {
-    padding-top: 0.5rem;
-}
-
-.external-link::after {
-    content: ' \2197';
-    font-size: 0.8em;
-    vertical-align: super;
-    margin-left: 2px;
-}
-
-/* Remove underline from accordion headers if they were links */
-.accordion-header a,
-.accordion-header a:visited {
-    text-decoration: none;
-    color: inherit; /* Inherit color from button/header */
-}
-.accordion-header a:hover {
-    text-decoration: underline; /* Optional hover effect */
-}
-
-/* Style for group label links within accordions */
-.group-label-link {
-    color: var(--color-primary-dark); /* Make class/phenotype links blue */
-    text-decoration: none;
-    font-weight: 600; /* Match header weight */
-}
-.group-label-link code {
-    color: inherit; /* Inherit link color */
-    background-color: transparent;
-    padding: 0;
-    font-size: 1em; /* Match surrounding text size */
-}
-.group-label-link:hover {
-    text-decoration: underline;
-}
-
-/* Ensure general links are not bold unless specified */
-a {
-    color: var(--color-primary-dark);
-    text-decoration: none; /* Remove default underline */
-}
-a:hover {
-    color: var(--color-primary);
-    text-decoration: underline; /* Add underline on hover */
-}
-
-/* --- Index Page Example Section --- */
+/* Example Section (Index Page) */
 .example-section {
     margin-top: 2.5rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--color-border);
 }
-
 .example-intro {
-    font-size: 1rem;
-    color: var(--color-text-muted);
+    font-size: 1.1rem; /* Larger intro */
+    color: var(--color-text);
     margin-bottom: 1.5rem;
     text-align: center;
 }
-
 .gene-example-container {
-    background-color: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius);
-    padding: 1rem 1.5rem 1.5rem 1.5rem; /* More bottom padding */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    padding: 1.5rem; /* More padding */
+    background-color: var(--color-code-bg); /* Light gray background */
+    border-color: var(--color-border);
 }
-
 .example-gene-id {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     font-weight: 600;
-    color: var(--color-text);
+    color: var(--color-primary); /* Red ID */
     margin-top: 0;
-    margin-bottom: 0.1rem;
+    margin-bottom: 0.2rem;
     text-align: center;
 }
-.example-gene-id a {
-    color: inherit;
-    text-decoration: none;
-}
-.example-gene-id a:hover {
-    color: var(--color-primary-dark);
-    text-decoration: underline;
-}
-.example-gene-id code {
-    font-size: inherit;
-    color: inherit;
-    background-color: transparent;
-    padding: 0;
-}
+.example-gene-id a { color: inherit; }
+.example-gene-id a:hover { color: var(--color-link-hover); }
+.example-gene-id code { font-size: inherit; color: inherit; }
 
 .example-gene-type {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: var(--color-text-muted);
     text-align: center;
     margin-top: 0;
     margin-bottom: 1.5rem;
 }
-.example-gene-type code {
-    font-size: 0.9em;
-    background-color: transparent;
-    padding: 0;
-    color: var(--color-text-muted);
-}
-
+.example-gene-type code { font-size: 0.95em; }
 
 .example-details-grid {
     display: grid;
-    /* Adjust columns for desired horizontal layout */
-    /* grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); */
-    grid-template-columns: repeat(4, 1fr); /* Try 4 columns */
-    gap: 1.5rem; /* Gap between columns */
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Responsive */
+    gap: 1.5rem 2rem; /* Row and column gap */
 }
-
-.example-column {
-    /* Styles for each column if needed */
-}
-
-.example-details-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
 .example-details-list dt {
-    font-size: 0.75rem; /* Smaller font for term */
+    font-size: 0.8rem; /* Smaller term */
     font-weight: 600;
     color: var(--color-text);
-    margin-bottom: 0.2rem;
-    text-transform: uppercase; /* Optional: make terms uppercase */
-    letter-spacing: 0.5px; /* Optional: spacing */
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
-
 .example-details-list dd {
-    font-size: 0.85rem; /* Smaller font for definition */
-    margin-left: 0; /* Remove default dl indent */
-    margin-bottom: 0.8rem; /* Space below each item */
-    line-height: 1.3;
+    font-size: 0.9rem; /* Larger definition */
+    margin-left: 0;
+    margin-bottom: 1rem; /* More space */
+    line-height: 1.4;
 }
-.example-details-list dd:last-child {
-    margin-bottom: 0;
-}
-
-.example-details-list dd ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-.example-details-list dd ul li {
-    margin-bottom: 0.1rem;
-    padding: 0;
-    border: none;
-}
-.example-details-list dd ul li:last-child {
-    margin-bottom: 0;
-}
-
-.example-details-list dd a {
-    /* Link styling already handled globally */
-}
-.example-details-list dd code {
-    font-size: 0.95em; /* Slightly smaller code */
-    /* Code styling already handled globally */
-}
+.example-details-list dd ul { list-style: none; margin: 0; padding: 0; }
+.example-details-list dd ul li { margin-bottom: 0.2rem; padding: 0; border: none; }
 .example-details-list .extra-info {
-    font-size: 0.8em;
+    font-size: 0.85em;
     color: var(--color-text-muted);
-    margin-left: 0.3em;
+    margin-left: 0.4em;
 }
 
-
-/* Responsive adjustments for example grid */
-@media (max-width: 992px) {
-    .example-details-grid {
-        grid-template-columns: repeat(2, 1fr); /* 2 columns on medium screens */
-    }
+/* --- List Page Specific --- */
+.category-info {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+    padding: 0.8rem;
+    background-color: var(--color-code-bg);
+    border: var(--border-default);
+    border-radius: var(--border-radius);
 }
-@media (max-width: 576px) {
-    .example-details-grid {
-        grid-template-columns: 1fr; /* 1 column on small screens */
-    }
-    .example-column {
-        margin-bottom: 1rem; /* Add space between stacked columns */
-    }
-     .example-column:last-child {
-        margin-bottom: 0;
-    }
+.item-list { /* Simple list */
+    list-style: none;
+    padding-left: 0;
+    margin-top: 1rem;
+    columns: 2; /* Keep multi-column for simple lists */
+    column-gap: 2rem;
+}
+.item-list li {
+    padding: 0.3rem 0; /* More padding */
+    break-inside: avoid-column;
+}
+.item-list li a code {
+    font-size: 0.95rem; /* Larger code */
 }
 
-/* --- NEW: Grid for Property Cards --- */
+/* Grouping Containers & Accordions */
+.list-grouping-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+.list-grouping-container.single-column {
+    grid-template-columns: 1fr;
+}
+.grouping-card { padding: 1rem 1.2rem; }
+.grouping-card h3, .grouping-card h4 { margin-top: 0; font-size: 1.1rem; }
+
+.accordion { border-top: var(--border-default); }
+.accordion-item { border-bottom: var(--border-default); }
+.accordion-header {
+    background-color: transparent;
+    border: none;
+    padding: 0.8rem 0.5rem;
+    width: 100%;
+    text-align: left;
+    font-size: 1rem; /* Larger header */
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--color-text);
+    transition: background-color 0.2s ease;
+}
+.accordion-header:hover { background-color: var(--color-hover-bg); }
+.accordion-header .group-label-link {
+    color: var(--color-link);
+    text-decoration: none;
+    flex-grow: 1;
+    margin-right: 0.5rem;
+}
+.accordion-header .group-label-link:hover { text-decoration: underline; }
+.accordion-header code { font-size: 0.95em; }
+.accordion-count {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-right: 0.8rem; /* More space */
+    white-space: nowrap;
+}
+.accordion-icon {
+    font-weight: bold;
+    font-size: 1.2rem; /* Larger icon */
+    min-width: 1em;
+    text-align: right;
+    color: var(--color-primary); /* Red icon */
+}
+.accordion-content {
+    padding: 0.8rem 1rem; /* More padding */
+    background-color: var(--color-hover-bg); /* Light background for content */
+    border-top: var(--border-default); /* Separator line */
+}
+.grouped-item-list {
+    list-style: none;
+    padding-left: 0.5rem; /* Less indent */
+    margin: 0;
+    max-height: 350px; /* Taller scroll area */
+    overflow-y: auto;
+}
+.grouped-item-list li { padding: 0.2rem 0; }
+.grouped-item-list li a code { font-size: 0.9rem; }
+
+/* Nested Accordion Styles */
+.nested-grouping {
+    padding: 1rem;
+    margin: 1rem 0 0 0; /* Only top margin */
+    border-left: 3px solid var(--color-primary); /* Red left border */
+    background-color: var(--color-white); /* White background */
+}
+.nested-accordion .accordion-header {
+    font-size: 0.9rem; /* Slightly smaller */
+    padding: 0.6rem 0.5rem;
+    background-color: transparent;
+}
+.nested-accordion .accordion-header:hover { background-color: var(--color-hover-bg); }
+.nested-accordion .accordion-content { background-color: var(--color-white); padding-top: 0.5rem; }
+.nested-grouping .grouping-card { margin-bottom: 1rem; box-shadow: none; border: var(--border-default); }
+.nested-grouping .grouping-card h4 { font-size: 1rem; color: var(--color-text-muted); }
+
+/* --- Details Page Specific --- */
+.details-container { margin-top: 1rem; }
+.item-id-highlight {
+    font-size: 1.8rem; /* Larger ID */
+    margin-bottom: 0.2rem;
+    font-family: var(--font-mono);
+    color: var(--color-primary); /* Red ID */
+    font-weight: 700;
+    border-bottom: none; /* Remove border from main ID */
+    padding-bottom: 0;
+    text-align: center; /* Center ID */
+}
+.item-id-highlight code { font-size: inherit; color: inherit; }
+
+.item-type-subheader {
+    font-size: 1rem; /* Larger type */
+    color: var(--color-text-muted);
+    margin-top: 0;
+    margin-bottom: 2rem; /* More space below type */
+    font-weight: normal;
+    text-align: center; /* Center type */
+}
+.item-type-subheader a { color: var(--color-link); }
+.item-type-subheader a:hover { text-decoration: underline; }
+.item-type-subheader code { font-size: 0.9em; }
+
 .details-property-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Responsive columns */
-    gap: 1rem; /* Gap between cards */
-    margin-bottom: 1.5rem; /* Space below the grid */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem; /* More gap */
+    margin-bottom: 2rem; /* More space below grid */
 }
+.details-card { padding: 1rem 1.2rem; margin-bottom: 0; /* Remove margin, handled by grid gap */ }
+.details-card h3 { font-size: 1.1rem; margin-bottom: 1rem; }
 
-/* --- NEW: Styles for Property Links as Buttons/Tags --- */
-.property-values {
-    /* Default list style */
-    list-style: none;
-    padding: 0;
-    margin: 0.2rem 0 0 0;
+.details-list dt {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
+.details-list dd {
+    margin-left: 0;
+    margin-bottom: 1rem; /* More space */
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+.details-list dd:last-child { margin-bottom: 0; }
+.details-list dd ul { list-style: none; padding: 0; margin: 0.2rem 0 0 0; }
+.details-list dd ul li { margin-bottom: 0.3rem; padding: 0; border: none; }
 
+/* Property Links as Tags/Buttons */
 .property-values-buttons {
-    /* Style for lists where items should look like buttons */
     display: flex;
     flex-wrap: wrap;
-    gap: 0.3rem 0.5rem; /* Spacing between buttons */
+    gap: 0.4rem 0.6rem; /* Spacing */
 }
-
-.property-values-buttons li {
-    margin-bottom: 0; /* Remove bottom margin for button list items */
-    padding: 0; /* Remove padding for button list items */
-}
+.property-values-buttons li { margin-bottom: 0; padding: 0; }
 
 .prop-link {
     display: inline-block;
-    padding: 0.2em 0.6em;
+    padding: 0.3em 0.8em; /* Adjust padding */
     border-radius: var(--border-radius);
     font-size: 0.85em;
     font-weight: 500;
     line-height: 1.4;
     margin: 0.1em 0;
-    border: 1px solid transparent; /* Start with transparent border */
+    border: 1px solid var(--color-border); /* Default border */
     text-decoration: none !important;
-    transition: filter 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
-    color: var(--color-text); /* Default text color */
-    background-color: var(--color-code-bg); /* Default background */
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    color: var(--color-text);
+    background-color: var(--color-hover-bg); /* Light gray background */
 }
 .prop-link:hover {
-    filter: brightness(95%);
-    text-decoration: none !important;
-    transform: translateY(-1px);
-    border-color: rgba(0,0,0,0.1); /* Subtle border on hover */
+    background-color: var(--color-border); /* Darker gray on hover */
+    border-color: var(--color-text-muted);
+    color: var(--color-black);
 }
+.prop-link code { font-size: 1em; color: inherit; font-weight: inherit; }
 
-.prop-link code {
-    background-color: transparent;
-    border: none;
-    padding: 0;
-    font-size: 1em; /* Match parent font size */
-    color: inherit; /* Inherit text color */
-    font-weight: inherit; /* Inherit font weight */
+/* Specific Tag Colors (Using Red and Grays) */
+.prop-link-db, .prop-link-class, .prop-link-pheno, .prop-link-equiv, .prop-link-bio {
+    background-color: #ffeeee; /* Very light red */
+    border-color: #ffcccc;
+    color: var(--color-primary);
 }
-
-/* Specific Button Colors */
-.prop-link-db { /* Source Database */
-    background-color: var(--color-pastel-blue);
-    border-color: var(--color-pastel-blue);
+.prop-link-db:hover, .prop-link-class:hover, .prop-link-pheno:hover, .prop-link-equiv:hover, .prop-link-bio:hover {
+    background-color: #ffdddd; /* Light red */
+    border-color: var(--color-primary);
+    color: var(--color-primary);
 }
-.prop-link-class { /* Resistance Class */
-    background-color: var(--color-pastel-green);
-    border-color: var(--color-pastel-green);
+.prop-link-external { /* External links */
+    background-color: var(--color-code-bg); /* Standard gray */
+    border-color: var(--color-border);
+    color: var(--color-link);
 }
-.prop-link-pheno { /* Phenotype */
-    background-color: var(--color-pastel-yellow);
-    border-color: var(--color-pastel-yellow);
-    color: #5f4b00; /* Darker text for yellow */
+.prop-link-external:hover {
+    background-color: var(--color-border);
+    border-color: var(--color-text-muted);
+    color: var(--color-link-hover);
 }
-.prop-link-equiv { /* Equivalent/Alias */
-    background-color: var(--color-pastel-purple);
-    border-color: var(--color-pastel-purple);
-}
-.prop-link-bio { /* Biological Context (Protein, Cluster) */
-    background-color: var(--color-pastel-cyan);
-    border-color: var(--color-pastel-cyan);
-}
-.prop-link-general { /* General links */
-    background-color: var(--color-pastel-gray);
-    border-color: var(--color-pastel-gray);
-}
-.prop-link-external { /* External links like CARD */
-    background-color: var(--color-pastel-orange);
-    border-color: var(--color-pastel-orange);
-}
-.prop-link-external .external-icon {
+.external-icon { /* For external links */
     font-size: 0.9em;
-    margin-left: 2px;
+    margin-left: 3px;
     display: inline-block;
+    vertical-align: middle;
 }
 
-
-.value-literal {
-    color: var(--color-text);
+/* Referenced By Section */
+.details-card.referenced-by dt { display: none; } /* Hide dt if only showing links */
+.details-card.referenced-by dd { margin-bottom: 0.5rem; }
+.details-card.referenced-by dd a code {
+    /* Use standard code styling */
+    background-color: var(--color-code-bg);
+    border: var(--border-default);
+    color: var(--color-code-text);
+    padding: 0.15em 0.4em;
 }
+.details-card.referenced-by dd a { color: var(--color-link); }
+.details-card.referenced-by dd a:hover code { text-decoration: underline; }
 
-/* Adjustments for details card content */
-.details-card .details-list dt {
-    font-size: 0.8rem;
-    margin-bottom: 0.3rem;
-    color: var(--color-text);
-    font-weight: 600;
-    text-decoration: none;
-    text-transform: uppercase; /* Make terms uppercase */
-    letter-spacing: 0.5px;
+/* --- Footer --- */
+footer {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: var(--border-default);
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
 }
-.details-card .details-list dd {
-    margin-bottom: 0.8rem;
+.back-links-footer {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: var(--border-default);
+    text-align: center; /* Center back links */
+}
+.back-link {
+    display: inline-block;
+    margin: 0 0.5rem 0.5rem 0.5rem; /* Add horizontal margin */
     font-size: 0.9rem;
 }
-.details-card .details-list dd:last-child {
-    margin-bottom: 0; /* Remove margin from last dd in a card */
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 768px) {
+    .viz-grid-container {
+        grid-template-columns: 1fr; /* Stack visualizations */
+    }
+    .item-list {
+        columns: 1; /* Single column list on small screens */
+    }
+    .list-grouping-container {
+        grid-template-columns: 1fr; /* Stack grouping cards */
+    }
+    .details-property-grid {
+        grid-template-columns: 1fr; /* Stack detail cards */
+    }
+    .example-details-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Allow 2 columns if space */
+    }
+    .site-header {
+        flex-direction: column; /* Stack logo and content */
+        align-items: flex-start; /* Align left */
+        padding: 0.8rem;
+    }
+    .header-content { text-shadow: none; /* Remove shadow if background is simpler */ }
+    .site-name { font-size: 1.5rem; }
 }
 
-/* Ensure Referenced By card uses standard list style */
-.details-card.referenced-by .details-list dd {
-    margin-bottom: 0.6rem; /* Restore default margin if needed */
-}
-.details-card.referenced-by .details-list dd a code {
-    /* Ensure default code styling if not a button */
-    font-family: var(--font-mono);
-    background-color: var(--color-code-bg);
-    padding: 0.15em 0.3em;
-    border-radius: var(--border-radius);
-    font-size: 0.85em;
-    color: var(--color-code-text);
-    border: var(--border-default);
-    word-break: break-word;
-}
-.details-card.referenced-by .details-list dd a {
-    color: var(--color-primary-dark); /* Standard link color */
-}
-.details-card.referenced-by .details-list dd a:hover code {
-     text-decoration: underline;
+@media (max-width: 576px) {
+    .example-details-grid {
+        grid-template-columns: 1fr; /* Force single column */
+    }
+    .category-grid {
+        grid-template-columns: 1fr; /* Stack category cards */
+    }
+    body { font-size: 13px; } /* Slightly smaller base font */
+    main h2, .content-card h3, .details-card h3, .grouping-card h3 { font-size: 1.3rem; }
+    .item-id-highlight { font-size: 1.5rem; }
 }
 

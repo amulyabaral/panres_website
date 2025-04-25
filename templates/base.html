@@ -3,9 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}PanRes Database Explorer{% endblock %}</title>
+    <title>{% block title %}{{ site_name }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- Favicon link - looks correct -->
     <link rel="icon" href="{{ url_for('static', filename='panres_logo.png') }}" type="image/png">
 </head>
 <body>
@@ -31,7 +30,7 @@
             {% endblock %}
         </main>
         <footer>
-            PanRes Database Explorer | Data derived from multiple sources.
+            {{ site_name }} | Data derived from multiple sources.
         </footer>
     </div>
 

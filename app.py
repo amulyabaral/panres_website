@@ -4,7 +4,6 @@ import os
 import logging
 from urllib.parse import unquote # Needed for handling URL-encoded values
 from collections import defaultdict # Import defaultdict
-import random # Import random for color generation
 
 # --- Configuration ---
 DATABASE = 'panres_ontology.db' # Make sure this file is in the same directory or provide the correct path
@@ -72,36 +71,6 @@ pangen_right_col_preds = [
     'member_of'
 ]
 
-# --- Define Colors for Pie Chart ---
-# Use hex codes matching the CSS pastel variables for consistency
-PIE_CHART_COLORS = [
-    '#a5d8ff', # pastel-blue
-    '#b2f2bb', # pastel-green
-    '#ffec99', # pastel-yellow
-    '#d0bfff', # pastel-purple
-    '#ffc9c9', # pastel-pink
-    '#a3e1d4', # pastel-cyan (corrected)
-    '#ffd8a8', # pastel-orange
-    '#d4f8d4', # pastel-lime
-    '#dbe4ff', # pastel-indigo
-    '#a0e9e5', # pastel-teal
-    '#bac8d3', # pastel-gray (for 'Others')
-]
-# --- NEW: Define Colors for Donut Chart (can reuse or define separately) ---
-# Let's reuse the same colors for simplicity, but shifted slightly
-DONUT_CHART_COLORS = PIE_CHART_COLORS[1:] + PIE_CHART_COLORS[:1]
-
-# Ensure RDF_TYPE, RDFS_LABEL, HAS_RESISTANCE_CLASS, HAS_PREDICTED_PHENOTYPE are defined globally
-IS_FROM_DATABASE = 'is_from_database' # Define constant for clarity
-
-# --- Define Predicates that should link to related items list ---
-LINK_TO_RELATED_PREDICATES = {
-    'is_from_database',
-    'has_resistance_class',
-    'has_predicted_phenotype',
-    # Add others if needed, e.g., 'member_of' if clusters should link to members
-}
-
 # --- Flask App Setup ---
 app = Flask(__name__)
 app.config['DATABASE'] = DATABASE
@@ -128,8 +97,6 @@ def inject_global_data():
         RDFS_COMMENT=RDFS_COMMENT,
         # --- ADD CONSTANTS TO CONTEXT IF NEEDED IN TEMPLATES (Optional) ---
         # Not strictly needed for current templates, but good practice if used directly
-        # HAS_RESISTANCE_CLASS=HAS_RESISTANCE_CLASS,
-        # HAS_PREDICTED_PHENOTYPE=HAS_PREDICTED_PHENOTYPE
     )
 
 # --- Database Helper Functions ---
@@ -467,26 +434,24 @@ def index():
         cursor_class = db.execute("""
             SELECT object AS class_name, COUNT(DISTINCT subject) AS gene_count
             FROM Triples
-            WHERE predicate = 'has_resistance_class' AND object_is_literal = 0
+            WHERE predicate = ? AND object_is_literal = 0
             GROUP BY object
             ORDER BY gene_count DESC
-        """)
+        """, (HAS_RESISTANCE_CLASS,)) # Use constant
         antibiotic_class_counts = [dict(row) for row in cursor_class.fetchall()]
         app.logger.info(f"Fetched {len(antibiotic_class_counts)} antibiotic class counts.")
 
         # --- Process Antibiotic Class Counts for Pie Chart (Top N + Others) ---
         if antibiotic_class_counts:
-            top_n_class = 7 # Keep this specific to antibiotic classes if needed
+            top_n_class = 7 # Or adjust as needed
             chart_labels_class = []
             chart_data_points_class = []
-            chart_colors_class = []
 
             # Take top N
             top_classes = antibiotic_class_counts[:top_n_class]
             for i, row in enumerate(top_classes):
                 chart_labels_class.append(row['class_name'])
                 chart_data_points_class.append(row['gene_count'])
-                chart_colors_class.append(PIE_CHART_COLORS[i % (len(PIE_CHART_COLORS) -1)])
 
             # Group remaining into "Others"
             if len(antibiotic_class_counts) > top_n_class:
@@ -495,49 +460,44 @@ def index():
                 if other_count_class > 0:
                     chart_labels_class.append("Others")
                     chart_data_points_class.append(other_count_class)
-                    chart_colors_class.append(PIE_CHART_COLORS[-1]) # Use the last defined color for Others
 
             antibiotic_chart_data = {
                 'labels': chart_labels_class,
-                'data': chart_data_points_class,
-                'colors': chart_colors_class
+                'data': chart_data_points_class
             }
             app.logger.info(f"Processed antibiotic counts for pie chart: {len(chart_labels_class)} slices.")
 
     except sqlite3.Error as e:
         app.logger.error(f"Error fetching or processing antibiotic class counts: {e}")
-        # Handle error appropriately, antibiotic_chart_data remains None
+        antibiotic_chart_data = None
 
-    # --- NEW: Fetch Predicted Phenotype Counts for Stacked Bar ---
-    phenotype_chart_data = None # Initialize as None
+    # --- Fetch Predicted Phenotype Counts for Stacked Bar ---
+    phenotype_chart_data = None
     try:
         cursor_pheno = db.execute("""
             SELECT object AS phenotype_name, COUNT(DISTINCT subject) AS gene_count
             FROM Triples
-            WHERE predicate = 'has_predicted_phenotype' AND object_is_literal = 0
+            WHERE predicate = ? AND object_is_literal = 0
             GROUP BY object
             ORDER BY gene_count DESC
-        """)
+        """, (HAS_PREDICTED_PHENOTYPE,)) # Use constant
         phenotype_counts = [dict(row) for row in cursor_pheno.fetchall()]
         app.logger.info(f"Fetched {len(phenotype_counts)} predicted phenotype counts.")
 
-        # --- Process Phenotype Counts for Stacked Bar (Top 8 + Others) ---
+        # --- Process Phenotype Counts for Stacked Bar (Top N + Others) ---
         if phenotype_counts:
-            top_n_pheno = 8
-            pheno_segments = [] # List to hold data for each bar segment/legend item
-            pheno_colors = DONUT_CHART_COLORS # Reuse colors
+            top_n_pheno = 8 # Or adjust as needed
+            pheno_segments = []
+            # Define a minimal, local color list for the stacked bar/legend
+            pheno_colors = ['#990000', '#666666', '#999999', '#cccccc', '#333333', '#000000'] # Red, Grays, Black
 
             # Take top N
             top_phenotypes = phenotype_counts[:top_n_pheno]
             total_count_top_n = sum(row['gene_count'] for row in top_phenotypes)
-
-            # Calculate "Others" count
             other_count_pheno = 0
             if len(phenotype_counts) > top_n_pheno:
                 other_phenotypes = phenotype_counts[top_n_pheno:]
                 other_count_pheno = sum(row['gene_count'] for row in other_phenotypes)
-
-            # Total count for percentage calculation
             total_pheno_count = total_count_top_n + other_count_pheno
 
             if total_pheno_count > 0: # Avoid division by zero
@@ -548,7 +508,8 @@ def index():
                         'name': row['phenotype_name'],
                         'count': row['gene_count'],
                         'percentage': percentage,
-                        'color': pheno_colors[i % (len(pheno_colors) -1)] # Cycle colors, excluding last for 'Others'
+                        # Cycle through the minimal local color list
+                        'color': pheno_colors[i % len(pheno_colors)]
                     })
 
                 # Add "Others" segment if applicable
@@ -558,7 +519,8 @@ def index():
                         'name': "Others",
                         'count': other_count_pheno,
                         'percentage': percentage,
-                        'color': pheno_colors[-1] # Use the last color for Others
+                        # Use the last color or cycle for Others
+                        'color': pheno_colors[top_n_pheno % len(pheno_colors)]
                     })
 
                 phenotype_chart_data = {
@@ -569,7 +531,7 @@ def index():
 
     except sqlite3.Error as e:
         app.logger.error(f"Error fetching or processing phenotype counts: {e}")
-        phenotype_chart_data = None # Ensure it's None on error
+        phenotype_chart_data = None
     # --- End Phenotype Section ---
 
     # --- Fetch details for pan_1 example ---
@@ -583,22 +545,19 @@ def index():
     # --- End fetch pan_1 details ---
 
     # --- Convert Row objects to Dictionaries ---
-    # Convert source_db_counts_rows to a list of dicts
     source_db_counts = [dict(row) for row in source_db_counts_rows]
 
     # --- Calculate max counts for scaling the bar plot ---
-    # Keep the fixed max count for the source DB plot if desired, or calculate dynamically
     max_db_count = max(row['gene_count'] for row in source_db_counts) if source_db_counts else 1
-    # max_db_count = 15000 # Or keep the fixed maximum value if preferred
 
     return render_template(
         'index.html',
         category_data=category_data,
         source_db_counts=source_db_counts,
         max_db_count=max_db_count,
-        antibiotic_chart_data=antibiotic_chart_data,
-        phenotype_chart_data=phenotype_chart_data, # Pass new structure
-        pan_1_details=pan_1_details # Pass pan_1 details to template
+        antibiotic_chart_data=antibiotic_chart_data, # Now only contains labels and data
+        phenotype_chart_data=phenotype_chart_data, # Still contains colors from local list
+        pan_1_details=pan_1_details
     )
 
 
