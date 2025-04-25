@@ -4,7 +4,7 @@
 
 {% block content %}
     {# Use item_id directly, details.label for the label #}
-    <h2 class="text-3xl font-semibold text-gray-800 mb-1">Details for <code class="text-2xl bg-gray-100 px-2 py-1 rounded">{{ item_id }}</code></h2>
+    <h2 class="text-3xl font-semibold text-dtu-red mb-1">Details for <code class="text-2xl bg-gray-100 px-2 py-1 rounded">{{ item_id }}</code></h2>
     {% if details.label and details.label != item_id %} {# Show label only if it's different from ID #}
         <p class="text-xl text-gray-600 mb-4">({{ details.label }})</p>
     {% endif %}

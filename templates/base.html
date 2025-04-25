@@ -14,21 +14,35 @@
 
     <link rel="icon" href="{{ url_for('static', filename='panres_logo.png') }}" type="image/png">
 
-    {# Basic Tailwind Configuration is now in style.css #}
+    {# Basic Tailwind Configuration - Define custom colors here #}
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'dtu-red': '#990000', // DTU Corporate Red
+            }
+          }
+        }
+      }
+    </script>
     {# Custom styles (@apply) are now in style.css #}
 </head>
 <body class="flex flex-col min-h-screen font-sans bg-gray-50 text-gray-800"> {# Base body styles #}
 
     {# --- Header --- #}
-    <header class="bg-white shadow-md sticky top-0 z-50">
+    {# Apply the DTU pattern background and adjust text colors #}
+    <header class="dtu-pattern-bg sticky top-0 z-50 shadow-md">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center space-x-4">
                  <a href="{{ url_for('index') }}">
+                    {# Consider if the logo needs adjustment for contrast #}
                     <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="h-10">
                  </a>
                  <div>
-                    <h1 class="text-xl font-semibold text-gray-700">Centre for Genomic Epidemiology</h1>
-                    <div class="text-sm text-gray-500">{{ site_name }}</div>
+                    {# Use light text colors for contrast #}
+                    <h1 class="text-xl font-semibold text-white">Centre for Genomic Epidemiology</h1>
+                    <div class="text-sm text-gray-200">{{ site_name }}</div>
                  </div>
             </div>
             <div></div> {# Placeholder #}

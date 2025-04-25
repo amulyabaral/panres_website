@@ -33,28 +33,31 @@
     }
     /* Simple definition list styling */
     dt {
-        @apply text-gray-500 w-1/3 shrink-0 pr-2 text-right text-xs uppercase tracking-wide font-semibold;
+        /* Adjusted for details page */
+        /* @apply text-gray-500 w-1/3 shrink-0 pr-2 text-right text-xs uppercase tracking-wide font-semibold; */
     }
     dd {
-        @apply w-2/3 break-words; /* Allow long words/URLs to break */
+        /* Adjusted for details page */
+        /* @apply w-2/3 break-words; */ /* Allow long words/URLs to break */
     }
 }
 
 @layer components {
     .btn {
-         @apply inline-block bg-dtu-red/80 hover:bg-dtu-red text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2;
+         /* Use solid DTU red */
+         @apply inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2;
     }
     .dtu-pattern-bg {
-        /* Ensure the path is correct relative to the CSS file or use absolute path if needed */
-        /* Using url_for won't work here, use a static path */
+        /* Ensure the path is correct relative to the web root */
         background-image: url('/static/DTU_Background_Pattern_Corporate_Red_RGB.jpg');
-        background-color: #990000;
-        background-size: cover;
+        background-color: #990000; /* Fallback color */
+        background-size: cover; /* Or 'contain' or specific size */
         background-position: center center;
         background-repeat: no-repeat;
     }
     .property-row {
-        @apply flex items-start mb-1;
+        /* Removed - using definition list in details.html now */
+        /* @apply flex items-start mb-1; */
     }
     /* Accordion styles (if you want to keep them centralized) */
     .accordion-header {
@@ -79,30 +82,10 @@
 /* } */
 
 /* --- Tailwind Config (Integrated) --- */
-/* This replaces the <script> block in the HTML */
-/* Note: This configuration method might require a build step */
-/* If using only the CDN, you might need to keep the <script> config in base.html */
-/* For simplicity with CDN, let's assume you keep the config script in base.html */
-/* If you set up a build process (like Tailwind CLI or PostCSS), you'd put this in tailwind.config.js */
-/*
-module.exports = {
-  content: ["./templates/**/*.html"], // Configure template paths
-  theme: {
-    extend: {
-      colors: {
-        'dtu-red': '#990000',
-      },
-      fontFamily: {
-        sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
-      }
-    }
-  },
-  plugins: [],
-}
-*/
+/* Removed the invalid commented-out block */
 
 /* --- TEMPORARY WORKAROUND FOR CDN --- */
 /* Keep the config script in base.html for now if only using CDN */
 /* Add this comment to remind you */
+/* Removed extra comment and blank lines */
 
