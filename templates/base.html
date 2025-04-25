@@ -4,6 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ site_name }}{% endblock %}</title>
+    {# Google Fonts Link #}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    {# Your Stylesheet #}
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="icon" href="{{ url_for('static', filename='panres_logo.png') }}" type="image/png">
 </head>
@@ -11,7 +16,6 @@
     {# Header now uses badge style #}
     <header class="site-header">
         <div class="container">
-            {# Simple Title #}
             <h1>Center for Genomic Epidemiology</h1>
         </div>
     </header>
@@ -25,19 +29,10 @@
         </main>
     </div> {# End .container for main content #}
 
-    {# Footer inspired by provided CSS #}
     <footer class="page-footer">
         <div class="container">
-            {# Optional footer content rows/columns can go here #}
-            {# Example:
-            <div class="row" id="top-row">
-                <div class="col"><h5>Section 1</h5><p>Links or text</p></div>
-                <div class="col"><h5>Section 2</h5><p>Links or text</p></div>
-            </div>
-             #}
         </div>
         <div class="footer-copyright">
-            {# Copyright text or links #}
             &copy; {{ current_year }} Center for Genomic Epidemiology -
             <a href="https://www.genomicepidemiology.org/" target="_blank" rel="noopener noreferrer">www.genomicepidemiology.org</a>
         </div>

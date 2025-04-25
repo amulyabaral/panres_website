@@ -1,76 +1,5 @@
 /* --- Font Definitions --- */
-@font-face {
-    font-family: 'Neo Sans Pro Regular';
-    font-style: normal;
-    font-weight: normal;
-    src: local('Neo Sans Pro Regular'), url('NeoSansProRegular.woff') format('woff');
-}
-@font-face {
-    font-family: 'Neo Sans Pro Italic';
-    font-style: normal;
-    font-weight: normal;
-    src: local('Neo Sans Pro Italic'), url('NeoSansProItalic.woff') format('woff');
-}
-@font-face {
-    font-family: 'Neo Sans Pro Light';
-    font-style: normal;
-    font-weight: normal;
-    src: local('Neo Sans Pro Light'), url('NeoSansProLight.woff') format('woff');
-}
-@font-face {
-    font-family: 'Neo Sans Pro Light Italic';
-    font-style: normal;
-    font-weight: normal;
-    src: local('Neo Sans Pro Light Italic'), url('NeoSansProLightIt.woff') format('woff');
-}
-@font-face {
-    font-family: 'Neo Sans Pro Medium';
-    font-style: normal;
-    font-weight: normal;
-    src: local('Neo Sans Pro Medium'), url('NeoSansProMedium.woff') format('woff');
-}
-@font-face {
-    font-family: 'Neo Sans Pro Medium Italic';
-    font-style: normal;
-    font-weight: normal;
-    src: local('Neo Sans Pro Medium Italic'), url('NeoSansProMedIt.woff') format('woff');
-}
-@font-face {
-    font-family: 'Neo Sans Pro Bold';
-    font-style: normal;
-    font-weight: normal;
-    src: local('Neo Sans Pro Bold'), url('NeoSansProBold.woff') format('woff');
-}
-@font-face {
-    font-family: 'Neo Sans Pro Bold Italic';
-    font-style: normal;
-    font-weight: normal;
-    src: local('Neo Sans Pro Bold Italic'), url('NeoSansProBoldIt.woff') format('woff');
-}
-@font-face {
-    font-family: 'Neo Sans Pro Black';
-    font-style: normal;
-    font-weight: normal;
-    src: local('Neo Sans Pro Black'), url('NeoSansProBlack.woff') format('woff');
-}
-@font-face {
-    font-family: 'Neo Sans Pro Ultra';
-    font-style: normal;
-    font-weight: normal;
-    src: local('Neo Sans Pro Ultra'), url('NeoSansProUltra.woff') format('woff');
-}
-@font-face {
-    font-family: 'Neo Sans Pro Black Italic';
-    font-style: normal;
-    font-weight: normal;
-    src: local('Neo Sans Pro Black Italic'), url('NeoSansProBlackIt.woff') format('woff');
-}
-@font-face {
-    font-family: 'Neo Sans Pro Ultra Italic';
-    font-style: normal;
-    font-weight: normal;
-    src: local('Neo Sans Pro Ultra Italic'), url('NeoSansProUltIt.woff') format('woff');
-}
+/* @font-face rules removed */
 
 /* --- Theme Variables --- */
 :root {
@@ -93,7 +22,7 @@
     --color-footer-bg: #cccccc; /* Footer background */
 
     /* Fonts */
-    --font-sans: 'Neo Sans Pro Regular', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-sans: 'Open Sans', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* Updated font */
     --font-mono: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 
     /* Layout */
@@ -106,13 +35,14 @@ html {
     height: 100%; /* Needed for sticky footer */
 }
 body {
-    font-family: var(--font-sans);
+    font-family: var(--font-sans); /* Uses updated variable */
     line-height: 1.5;
     margin: 0;
     padding: 0;
     background-color: var(--color-background);
     color: var(--color-text);
-    font-size: 14px;
+    font-size: 14px; /* Base size */
+    font-weight: 400; /* Regular weight */
     display: flex; /* Needed for sticky footer */
     flex-direction: column; /* Needed for sticky footer */
     min-height: 100vh; /* Needed for sticky footer */
@@ -145,9 +75,9 @@ body {
 }
 .site-header h1 {
     margin: 0;
-    font-family: 'Neo Sans Pro Regular'; /* Match inspiration */
+    font-family: var(--font-sans); /* Use base sans font */
     font-size: 2rem; /* Adjust size as needed */
-    font-weight: normal; /* Regular weight */
+    font-weight: 600; /* Semi-bold weight for header */
     text-align: left; /* Align left within container */
     color: var(--color-white);
 }
@@ -173,11 +103,11 @@ main h2, .content-card h3, .details-card h3, .grouping-card h3 {
     margin-top: 1.5rem;
     margin-bottom: 1rem; /* Match inspiration */
     font-size: 1.4rem;
-    font-weight: 600; /* Keep headings bolder */
+    font-weight: 600; /* Semi-bold */
     padding-bottom: 0.3rem;
     border-bottom: 1px solid var(--color-border);
     display: block;
-    font-family: 'Neo Sans Pro Medium'; /* Use Medium for headings */
+    font-family: var(--font-sans); /* Use base sans font */
 }
 main h2:first-child, .content-card h3:first-child {
     margin-top: 0;
@@ -186,14 +116,15 @@ main h3 { /* Sub-headings */
     font-size: 1.2rem;
     color: var(--color-text);
     border-bottom: none;
-    font-family: 'Neo Sans Pro Regular';
+    font-family: var(--font-sans); /* Use base sans font */
+    font-weight: 600; /* Semi-bold */
 }
 main h4 { /* Sub-sub-headings */
     font-size: 1rem;
     color: var(--color-text-muted);
     margin-bottom: 0.5rem;
-    font-weight: 600;
-    font-family: 'Neo Sans Pro Medium';
+    font-weight: 600; /* Semi-bold */
+    font-family: var(--font-sans); /* Use base sans font */
 }
 
 p {
@@ -235,9 +166,9 @@ a:hover code { text-decoration: underline; }
     text-decoration: none !important;
     cursor: pointer;
     transition: background-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
-    font-weight: 500;
+    font-weight: 600; /* Make buttons slightly bolder */
     font-size: 0.9rem;
-    font-family: 'Neo Sans Pro Regular'; /* Use Neo Sans */
+    font-family: var(--font-sans); /* Use base sans font */
     text-align: center;
     white-space: nowrap;
     background-color: var(--color-primary);
@@ -291,7 +222,8 @@ a:hover code { text-decoration: underline; }
     color: var(--color-text);
     border: none;
     font-size: 1rem;
-    font-family: 'Neo Sans Pro Medium';
+    font-family: var(--font-sans); /* Use base sans font */
+    font-weight: 600; /* Semi-bold */
 }
 .citation-section p {
     margin-bottom: 0;
@@ -319,7 +251,7 @@ a:hover code { text-decoration: underline; }
 .viz-column-left { display: flex; flex-direction: column; gap: 1.5rem; }
 .visualization-section { padding: 0.8rem 1rem; display: flex; flex-direction: column; min-height: 150px; }
 .visualization-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: var(--border-default); }
-.visualization-header h4 { margin: 0; padding: 0; border: none; font-size: 1.1rem; font-weight: 600; color: var(--color-text); line-height: 1.2; flex-grow: 1; margin-right: 1rem; font-family: 'Neo Sans Pro Medium'; }
+.visualization-header h4 { margin: 0; padding: 0; border: none; font-size: 1.1rem; font-weight: 600; color: var(--color-text); line-height: 1.2; flex-grow: 1; margin-right: 1rem; font-family: var(--font-sans); /* Use base sans font */ }
 .visualization-section.placeholder { background-color: var(--color-hover-bg); text-align: center; color: var(--color-text-muted); font-style: italic; justify-content: center; align-items: center; box-shadow: none; border-style: dashed; }
 .visualization-section.placeholder h4 { border-bottom: none; margin-bottom: 0.5rem; }
 
@@ -345,12 +277,21 @@ a:hover code { text-decoration: underline; }
     height: 100%;
     transition: filter 0.2s ease, width 1s ease-out;
     width: 0;
-    background-color: #e0e0e0;
+    /* background-color: #e0e0e0; <-- Remove default gray */
 }
 .stacked-bar-segment:hover { filter: brightness(85%); cursor: default; }
 .stacked-bar-legend { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; margin-top: 0.5rem; padding: 0; overflow-y: auto; flex-grow: 1; max-height: 80px; }
 .legend-item { display: flex; align-items: center; font-size: 0.8rem; line-height: 1.3; }
-/* Remove color box from legend */
+/* Add style for the color box */
+.legend-color-box {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 5px;
+    border: 1px solid rgba(0,0,0,0.2);
+    vertical-align: middle;
+    flex-shrink: 0; /* Prevent shrinking */
+}
 .legend-label { color: var(--color-text); margin-right: 3px; white-space: nowrap; }
 .legend-count { color: var(--color-text-muted); font-size: 0.9em; white-space: nowrap; }
 
@@ -362,7 +303,7 @@ a:hover code { text-decoration: underline; }
 .category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem; }
 .category-card { border: var(--border-default); border-radius: var(--border-radius); padding: 1rem; background-color: var(--color-surface); transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; display: flex; flex-direction: column; justify-content: space-between; }
 .category-card:hover { border-color: var(--color-primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.category-card h4 { margin-top: 0; margin-bottom: 0.3rem; color: var(--color-primary); font-size: 1rem; font-weight: 600; font-family: 'Neo Sans Pro Medium'; }
+.category-card h4 { margin-top: 0; margin-bottom: 0.3rem; color: var(--color-primary); font-size: 1rem; font-weight: 600; font-family: var(--font-sans); /* Use base sans font */ }
 .category-card .category-description { font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 0.8rem; flex-grow: 1; min-height: 3em; line-height: 1.4; text-align: left; /* Descriptions left-aligned */ }
 .category-card .button { align-self: flex-start; margin-top: auto; }
 
@@ -376,10 +317,10 @@ a:hover code { text-decoration: underline; }
 .list-grouping-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
 .list-grouping-container.single-column { grid-template-columns: 1fr; }
 .grouping-card { padding: 1rem 1.2rem; }
-.grouping-card h3, .grouping-card h4 { margin-top: 0; font-size: 1.1rem; font-family: 'Neo Sans Pro Medium'; }
+.grouping-card h3, .grouping-card h4 { margin-top: 0; font-size: 1.1rem; font-family: var(--font-sans); font-weight: 600; } /* Use base sans font, semi-bold */
 .accordion { border-top: var(--border-default); }
 .accordion-item { border-bottom: var(--border-default); }
-.accordion-header { background-color: transparent; border: none; padding: 0.8rem 0.5rem; width: 100%; text-align: left; font-size: 1rem; font-weight: 500; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--color-text); transition: background-color 0.2s ease; font-family: 'Neo Sans Pro Regular'; }
+.accordion-header { background-color: transparent; border: none; padding: 0.8rem 0.5rem; width: 100%; text-align: left; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--color-text); transition: background-color 0.2s ease; font-family: var(--font-sans); }
 .accordion-header:hover { background-color: var(--color-hover-bg); }
 .accordion-header .group-label-link { color: var(--color-link); text-decoration: none; flex-grow: 1; margin-right: 0.5rem; }
 .accordion-header .group-label-link:hover { text-decoration: underline; }
@@ -395,7 +336,7 @@ a:hover code { text-decoration: underline; }
 .nested-accordion .accordion-header:hover { background-color: var(--color-hover-bg); }
 .nested-accordion .accordion-content { background-color: var(--color-white); padding-top: 0.5rem; }
 .nested-grouping .grouping-card { margin-bottom: 1rem; box-shadow: none; border: var(--border-default); }
-.nested-grouping .grouping-card h4 { font-size: 1rem; color: var(--color-text-muted); font-family: 'Neo Sans Pro Medium'; }
+.nested-grouping .grouping-card h4 { font-size: 1rem; color: var(--color-text-muted); font-family: var(--font-sans); font-weight: 600; } /* Use base sans font, semi-bold */
 
 /* --- Details Page Specific --- */
 .details-container { margin-top: 1rem; }
@@ -407,8 +348,8 @@ a:hover code { text-decoration: underline; }
 .item-type-subheader code { font-size: 0.9em; }
 .details-property-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
 .details-card { padding: 1rem 1.2rem; margin-bottom: 0; }
-.details-card h3 { font-size: 1.1rem; margin-bottom: 1rem; font-family: 'Neo Sans Pro Medium'; }
-.details-list dt { font-size: 0.8rem; font-weight: 600; color: var(--color-text); margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Neo Sans Pro Medium'; }
+.details-card h3 { font-size: 1.1rem; margin-bottom: 1rem; font-family: var(--font-sans); font-weight: 600; } /* Use base sans font, semi-bold */
+.details-list dt { font-size: 0.8rem; font-weight: 700; color: var(--color-text); margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.5px; font-family: var(--font-sans); } /* Use base sans font, bold */
 .details-list dd { margin-left: 0; margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.4; }
 .details-list dd:last-child { margin-bottom: 0; }
 .details-list dd ul { list-style: none; padding: 0; margin: 0.2rem 0 0 0; }
@@ -448,7 +389,8 @@ footer.page-footer .container {
     padding-bottom: 1.5rem; /* Padding for content above copyright */
 }
 footer h5, footer h6 {
-    font-family: 'Neo Sans Pro Regular';
+    font-family: var(--font-sans); /* Use base sans font */
+    font-weight: 600; /* Semi-bold */
     margin-bottom: 0.5rem;
     color: var(--color-text);
 }
@@ -458,7 +400,7 @@ footer p {
     color: var(--color-text-muted);
 }
 .footer-copyright {
-    font-family: 'Neo Sans Pro Regular';
+    font-family: var(--font-sans); /* Use base sans font */
     text-align: center;
     background-image: url("DTU_Background_Pattern_Corporate_Red_RGB.jpg");
     background-color: var(--color-primary); /* Fallback */

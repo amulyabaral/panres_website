@@ -93,6 +93,14 @@ app.config['SITE_NAME'] = SITE_NAME # Add site name
 logging.basicConfig(level=logging.INFO) # Log INFO level messages and above
 app.logger.setLevel(logging.INFO) # Ensure Flask's logger also respects INFO level
 
+# --- Define a colorblind-friendly palette (e.g., Paul Tol's vibrant) ---
+# Using 10 distinct colors. Will cycle if more categories exist.
+COLOR_PALETTE = [
+    '#EE7733', '#0077BB', '#33BBEE', '#EE3377', '#CC3311',
+    '#009988', '#BBBBBB', '#DDAA33', '#BB5566', '#000000'
+]
+# --- End Color Palette ---
+
 # Make INDEX_CATEGORIES and PREDICATE_DISPLAY_NAMES available to all templates
 @app.context_processor
 def inject_global_data():
@@ -513,26 +521,32 @@ def index():
                 # Add top N segments
                 for i, row in enumerate(top_phenotypes):
                     percentage = (row['gene_count'] / total_pheno_count * 100)
+                    color = COLOR_PALETTE[i % len(COLOR_PALETTE)] # Assign color from palette
                     pheno_segments.append({
                         'name': row['phenotype_name'],
                         'count': row['gene_count'],
-                        'percentage': percentage
+                        'percentage': percentage,
+                        'color': color # <-- Add color here
                     })
 
                 # Add "Others" segment if applicable
                 if other_count_pheno > 0:
                     percentage = (other_count_pheno / total_pheno_count * 100)
+                    # Assign the next color in the cycle, or a default like gray/black if palette is exhausted
+                    color_index = len(top_phenotypes) % len(COLOR_PALETTE)
+                    color = COLOR_PALETTE[color_index]
                     pheno_segments.append({
                         'name': "Others",
                         'count': other_count_pheno,
-                        'percentage': percentage
+                        'percentage': percentage,
+                        'color': color # <-- Add color here
                     })
 
                 phenotype_chart_data = {
                     'segments': pheno_segments,
                     'total_count': total_pheno_count
                 }
-                app.logger.info(f"Processed phenotype counts for stacked bar: {len(pheno_segments)} segments.")
+                app.logger.info(f"Processed phenotype counts for stacked bar: {len(pheno_segments)} segments with colors.")
 
     except sqlite3.Error as e:
         app.logger.error(f"Error fetching or processing phenotype counts: {e}")
@@ -551,7 +565,7 @@ def index():
         source_db_counts=source_db_counts,
         max_db_count=max_db_count,
         antibiotic_chart_data=antibiotic_chart_data,
-        phenotype_chart_data=phenotype_chart_data, # Will no longer contain colors
+        phenotype_chart_data=phenotype_chart_data, # Now includes colors
     )
 
 
