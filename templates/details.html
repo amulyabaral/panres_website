@@ -11,12 +11,15 @@
 
     {# Back Links #}
     <div class="mb-6 flex flex-wrap gap-2">
+        {# Apply .btn and text-sm #}
         <a href="{{ url_for('index') }}" class="btn text-sm">Back to Home</a>
         {# Link back to the primary category list if available #}
         {% if details.primary_type_category_key %}
+             {# Apply .btn and text-sm #}
              <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="btn text-sm">Back to {{ details.primary_type_display }} List</a>
         {% endif %}
         {# General back button using browser history #}
+        {# Apply .btn and text-sm #}
         <button onclick="window.history.back();" class="btn text-sm">Back</button>
     </div>
 

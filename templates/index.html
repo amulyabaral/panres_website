@@ -43,7 +43,7 @@
                     {# Access the count from the category_counts dict using the key #}
                     <span class="font-medium">{{ category_counts.get(key, 'N/A') }}</span> items
                 </div>
-                {# Standard Button/Link Style - Use the btn class #}
+                {# Apply the .btn class here #}
                 <a href="{{ url_for('list_items', category_key=key) }}" class="mt-auto btn text-center">
                     View {{ key }}
                 </a>
@@ -68,12 +68,12 @@
                 <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Genes per Antibiotic Class</h4>
                 <p class="text-gray-600 text-sm mb-4 text-center">Distribution of PanRes genes across different antibiotic resistance classes</p>
                 {% if antibiotic and antibiotic.data %}
-                    {# Add margin-bottom to chart container for spacing #}
-                    <div class="chart-container mb-4">
+                    {# Use the chart-container class for sizing and spacing #}
+                    <div class="chart-container">
                         <canvas id="antibiotic"></canvas>
                     </div>
-                    {# Add Browse Button - Ensure it has the btn class #}
-                    <div class="mt-auto text-center"> {# Use mt-auto to push button down #}
+                    {# Add Browse Button - Ensure it has the btn class and center it #}
+                    <div class="mt-auto text-center"> {# Use mt-auto to push button down, text-center to center it #}
                         <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="btn">
                             Browse by Antibiotic Class
                         </a>
@@ -89,11 +89,11 @@
                 <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Genes per Source Database</h4>
                 <p class="text-gray-600 text-sm mb-4 text-center">Number of genes contributed by each source database to the PanRes collection</p>
                 {% if source_db and source_db.segments %}
-                    {# Add margin-bottom to chart container for spacing #}
-                    <div class="chart-container mb-4">
+                    {# Use the chart-container class for sizing and spacing #}
+                    <div class="chart-container">
                         <canvas id="sourceDb"></canvas>
                     </div>
-                    {# Add Browse Button - Ensure it has the btn class #}
+                    {# Add Browse Button - Ensure it has the btn class and center it #}
                     <div class="mt-auto text-center">
                         <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="btn">
                             Browse by Source Database
@@ -113,11 +113,11 @@
                 <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Predicted Phenotype Proportions</h4>
                 <p class="text-gray-600 text-sm mb-4 text-center">Relative distribution of phenotypes across PanGenes</p>
                 {% if phenotype and phenotype.segments %}
-                    {# Add margin-bottom to chart container for spacing #}
-                    <div class="chart-container mb-4">
+                    {# Use the chart-container class for sizing and spacing #}
+                    <div class="chart-container">
                         <canvas id="phenotype"></canvas>
                     </div>
-                    {# Add Browse Button - Ensure it has the btn class #}
+                    {# Add Browse Button - Ensure it has the btn class and center it #}
                     <div class="mt-auto text-center">
                         <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="btn">
                             Browse by Predicted Phenotype

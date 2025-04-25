@@ -12,8 +12,10 @@
         @apply bg-gray-200 text-gray-700 px-1 py-0.5 rounded text-sm font-mono break-all;
     }
     dt {
+        /* Add base styles for definition terms if needed */
     }
     dd {
+        /* Add base styles for definition descriptions if needed */
     }
 }
 
@@ -30,10 +32,9 @@
         background-position: center center;
         background-repeat: no-repeat;
     }
-    .property-row {
-        /* Removed - using definition list in details.html now */
-        /* @apply flex items-start mb-1; */
-    }
+    /* Removed property-row as it's no longer used */
+    /* .property-row { ... } */
+
     /* Accordion styles (if you want to keep them centralized) */
     .accordion-header {
          @apply w-full text-left px-4 py-3 bg-gray-100 hover:bg-gray-200 font-semibold text-gray-700 flex justify-between items-center transition-colors duration-150 cursor-pointer;
@@ -45,7 +46,7 @@
         @apply text-lg font-mono;
     }
 
-    /* Chart container - defines height */
+    /* Chart container - defines height and spacing */
     .chart-container {
         @apply relative h-80 md:h-96 mx-auto max-w-full mb-4; /* Add mb-4 for spacing below chart */
         /* Improved height for better visualization */
@@ -56,9 +57,10 @@
         @apply mt-4 text-sm text-gray-600 text-center;
     }
 
-    /* Chart card - provides background, padding, shadow */
+    /* Chart card - provides background, padding, shadow, border, and flex layout */
     .chart-card {
         @apply bg-white p-6 rounded-lg shadow-md border border-gray-200 flex flex-col;
+        /* flex flex-col allows button to be pushed to bottom with mt-auto */
     }
 }
 
