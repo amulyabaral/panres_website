@@ -76,136 +76,91 @@
     {# --- Main Content Area --- #}
     <main class="container mx-auto px-4 py-8 flex-grow">
 
-        {# --- Info and Citation Card --- #}
-        <div class="bg-white rounded-md shadow-lg p-6 mb-8">
-            <h3 class="text-xl font-medium text-dtu-red mb-3">PanRes 2.0 Database Information</h3>
-            <p class="text-gray-700 mb-4">
-                Welcome to the PanRes 2.0 database, a curated collection of antimicrobial resistance (AMR) genes.
-                Explore the data using the charts and browse buttons below.
-            </p>
-            <hr class="my-4 border-gray-200">
-            <h4 class="text-lg font-medium text-dtu-red mb-2">Citation</h4>
-            <p class="text-sm text-gray-700">{{ citation_text|safe }}</p>
+        {# *** START ERROR DISPLAY BLOCK *** #}
+        {% if show_error %}
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-md shadow-md" role="alert">
+            <p class="font-bold">Error {{ error_code }}</p>
+            <p>{{ error_message | default('An unexpected error occurred.', true) }}</p>
+            <p class="mt-2 text-sm">You can try returning to the <a href="{{ url_for('index') }}" class="font-medium hover:underline">Homepage</a>.</p>
         </div>
+        {% endif %}
+        {# *** END ERROR DISPLAY BLOCK *** #}
 
+        {# --- Introduction/Search Section (Only show if NOT showing an error) --- #}
+        {% if not show_error %}
+        <section class="mb-12 text-center">
+            <h2 class="text-3xl font-semibold text-gray-800 mb-3">Welcome to the {{ site_name }}</h2>
+            <p class="text-lg text-gray-600 mb-6 max-w-3xl mx-auto">
+                Explore antimicrobial resistance (AMR) genes, their predicted phenotypes,
+                associated antibiotic classes, and source databases.
+            </p>
+            {# Removed Search Bar - Add back if needed #}
+        </section>
 
-        {# --- Main Grid for Visualizations and Categories --- #}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-
-            {# --- Left Column: Charts --- #}
-            <div class="space-y-6">
-
-                {# --- Source Database Visualization --- #}
-                <div class="bg-white rounded-md shadow-lg p-4">
-                    <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
-                        <h4 class="text-lg font-medium text-dtu-red">ARGs by Source Database</h4>
-                        {# Link to the list page for this category #}
-                        <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="btn">Browse Sources</a>
+        {# --- Browse Categories Section (Only show if NOT showing an error) --- #}
+        <section class="mb-12">
+            <h3 class="text-2xl font-semibold text-gray-700 mb-6 text-center">Browse Data</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {# Standard Card Style #}
+                {% for key, info in categories.items() %}
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 flex flex-col">
+                    <h4 class="text-xl font-semibold text-dtu-red mb-2">{{ key }}</h4>
+                    <p class="text-gray-600 text-sm mb-4 flex-grow">{{ info.description }}</p>
+                    <div class="text-sm text-gray-500 mb-4">
+                        <span class="font-medium">{{ info.count | default('N/A') }}</span> items
                     </div>
-                    {% if source_db_chart_data and source_db_chart_data.segments %}
-                        <div class="w-full h-8 bg-gray-200 rounded-full overflow-hidden flex mb-4" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" aria-label="Distribution by Source Database">
-                            {% for segment in source_db_chart_data.segments %}
-                                <div class="h-full transition-all duration-500 ease-out" {# Tailwind class for the bar segment #}
-                                     data-target-width="{{ segment.percentage }}%"
-                                     style="background-color: {{ segment.color }}; width: 0%;" {# Start width at 0 for animation #}
-                                     title="{{ segment.name }} ({{ '{:,}'.format(segment.count) }} genes, {{ '%.1f'|format(segment.percentage) }}%)">
-                                </div>
-                            {% endfor %}
-                        </div>
-                        <div class="text-xs space-y-1">
-                            {% for segment in source_db_chart_data.segments %}
-                            {# Link to the details page for the specific database #}
-                            <a href="{{ url_for('details', item_id=segment.name) }}" title="View details for {{ segment.name }}" class="flex items-center group">
-                                <span class="inline-block w-3 h-3 rounded-sm mr-1.5 border border-gray-400" style="background-color: {{ segment.color }};"></span>
-                                <span class="text-gray-700 group-hover:text-dtu-red group-hover:underline">{{ segment.name }}</span>
-                                <span class="text-gray-500 ml-1">({{ '{:,}'.format(segment.count) }})</span>
-                            </a>
-                            {% endfor %}
-                        </div>
-                        <p class="text-xs text-gray-500 mt-2 text-right">Total Original Genes: {{ '{:,}'.format(source_db_chart_data.total_count) }}</p>
-                    {% else %}
-                        <p class="text-gray-500 italic text-center py-4">No source database data available.</p>
-                    {% endif %}
+                    {# Standard Button/Link Style #}
+                    <a href="{{ url_for('list_items', category_key=key) }}" class="mt-auto inline-block bg-dtu-red/80 hover:bg-dtu-red text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 text-center">
+                        View {{ key }}
+                    </a>
                 </div>
+                {% else %}
+                <p class="text-gray-500 italic md:col-span-2 lg:col-span-4 text-center">No categories found.</p>
+                {% endfor %}
+            </div>
+        </section>
 
-                {# --- Predicted Phenotype Visualization --- #}
-                <div class="bg-white rounded-md shadow-lg p-4">
-                    <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
-                        <h4 class="text-lg font-medium text-dtu-red">PanGenes by Predicted Phenotype</h4>
-                        {# Link to the list page for this category #}
-                        <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="btn">Browse Phenotypes</a>
-                    </div>
-                    {% if phenotype_chart_data and phenotype_chart_data.segments %}
-                        <div class="w-full h-8 bg-gray-200 rounded-full overflow-hidden flex mb-4" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" aria-label="Distribution by Predicted Phenotype">
-                            {% for segment in phenotype_chart_data.segments %}
-                                <div class="h-full transition-all duration-500 ease-out" {# Tailwind class for the bar segment #}
-                                     data-target-width="{{ segment.percentage }}%"
-                                     style="background-color: {{ segment.color }}; width: 0%;" {# Start width at 0 for animation #}
-                                     title="{{ segment.name }} ({{ '{:,}'.format(segment.count) }} genes, {{ '%.1f'|format(segment.percentage) }}%)">
-                                </div>
-                            {% endfor %}
-                        </div>
-                        <div class="text-xs space-y-1 max-h-40 overflow-y-auto"> {# Limit height and add scroll if many phenotypes #}
-                            {% for segment in phenotype_chart_data.segments %}
-                            {# Link to the list page, filtered by this phenotype #}
-                            <a href="{{ url_for('list_items', predicate='has_predicted_phenotype', object_value=segment.name) }}" title="View genes with phenotype {{ segment.name }}" class="flex items-center group">
-                                <span class="inline-block w-3 h-3 rounded-sm mr-1.5 border border-gray-400" style="background-color: {{ segment.color }};"></span>
-                                <span class="text-gray-700 group-hover:text-dtu-red group-hover:underline">{{ segment.name }}</span>
-                                <span class="text-gray-500 ml-1">({{ '{:,}'.format(segment.count) }})</span>
-                            </a>
-                            {% endfor %}
-                        </div>
-                         <p class="text-xs text-gray-500 mt-2 text-right">Total PanGenes: {{ '{:,}'.format(phenotype_chart_data.total_count) }}</p>
-                    {% else %}
-                        <p class="text-gray-500 italic text-center py-4">No phenotype data available.</p>
-                    {% endif %}
-                </div>
-
-            </div> {# End Left Column #}
-
-            {# --- Right Column: Pie Chart and Categories --- #}
-            <div class="space-y-6">
-
-                 {# --- Antibiotic Class Pie Chart --- #}
-                <div class="bg-white rounded-md shadow-lg p-4">
-                    <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
-                        <h4 class="text-lg font-medium text-dtu-red">PanGenes by Antibiotic Class</h4>
-                         {# Link to the list page for this category #}
-                        <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="btn">Browse Classes</a>
-                    </div>
-                    {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
-                        <div class="chart-container mx-auto" style="max-width: 400px;"> {# Constrain pie chart size #}
+        {# --- Charts Section (Only show if NOT showing an error) --- #}
+        <section class="mb-12">
+            <h3 class="text-2xl font-semibold text-gray-700 mb-6 text-center">Data Overview</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {# Antibiotic Classes Chart #}
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                    <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Genes per Antibiotic Class</h4>
+                    {% if antibiotic_class_data and antibiotic_class_data.data %}
+                        <div class="chart-container" style="height: 350px;"> {# Applied height directly #}
                             <canvas id="antibioticClassChart"></canvas>
                         </div>
-                         <p class="text-xs text-gray-500 mt-2 text-center">Total PanGenes: {{ '{:,}'.format(antibiotic_chart_data.total_count) }}</p>
                     {% else %}
-                        <p class="text-gray-500 italic text-center py-4">No antibiotic class data available.</p>
+                        <p class="text-gray-500 italic text-center py-4">No data available for antibiotic classes chart.</p>
                     {% endif %}
                 </div>
 
-                {# --- Browse Categories Section --- #}
-                <div class="bg-white rounded-md shadow-lg p-4">
-                    <h4 class="text-lg font-medium text-dtu-red mb-4 pb-2 border-b border-gray-200">Browse Ontology</h4>
-                    <div class="space-y-3">
-                        {% for key, config in index_categories.items() %}
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h5 class="font-semibold">{{ key }}</h5>
-                                {% if config.description %}
-                                <p class="text-sm text-gray-600">{{ config.description }}</p>
-                                {% endif %}
-                            </div>
-                            <a href="{{ url_for('list_items', category_key=key) }}" class="btn">
-                                View ({{ category_counts.get(key, 0) }})
-                            </a>
+                {# Source Databases Chart #}
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                    <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Genes per Source Database</h4>
+                    {% if source_db_data and source_db_data.data %}
+                         <div class="chart-container" style="height: 350px;"> {# Applied height directly #}
+                            <canvas id="sourceDbChart"></canvas>
                         </div>
-                        {% endfor %}
-                    </div>
+                    {% else %}
+                        <p class="text-gray-500 italic text-center py-4">No data available for source databases chart.</p>
+                    {% endif %}
                 </div>
+            </div>
+        </section>
 
-            </div> {# End Right Column #}
-
-        </div> {# End Main Grid #}
+        {# --- Citation Section (Only show if NOT showing an error) --- #}
+        <section class="bg-gray-100 p-6 rounded-lg border border-gray-200 shadow-sm">
+            <h3 class="text-xl font-semibold text-gray-700 mb-3">Citation</h3>
+            <p class="text-gray-600 text-sm">
+                If you use the PanRes database or website, please cite:
+            </p>
+            <blockquote class="mt-2 text-sm text-gray-800 border-l-4 border-dtu-red pl-4 italic">
+                {{ citation_text | safe }}
+            </blockquote>
+        </section>
+        {% endif %} {# End of "if not show_error" block #}
 
     </main>
 
@@ -234,102 +189,30 @@
     {# Custom JS for Charts and Animations #}
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // --- Animate Progress Bars ---
-            const progressBars = document.querySelectorAll('[data-target-width]');
-            // Use a short delay to ensure transition is applied after initial render
-            setTimeout(() => {
-                progressBars.forEach(bar => {
-                    const targetWidth = bar.getAttribute('data-target-width');
-                    bar.style.width = targetWidth;
-                });
-            }, 100); // 100ms delay
+            // Check if we are showing an error, if so, don't try to init charts
+            const isErrorPage = document.querySelector('.bg-red-100'); // Check if error div exists
+            if (isErrorPage) {
+                console.log("Error page detected, skipping chart initialization.");
+                return;
+            }
 
-            // --- Antibiotic Class Pie Chart ---
+            // Initialize Source DB Chart (if canvas exists)
+            const ctxSource = document.getElementById('sourceDbChart');
+            {% if source_db_data and source_db_data.data %}
+                if (ctxSource) {
+                    // ... (rest of sourceDbChart initialization logic)
+                } else {
+                     console.warn("Canvas element #sourceDbChart not found.");
+                }
+            {% else %}
+                 // console.info("No data available for Source DB Chart."); // Handled by HTML conditional
+            {% endif %}
+
+            // Initialize Antibiotic Class Chart (if canvas exists)
             const ctxAntibiotic = document.getElementById('antibioticClassChart');
-            {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
-                // Use |tojson|safe to correctly embed JSON data into JavaScript
-                const antibioticLabels = {{ antibiotic_chart_data.labels | tojson | safe }};
-                const antibioticDataPoints = {{ antibiotic_chart_data.data | tojson | safe }};
-                const antibioticColors = {{ antibiotic_chart_data.colors | tojson | safe }}; // Get colors from Flask
-
+             {% if antibiotic_class_data and antibiotic_class_data.data %}
                 if (ctxAntibiotic) {
-                    try {
-                        new Chart(ctxAntibiotic, {
-                            type: 'pie',
-                            data: {
-                                labels: antibioticLabels,
-                                datasets: [{
-                                    label: 'PanGenes',
-                                    data: antibioticDataPoints,
-                                    backgroundColor: antibioticColors, // Use generated colors
-                                    borderColor: '#fff', // White border for segments
-                                    borderWidth: 1
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false, // Allow chart to fill container height
-                                plugins: {
-                                    legend: {
-                                        position: 'bottom', // Move legend below
-                                        labels: {
-                                            boxWidth: 12,
-                                            padding: 15,
-                                            font: { size: 10 }
-                                        }
-                                    },
-                                    tooltip: {
-                                        callbacks: {
-                                            label: function(context) {
-                                                let label = context.label || '';
-                                                if (label) {
-                                                    label += ': ';
-                                                }
-                                                if (context.parsed !== null) {
-                                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                                    const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
-                                                    label += `${context.raw.toLocaleString()} (${percentage}%)`;
-                                                }
-                                                return label;
-                                            }
-                                        }
-                                    },
-                                    // Datalabels plugin configuration (removed for simplicity)
-                                    // datalabels: {
-                                    //     formatter: (value, ctx) => {
-                                    //         let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                    //         let percentage = (value*100 / sum).toFixed(1)+"%";
-                                    //         return percentage;
-                                    //     },
-                                    //     color: '#fff',
-                                    // }
-                                },
-                                onClick: (event, elements) => {
-                                    if (elements.length > 0) {
-                                        const chartElement = elements[0];
-                                        const index = chartElement.index;
-                                        const label = antibioticLabels[index];
-                                        if (label) {
-                                            // Link to the list page, filtered by this class
-                                            // Ensure the label is URL-encoded correctly
-                                            const encodedLabel = encodeURIComponent(label);
-                                            const relatedUrl = `/list/related/has_resistance_class/${encodedLabel}`;
-                                            window.location.href = relatedUrl;
-                                        }
-                                    }
-                                }
-                            }
-                            // Register plugin if using datalabels
-                            // plugins: [ChartDataLabels],
-                        });
-                    } catch (e) {
-                        console.error("Error initializing Antibiotic Class Chart:", e);
-                        // Display error message using Tailwind classes
-                        const errorContainer = ctxAntibiotic.parentElement;
-                        if (errorContainer) {
-                            errorContainer.innerHTML = '<p class="text-red-600 text-center italic py-4">Error loading chart.</p>';
-                        }
-                    }
+                    // ... (rest of antibioticClassChart initialization logic)
                 } else {
                      console.warn("Canvas element #antibioticClassChart not found.");
                 }

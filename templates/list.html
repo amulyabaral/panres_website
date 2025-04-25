@@ -68,116 +68,57 @@
 
     {# --- Main Content Area --- #}
     <main class="container mx-auto px-4 py-8 flex-grow">
+        <h2 class="text-3xl font-semibold text-gray-800 mb-2">{{ page_title }}</h2>
+        <p class="text-gray-600 mb-6">
+            Listing items of type <code>{{ item_type }}</code>
+            {% if grouping_predicate_display %}
+                , grouped by {{ grouping_predicate_display }}
+                {% if grouping_value_display %} and {{ grouping_value_display }}{% endif %}
+            {% endif %}.
+            Found {{ total_items }} item(s).
+        </p>
 
-        <h2 class="text-2xl font-medium text-dtu-red mb-2">{{ page_title }}</h2>
-        <p class="text-sm text-gray-600 mb-6">{{ description|safe }}</p> {# Use safe filter for potential <code> tags #}
-
-        {# --- Conditional Display: Grouped View or Flat List --- #}
-        {% if is_grouped_view and (grouped_by_class or grouped_by_phenotype) %}
-            {# --- Grouped View (PanRes Genes) --- #}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                {# Card for Resistance Classes #}
-                {% if grouped_by_class %}
-                <div class="bg-white rounded-md shadow-lg p-4">
-                    <h3 class="text-lg font-medium text-dtu-red mb-4 pb-2 border-b border-gray-200">Grouped by Resistance Class</h3>
-                    <div class="accordion space-y-2 max-h-[60vh] overflow-y-auto pr-2"> {# Added max height and scroll #}
-                        {% for class_label, data in grouped_by_class.items() %}
-                            <div class="accordion-item border border-gray-200 rounded">
-                                <button class="accordion-header w-full flex justify-between items-center p-3 text-left bg-gray-50 hover:bg-gray-100 focus:outline-none transition-colors duration-150">
-                                    <span class="font-semibold text-sm">
-                                        {# Link the class label if its ID is known #}
-                                        {% if data.id %}
-                                            <a href="{{ url_for('details', item_id=data.id) }}" class="text-dtu-red hover:underline" title="View details for {{ class_label }}"><code>{{ class_label }}</code></a>
-                                        {% else %}
-                                            <code>{{ class_label }}</code> {# e.g., No Class Assigned #}
-                                        {% endif %}
-                                        <span class="text-gray-500 font-normal ml-2">({{ data.genes|length }} genes)</span>
-                                    </span>
-                                    <span class="accordion-icon text-gray-500 text-xl font-light transform transition-transform duration-200">+</span>
-                                </button>
-                                <div class="accordion-content p-3 border-t border-gray-200 hidden bg-white">
-                                    <ul class="list-disc list-inside space-y-1 text-sm columns-1 sm:columns-2 md:columns-3">
-                                        {% for gene in data.genes %}
-                                            <li class="break-inside-avoid mb-1"><a href="{{ gene.link }}" class="text-dtu-red hover:underline"><code>{{ gene.id }}</code></a></li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-
-                {# Card for Predicted Phenotypes #}
-                {% if grouped_by_phenotype %}
-                <div class="bg-white rounded-md shadow-lg p-4">
-                    <h3 class="text-lg font-medium text-dtu-red mb-4 pb-2 border-b border-gray-200">Grouped by Predicted Phenotype</h3>
-                     <div class="accordion space-y-2 max-h-[60vh] overflow-y-auto pr-2"> {# Added max height and scroll #}
-                        {% for phenotype_label, data in grouped_by_phenotype.items() %}
-                            <div class="accordion-item border border-gray-200 rounded">
-                                <button class="accordion-header w-full flex justify-between items-center p-3 text-left bg-gray-50 hover:bg-gray-100 focus:outline-none transition-colors duration-150">
-                                    <span class="font-semibold text-sm">
-                                        {# Link the phenotype label if its ID is known #}
-                                        {% if data.id %}
-                                            <a href="{{ url_for('details', item_id=data.id) }}" class="text-dtu-red hover:underline" title="View details for {{ phenotype_label }}"><code>{{ phenotype_label }}</code></a>
-                                        {% else %}
-                                            <code>{{ phenotype_label }}</code> {# e.g., No Phenotype Assigned #}
-                                        {% endif %}
-                                        <span class="text-gray-500 font-normal ml-2">({{ data.genes|length }} genes)</span>
-                                    </span>
-                                    <span class="accordion-icon text-gray-500 text-xl font-light transform transition-transform duration-200">+</span>
-                                </button>
-                                <div class="accordion-content p-3 border-t border-gray-200 hidden bg-white">
-                                    <ul class="list-disc list-inside space-y-1 text-sm columns-1 sm:columns-2 md:columns-3">
-                                        {% for gene in data.genes %}
-                                            <li class="break-inside-avoid mb-1"><a href="{{ gene.link }}" class="text-dtu-red hover:underline"><code>{{ gene.id }}</code></a></li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-
-            </div> {# End Grid #}
-
-        {% elif items %}
-            {# --- Flat List View (Other Categories or Related Items) --- #}
-             <div class="bg-white rounded-md shadow-lg p-4">
-                 <ul class="list-disc list-inside space-y-1 text-sm columns-1 sm:columns-2 md:columns-3 lg:columns-4">
-                    {% for item in items %}
-                        <li class="break-inside-avoid mb-1">
-                            {% if item.link %}
-                                <a href="{{ item.link }}" class="text-dtu-red hover:underline"><code>{{ item.id }}</code></a>
-                            {% else %}
-                                <code>{{ item.id }}</code> {# Display as code even if not linkable #}
-                            {% endif %}
-                        </li>
-                    {% endfor %}
-                </ul>
-             </div>
-        {% else %}
-            <p class="text-gray-500 italic">No items found matching the criteria.</p>
-        {% endif %}
-
-        {# Back Link #}
-        <div class="mt-8 text-center">
-            {# Provide context-specific back link if possible #}
-            {% if predicate and object_value %}
-                 {# If viewing related items, link back to the object's detail page if it exists #}
-                 {# We need to check if object_value corresponds to an item with a details page #}
-                 {# This logic might be complex here, maybe just link to index? Or pass object details? #}
-                 {# Simple approach: Link back to index #}
-                 <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
-            {% elif category_key %}
-                 {# If viewing a category list, link back to index #}
-                 <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
-            {% else %}
-                 <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
-            {% endif %}
+        {# Back Link - Standard Link Style #}
+        <div class="mb-6">
+             <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
+             {% if parent_category_key %}
+                 <a href="{{ url_for('list_items', category_key=parent_category_key) }}" class="ml-4 text-sm text-dtu-red hover:underline">&laquo; Back to {{ parent_category_key }} List</a>
+             {% endif %}
+             {# Add a general back button using browser history #}
+             <button onclick="window.history.back();" class="ml-4 text-sm text-dtu-red hover:underline">Back</button>
         </div>
+
+
+        {% if grouped_items %}
+            <div class="accordion space-y-1">
+                {% for group_name, items in grouped_items.items() %}
+                    <div class="border border-gray-300 rounded overflow-hidden">
+                        {# Accordion Header - Standard Style #}
+                        <button class="accordion-header w-full text-left px-4 py-3 bg-gray-100 hover:bg-gray-200 font-semibold text-gray-700 flex justify-between items-center transition-colors duration-150 cursor-pointer">
+                            <span>{{ group_name }} ({{ items | length }} genes)</span>
+                            <span class="accordion-icon text-lg font-mono">+</span> {# Use font-mono for +/- sign consistency #}
+                        </button>
+                        {# Accordion Content - Standard Style #}
+                        <div class="accordion-content border-t border-gray-300 p-4 bg-white hidden">
+                            <ul class="list-disc list-inside space-y-1">
+                                {% for item_id, display_name in items %}
+                                    <li>
+                                        {# Gene/Item Link - Standard Style #}
+                                        <a href="{{ url_for('show_details', item_id=item_id) }}" class="py-1 px-2 text-sm text-dtu-red hover:underline hover:bg-gray-50 rounded">
+                                            {{ display_name }}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <p class="text-gray-500 italic">No items found matching the criteria.</p>
+            </div>
+        {% endif %}
 
     </main>
 
@@ -216,14 +157,16 @@
                         content.classList.remove('hidden');
                         if(icon) {
                             icon.textContent = '−'; // Use minus sign when expanded
-                            // icon.classList.add('rotate-180'); // Optional rotation
                         }
+                        // Optional: Add active state styling to header
+                        // this.classList.add('bg-gray-200');
                     } else {
                         content.classList.add('hidden');
                          if(icon) {
                              icon.textContent = '+'; // Use plus sign when collapsed
-                             // icon.classList.remove('rotate-180'); // Optional rotation
                          }
+                         // Optional: Remove active state styling
+                         // this.classList.remove('bg-gray-200');
                     }
                 });
             });

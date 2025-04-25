@@ -61,6 +61,7 @@ app = Flask(__name__)
 app.config['DATABASE'] = DATABASE
 app.config['SITE_NAME'] = SITE_NAME
 app.config['CITATION_TEXT'] = CITATION_TEXT
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'a_default_secret_key_for_development')
 
 # --- Database Helper Functions ---
 def get_db():
@@ -516,28 +517,26 @@ def get_related_subjects(predicate, object_value):
 # --- Context Processors ---
 @app.context_processor
 def inject_global_vars():
-    """Injects variables into all templates."""
-    return dict(
-        site_name=current_app.config['SITE_NAME'],
-        current_year=datetime.datetime.now().year,
-        predicate_map=get_predicate_map(),
-        citation_text=current_app.config['CITATION_TEXT'] # Make citation available globally
-    )
+    """Inject variables into all templates."""
+    return {
+        'site_name': SITE_NAME,
+        'current_year': datetime.datetime.now().year,
+        'citation_text': CITATION_TEXT # Make citation available globally
+    }
 
 # --- Routes ---
 @app.route('/')
 def index():
-    """Renders the homepage with category counts and chart data."""
+    """Render the homepage with category counts and charts."""
     category_counts = get_category_counts()
     chart_data = get_chart_data()
-    return render_template(
-        'index.html',
-        category_counts=category_counts,
-        index_categories=INDEX_CATEGORIES, # Pass category config for descriptions etc.
-        source_db_chart_data=chart_data.get('source_db_chart_data'),
-        phenotype_chart_data=chart_data.get('phenotype_chart_data'),
-        antibiotic_chart_data=chart_data.get('antibiotic_chart_data')
-    )
+    return render_template('index.html',
+                           category_counts=category_counts,
+                           index_categories=INDEX_CATEGORIES, # Pass category config for descriptions etc.
+                           source_db_chart_data=chart_data.get('source_db_chart_data'),
+                           phenotype_chart_data=chart_data.get('phenotype_chart_data'),
+                           antibiotic_chart_data=chart_data.get('antibiotic_chart_data'),
+                           show_error=False) # Add show_error flag
 
 @app.route('/list/<category_key>')
 @app.route('/list/related/<predicate>/<path:object_value>') # Changed route slightly for clarity
@@ -645,16 +644,35 @@ def details(item_id):
 
 # --- Error Handlers ---
 @app.errorhandler(404)
-def page_not_found(e):
-    app.logger.error(f"404 Not Found: {e.description}")
-    return render_template('error.html', error_code=404, error_message=e.description), 404
+def handle_not_found(e):
+    """Handle 404 Not Found errors by showing info on the index page."""
+    app.logger.warning(f"404 Not Found: {request.path} - {e.description}")
+    error_message = e.description or f"The requested page '{request.path}' could not be found."
+    # Render index page with error message
+    return render_template('index.html',
+                           show_error=True,
+                           error_code=404,
+                           error_message=error_message,
+                           # Pass empty data for charts/categories to avoid errors
+                           categories={},
+                           antibiotic_class_data={'labels': [], 'data': []},
+                           source_db_data={'labels': [], 'data': []}), 404
 
 @app.errorhandler(500)
 def internal_server_error(e):
-    app.logger.error(f"500 Internal Server Error: {e}")
+    """Handle 500 Internal Server errors by showing info on the index page."""
+    app.logger.error(f"500 Internal Server Error: {e}", exc_info=True) # Log exception info
     # Use original exception description if available, otherwise generic message
-    error_desc = getattr(e, 'description', "An internal server error occurred.")
-    return render_template('error.html', error_code=500, error_message=error_desc), 500
+    error_message = getattr(e, 'original_exception', None) or getattr(e, 'description', "An internal server error occurred. Please try again later.")
+    # Render index page with error message
+    return render_template('index.html',
+                           show_error=True,
+                           error_code=500,
+                           error_message=str(error_message), # Ensure it's a string
+                           # Pass empty data for charts/categories
+                           categories={},
+                           antibiotic_class_data={'labels': [], 'data': []},
+                           source_db_data={'labels': [], 'data': []}), 500
 
 # --- Utility Route (Example - can be removed) ---
 @app.route('/testdb')

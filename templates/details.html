@@ -78,114 +78,63 @@
 
     {# --- Main Content Area --- #}
     <main class="container mx-auto px-4 py-8 flex-grow">
+        <h2 class="text-3xl font-semibold text-gray-800 mb-1">Details for <code class="text-2xl bg-gray-100 px-2 py-1 rounded">{{ item_id }}</code></h2>
+        {% if details.label %}
+            <p class="text-xl text-gray-600 mb-4">({{ details.label }})</p>
+        {% endif %}
 
-        {# --- Main Details Container --- #}
-        <div class="bg-white rounded-md shadow-lg p-6 mb-8">
-
-            {# Item ID Highlight #}
-            <h2 class="text-2xl font-mono font-bold text-dtu-red mb-1 text-center break-all">{{ item_id }}</h2>
-
-            {# Display primary type and link to category list #}
-            {% if details.primary_type_display %}
-                <p class="text-center text-gray-600 text-sm mb-6">
-                    Type:
-                    {% if details.primary_type_category_key %}
-                        <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="text-dtu-red hover:underline">
-                            {{ details.primary_type_display }}
-                        </a>
-                    {% else %}
-                        {{ details.primary_type_display }}
-                    {% endif %}
-                </p>
-            {% endif %}
-
-            {# Display Description if available #}
-             {% if details.description %}
-                 <div class="mb-6 p-4 bg-gray-50 rounded border border-gray-200">
-                     <h4 class="font-semibold text-gray-700 mb-1">Description</h4>
-                     <p class="text-sm text-gray-600">{{ details.description }}</p>
-                 </div>
-             {% endif %}
-
-
-            {# --- Property Grid --- #}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-
-                {# --- Properties Column --- #}
-                <div>
-                    <h3 class="text-lg font-medium text-dtu-red mb-3 pb-2 border-b border-gray-200">Properties</h3>
-                    {% if details.properties %}
-                        <dl class="space-y-1 text-sm">
-                            {% for predicate, objects in details.properties.items() %}
-                                {# Skip rdf:type and description as they are handled above #}
-                                {% if predicate != 'rdf:type' and predicate not in DESCRIPTION_PREDICATES %}
-                                    <div class="property-row">
-                                        <dt>{{ predicate_map.get(predicate, predicate) }}:</dt>
-                                        <dd>
-                                            {% for obj in objects %}
-                                                {# Check if object is likely a URL #}
-                                                {% if obj.startswith('http://') or obj.startswith('https://') %}
-                                                    <a href="{{ obj }}" target="_blank" rel="noopener noreferrer" class="text-dtu-red hover:underline"><code>{{ obj }}</code></a>
-                                                {# Check if object is another resource in our DB (simple check) #}
-                                                {% elif obj in details.referencing_items | map(attribute='ref_id') or obj in details.properties.get(HAS_RESISTANCE_CLASS, []) or obj in details.properties.get(HAS_PREDICTED_PHENOTYPE, []) or obj in details.properties.get(IS_FROM_DATABASE, []) %}
-                                                    {# Crude check - better to have a dedicated function in backend if possible #}
-                                                    {# Or pass a list of known resource IDs #}
-                                                    <a href="{{ url_for('details', item_id=obj) }}" class="text-dtu-red hover:underline"><code>{{ obj }}</code></a>
-                                                {# Otherwise, display as plain text/code #}
-                                                {% else %}
-                                                    <code>{{ obj }}</code>
-                                                {% endif %}
-                                                {% if not loop.last %}<br>{% endif %} {# Line break if multiple objects for same predicate #}
-                                            {% endfor %}
-                                        </dd>
-                                    </div>
-                                {% endif %}
-                            {% endfor %}
-                        </dl>
-                    {% else %}
-                         <p class="text-sm text-gray-500 italic">No specific properties found for this item (besides type/description).</p>
-                    {% endif %}
-                </div>
-
-
-                {# --- Referenced By Column --- #}
-                <div>
-                     <h3 class="text-lg font-medium text-dtu-red mb-3 pb-2 border-b border-gray-200">Referenced By</h3>
-                     {% if details.referencing_items %}
-                        <dl class="space-y-1 text-sm">
-                            {% for ref_item in details.referencing_items %}
-                                 <div class="property-row">
-                                     <dt>{{ predicate_map.get(ref_item.predicate, ref_item.predicate) }}:</dt>
-                                     <dd>
-                                         <a href="{{ url_for('details', item_id=ref_item.ref_id) }}" class="text-dtu-red hover:underline"><code>{{ ref_item.ref_id }}</code></a>
-                                         {# Optionally show label of referencing item #}
-                                         {# {% if ref_item.ref_label and ref_item.ref_label != ref_item.ref_id %}
-                                             <span class="text-gray-500 text-xs ml-1">({{ ref_item.ref_label }})</span>
-                                         {% endif %} #}
-                                     </dd>
-                                 </div>
-                            {% endfor %}
-                        </dl>
-                    {% else %}
-                        <p class="text-sm text-gray-500 italic">This item is not directly referenced by other items shown here.</p>
-                    {% endif %}
-                </div>
-
-            </div> {# End Property Grid #}
-
-        </div> {# End Main Details Container #}
-
-
-        {# Back Links Footer #}
-        <div class="text-center space-x-4">
-            <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
+        {# Back Links - Standard Link Style #}
+        <div class="mb-6 text-sm">
+            <a href="{{ url_for('index') }}" class="text-dtu-red hover:underline">&laquo; Back to Home</a>
             {# Link back to the primary category list if available #}
             {% if details.primary_type_category_key %}
-                 <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to {{ details.primary_type_display }} List</a>
+                 <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="ml-4 text-dtu-red hover:underline">&laquo; Back to {{ details.primary_type_display }} List</a>
             {% endif %}
             {# Add a general back button using browser history #}
-            <button onclick="window.history.back();" class="text-sm text-dtu-red hover:underline">Back</button>
+            <button onclick="window.history.back();" class="ml-4 text-dtu-red hover:underline">Back</button>
         </div>
+
+        {# Details Card - Standard Card Style #}
+        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
+            <h3 class="text-xl font-semibold text-dtu-red border-b border-gray-200 pb-2 mb-4">Properties</h3>
+            {% if details.properties %}
+                <dl class="divide-y divide-gray-100">
+                    {% for pred_display, values in details.properties.items() %}
+                        <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                            <dt class="text-sm font-medium leading-6 text-gray-900">{{ pred_display }}</dt>
+                            <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                                {% if values is iterable and values is not string %}
+                                    <ul class="list-none space-y-1">
+                                    {% for value_info in values %}
+                                        <li>
+                                            {% if value_info.is_link %}
+                                                {# Standard Link Style #}
+                                                <a href="{{ url_for('show_details', item_id=value_info.value) }}" class="text-dtu-red hover:underline" title="View details for {{ value_info.value }}">
+                                                    {{ value_info.display }}
+                                                </a>
+                                                {# Add link to list view if applicable #}
+                                                {% if value_info.list_link_info %}
+                                                    <a href="{{ url_for('list_related_items', predicate_key=value_info.list_link_info.predicate_key, object_value=value_info.value) }}" class="ml-2 text-xs text-gray-500 hover:text-dtu-red hover:underline" title="List all items with {{ value_info.list_link_info.predicate_display }} = {{ value_info.display }}">(List related)</a>
+                                                {% endif %}
+                                            {% else %}
+                                                {{ value_info.display }} {# Display as plain text #}
+                                            {% endif %}
+                                        </li>
+                                    {% endfor %}
+                                    </ul>
+                                {% else %}
+                                     {{ values.display if values is mapping else values }} {# Handle single non-iterable value #}
+                                {% endif %}
+                            </dd>
+                        </div>
+                    {% endfor %}
+                </dl>
+            {% else %}
+                <p class="text-gray-500 italic">No properties found for this item.</p>
+            {% endif %}
+        </div>
+
+        {# Optional: Add sections for related items (incoming/outgoing links) if needed, using standard card/link styles #}
 
     </main>
 

@@ -1,29 +1,19 @@
-/* Remove most previous CSS rules */
+/* Remove all previous CSS rules */
 
-body {
-    /* Tailwind handles fonts, but you can set a base fallback */
-    font-family: sans-serif;
-}
+/* Keep only if absolutely necessary and cannot be done with Tailwind */
+/* Example: Maybe specific chart styling if needed */
 
-/* Keep chart container style if needed, or apply height directly with Tailwind */
-.chart-container {
-    position: relative;
-    height: 300px; /* Or use Tailwind h-72, h-80 etc. */
-    width: 100%;
-}
+/* body { */
+    /* Tailwind handles this */
+/* } */
 
-/* Tailwind provides 'code' styling via prose plugin or custom base styles.
-   If you need specific overrides, add them here. Otherwise, remove. */
-/*
-code {
-     background-color: #f0f0f0;
-     color: #333333;
-     padding: 0.1em 0.3em;
-     border-radius: 3px;
-     font-family: monospace;
-     font-size: 0.9em;
-}
-*/
+/* .chart-container { */
+    /* Apply height/width directly in HTML using style or Tailwind classes */
+/* } */
 
-/* Add any other absolutely necessary custom styles here */
+/* code { */
+    /* Use Tailwind's 'prose' plugin or utility classes like `bg-gray-100 text-sm font-mono px-1 rounded` if needed inline */
+/* } */
+
+/* Add any other absolutely essential custom styles here, but aim for none. */
 
