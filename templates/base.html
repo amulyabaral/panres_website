@@ -31,21 +31,19 @@
 <body class="flex flex-col min-h-screen font-sans bg-gray-50 text-gray-800"> {# Base body styles #}
 
     {# --- Header --- #}
-    {# Apply the DTU pattern background and adjust text colors #}
-    <header class="dtu-pattern-bg sticky top-0 z-50 shadow-md">
+    {# Apply the DTU pattern background, adjust text colors, add rounded corners #}
+    <header class="dtu-pattern-bg sticky top-0 z-50 shadow-md rounded-lg"> {# Changed rounded-b-lg to rounded-lg #}
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center space-x-4">
-                 <a href="{{ url_for('index') }}">
-                    {# Consider if the logo needs adjustment for contrast #}
+            {# Removed the logo link and image #}
+            {# <div class="flex items-center space-x-4"> #}
+                 {# <a href="{{ url_for('index') }}">
                     <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="h-10">
-                 </a>
+                 </a> #}
                  <div>
                     {# Use light text colors for contrast #}
                     <h1 class="text-xl font-semibold text-white">Centre for Genomic Epidemiology</h1>
-                    {# Removed site name display from here #}
-                    {# <div class="text-sm text-gray-200">{{ site_name }}</div> #}
                  </div>
-            </div>
+            {# </div> #}
             <div></div> {# Placeholder #}
         </div>
     </header>
