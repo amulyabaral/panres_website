@@ -1,16 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}PanRes 2.0 ARG Database{% endblock %}
+{% block title %}PanRes 2.0 ARG Database - CGE{% endblock %}
 
-{# Header content is now handled by the background image in CSS #}
-{% block header_content %}
-{% endblock %}
+{# Header content is now handled by base.html and CSS #}
+{% block header_content %}{% endblock %}
 
 {% block content %}
+    {# --- Logo moved to body --- #}
+    <div class="body-logo-container">
+        <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="body-logo">
+    </div>
+
     {# --- Citation Section --- #}
     <div class="citation-section">
         <h4>Citation:</h4>
-        <p>{{ citation_text|safe }}</p> {# Use variable from context #}
+        <p>{{ citation_text|safe }}</p>
     </div>
 
     {# --- Grid Container for Side-by-Side Visualizations --- #}
@@ -19,7 +23,6 @@
         {# --- Wrapper Div for Left Column (Source DB + Phenotypes) --- #}
         <div class="viz-column-left">
 
-            {# --- ADD Paragraph here with a class --- #}
             <p class="intro-paragraph">
                 Take a quick look at what has been collected in the PanRes database.
             </p>
@@ -44,7 +47,7 @@
                                  </a>
                             </div>
                             <div class="v-barplot-bar-wrapper">
-                                <div class="v-barplot-bar" data-target-width="{{ bar_width_percent }}%" style="width: 0%;"> {# Color comes from CSS #}
+                                <div class="v-barplot-bar" data-target-width="{{ bar_width_percent }}%" style="width: 0%;">
                                 </div>
                             </div>
                             <div class="v-barplot-count">{{ formatted_count }}</div>
@@ -109,7 +112,7 @@
                 <h4>ARGs by Antibiotic Class</h4>
                  <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
             </div>
-            <div class="chart-container"> {# Ensure this container allows chart to size #}
+            <div class="chart-container">
                 <canvas id="antibioticClassChart"></canvas>
             </div>
         </div>
@@ -140,12 +143,12 @@
                             <p class="category-description">{{ data.config.description }}</p>
                          {% endif %}
                     </div>
-                    <a href="{{ url_for('list_items', category_key=display_name) }}" class="button"> {# Uses smaller button style via CSS #}
+                    <a href="{{ url_for('list_items', category_key=display_name) }}" class="button">
                         Browse
                         {% if data.count is number and data.count > 0 %}
                            ({{ "{:,}".format(data.count) }})
                         {% elif data.count is string %}
-                            (!) {# Error indicator #}
+                            (!)
                         {% endif %}
                     </a>
                 </div>
@@ -159,40 +162,29 @@
     {# --- JavaScript for Charts and Animations --- #}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- Get Font from CSS Variable (Optional, Chart.js might inherit) ---
-            // const bodyFont = getComputedStyle(document.body).getPropertyValue('--font-sans').trim();
-            // if (bodyFont) {
-            //     Chart.defaults.font.family = bodyFont;
-            // }
-            Chart.defaults.font.size = 11; // Adjust default chart font size if needed
-            Chart.defaults.color = '#333'; // Default font color for charts
-
-            // --- Set global responsive and maintainAspectRatio defaults ---
+            // Chart defaults (font family should be inherited now)
+            Chart.defaults.font.size = 11;
+            Chart.defaults.color = '#333';
             Chart.defaults.responsive = true;
-            Chart.defaults.maintainAspectRatio = false; // Allow charts to fill container height
+            Chart.defaults.maintainAspectRatio = false;
 
-            // --- Bar Plot Animation ---
+            // Bar Plot Animation
             const bars = document.querySelectorAll('.v-barplot-bar');
             bars.forEach(bar => {
                 const targetWidth = bar.getAttribute('data-target-width');
-                setTimeout(() => {
-                    bar.style.width = targetWidth;
-                }, 100); // Short delay for animation effect
+                setTimeout(() => { bar.style.width = targetWidth; }, 100);
             });
 
-            // --- Stacked Bar Animation ---
+            // Stacked Bar Animation
             const stackedSegments = document.querySelectorAll('.stacked-bar-segment');
             stackedSegments.forEach(segment => {
                 const targetWidth = segment.getAttribute('data-target-width');
-                setTimeout(() => {
-                    segment.style.width = targetWidth;
-                }, 100); // Short delay
+                setTimeout(() => { segment.style.width = targetWidth; }, 100);
             });
 
-            // --- Antibiotic Class Pie Chart ---
+            // Antibiotic Class Pie Chart (using default colors)
             const ctxAntibiotic = document.getElementById('antibioticClassChart');
             {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
-                // Data is passed from Flask view
                 const antibioticLabels = {{ antibiotic_chart_data.labels | tojson }};
                 const antibioticDataPoints = {{ antibiotic_chart_data.data | tojson }};
 
@@ -217,10 +209,7 @@
                                 plugins: {
                                     legend: {
                                         position: 'right',
-                                        labels: {
-                                            boxWidth: 12,
-                                            padding: 15
-                                        }
+                                        labels: { boxWidth: 12, padding: 15 }
                                     },
                                     tooltip: {
                                         callbacks: {

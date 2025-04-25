@@ -8,35 +8,43 @@
     <link rel="icon" href="{{ url_for('static', filename='panres_logo.png') }}" type="image/png">
 </head>
 <body>
+    {# Header now uses badge style #}
+    <header class="site-header">
+        <div class="container">
+            {# Simple Title #}
+            <h1>Center for Genomic Epidemiology</h1>
+        </div>
+    </header>
+
+    {# Main content area within container #}
     <div class="container">
-        <header class="site-header">
-            {# Logo Link #}
-            <a href="{{ url_for('index') }}" class="header-logo-link">
-                <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="header-logo">
-            </a>
-            {# Container for header text content #}
-            <div class="header-content">
-                 {# Site Name - Placed here, can be styled #}
-                 <h1 class="site-name"><a href="{{ url_for('index') }}">{{ site_name }}</a></h1>
-                 {# Block for additional header content like descriptions or citations #}
-                 {% block header_content %}
-                 {# Default content (e.g., for index page) can go here, or be overridden #}
-                 {% endblock %}
-            </div>
-        </header>
         <main>
             {% block content %}
-            <!-- Page-specific content will go here -->
+            <!-- Page-specific content -->
             {% endblock %}
         </main>
-        <footer>
-            {{ site_name }} | Data derived from multiple sources.
-        </footer>
-    </div>
+    </div> {# End .container for main content #}
 
-    {# --- Add Chart.js and Datalabels Plugin --- #}
+    {# Footer inspired by provided CSS #}
+    <footer class="page-footer">
+        <div class="container">
+            {# Optional footer content rows/columns can go here #}
+            {# Example:
+            <div class="row" id="top-row">
+                <div class="col"><h5>Section 1</h5><p>Links or text</p></div>
+                <div class="col"><h5>Section 2</h5><p>Links or text</p></div>
+            </div>
+             #}
+        </div>
+        <div class="footer-copyright">
+            {# Copyright text or links #}
+            &copy; {{ now().year }} Center for Genomic Epidemiology -
+            <a href="https://www.genomicepidemiology.org/" target="_blank" rel="noopener noreferrer">www.genomicepidemiology.org</a>
+        </div>
+    </footer>
+
+    {# Chart.js Scripts #}
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-    {# --- End Chart.js --- #}
 </body>
 </html> 
