@@ -4,6 +4,7 @@ import os
 import logging
 from urllib.parse import unquote # Needed for handling URL-encoded values
 from collections import defaultdict # Import defaultdict
+import datetime # <-- Import datetime
 
 # --- Configuration ---
 DATABASE = 'panres_ontology.db' # Make sure this file is in the same directory or provide the correct path
@@ -100,6 +101,7 @@ def inject_global_data():
         predicate_map=app.config['PREDICATE_DISPLAY_NAMES'],
         citation_text=app.config['CITATION_TEXT'], # Pass citation
         site_name=app.config['SITE_NAME'], # Pass site name
+        current_year=datetime.datetime.now().year, # <-- Add current year
         # Make constants available for templates if needed directly
         RDF_TYPE=RDF_TYPE,
         RDFS_LABEL=RDFS_LABEL,
