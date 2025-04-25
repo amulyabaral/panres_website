@@ -1,146 +1,90 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ page_title }} - {{ site_name }}</title>
+{% extends "base.html" %}
 
-    {# Add Tailwind CSS via CDN #}
-    <script src="https://cdn.tailwindcss.com"></script>
+{% block title %}{{ page_title }} - {{ site_name }}{% endblock %}
 
-    {# Link to your simplified custom CSS #}
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% block content %}
+    <h2 class="text-3xl font-semibold text-gray-800 mb-2">{{ page_title }}</h2>
+    <p class="text-gray-600 mb-6">
+        Listing items of type <code>{{ item_type }}</code>
+        {% if grouping_predicate_display %}
+            , grouped by {{ grouping_predicate_display }}
+            {% if grouping_value_display %} (filtered for: {{ grouping_value_display }}){% endif %}
+        {% endif %}.
+        Found {{ total_items }} item(s).
+    </p>
 
-    <link rel="icon" href="{{ url_for('static', filename='panres_logo.png') }}" type="image/png">
+    {# Back Links #}
+    <div class="mb-6 text-sm">
+         <a href="{{ url_for('index') }}" class="text-dtu-red hover:underline">&laquo; Back to Home</a>
+         {# Link back to the parent category list if available #}
+         {% if parent_category_key %}
+             <a href="{{ url_for('list_items', category_key=parent_category_key) }}" class="ml-4 text-dtu-red hover:underline">&laquo; Back to {{ parent_category_key }} List</a>
+         {% endif %}
+         {# General back button using browser history #}
+         <button onclick="window.history.back();" class="ml-4 text-dtu-red hover:underline">Back</button>
+    </div>
 
-    {# Basic Tailwind Configuration #}
-    <script>
-        tailwind.config = {
-          theme: {
-            extend: {
-              colors: {
-                'dtu-red': '#990000',
-              },
-              fontFamily: {
-                sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
-                mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
-              }
-            }
-          }
-        }
-      </script>
-      <style type="text/tailwindcss">
-        body {
-            @apply font-sans bg-gray-50 text-gray-800;
-        }
-        .btn {
-             @apply inline-block bg-dtu-red/80 hover:bg-dtu-red text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2;
-        }
-        code {
-             @apply bg-gray-200 text-gray-700 px-1 py-0.5 rounded text-sm font-mono;
-        }
-        .dtu-pattern-bg {
-            background-image: url("{{ url_for('static', filename='DTU_Background_Pattern_Corporate_Red_RGB.jpg') }}");
-            background-color: #990000;
-            background-size: cover;
-            background-position: center center;
-            background-repeat: no-repeat;
-        }
-      </style>
-</head>
-<body class="flex flex-col min-h-screen">
-
-    {# --- Header --- #}
-    <header class="bg-white shadow-md sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center space-x-4">
-                 <a href="{{ url_for('index') }}">
-                    <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="h-10">
-                 </a>
-                 <div>
-                    <h1 class="text-xl font-semibold text-gray-700">Centre for Genomic Epidemiology</h1>
-                    <div class="text-sm text-gray-500">{{ site_name }}</div>
-                 </div>
-            </div>
-            <div></div> {# Placeholder #}
-        </div>
-    </header>
-
-    {# --- Main Content Area --- #}
-    <main class="container mx-auto px-4 py-8 flex-grow">
-        <h2 class="text-3xl font-semibold text-gray-800 mb-2">{{ page_title }}</h2>
-        <p class="text-gray-600 mb-6">
-            Listing items of type <code>{{ item_type }}</code>
-            {% if grouping_predicate_display %}
-                , grouped by {{ grouping_predicate_display }}
-                {% if grouping_value_display %} and {{ grouping_value_display }}{% endif %}
-            {% endif %}.
-            Found {{ total_items }} item(s).
-        </p>
-
-        {# Back Link - Standard Link Style #}
-        <div class="mb-6">
-             <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
-             {% if parent_category_key %}
-                 <a href="{{ url_for('list_items', category_key=parent_category_key) }}" class="ml-4 text-sm text-dtu-red hover:underline">&laquo; Back to {{ parent_category_key }} List</a>
-             {% endif %}
-             {# Add a general back button using browser history #}
-             <button onclick="window.history.back();" class="ml-4 text-sm text-dtu-red hover:underline">Back</button>
-        </div>
-
-
-        {% if grouped_items %}
-            <div class="accordion space-y-1">
-                {% for group_name, items in grouped_items.items() %}
-                    <div class="border border-gray-300 rounded overflow-hidden">
-                        {# Accordion Header - Standard Style #}
-                        <button class="accordion-header w-full text-left px-4 py-3 bg-gray-100 hover:bg-gray-200 font-semibold text-gray-700 flex justify-between items-center transition-colors duration-150 cursor-pointer">
-                            <span>{{ group_name }} ({{ items | length }} genes)</span>
-                            <span class="accordion-icon text-lg font-mono">+</span> {# Use font-mono for +/- sign consistency #}
-                        </button>
-                        {# Accordion Content - Standard Style #}
-                        <div class="accordion-content border-t border-gray-300 p-4 bg-white hidden">
-                            <ul class="list-disc list-inside space-y-1">
-                                {% for item_id, display_name in items %}
-                                    <li>
-                                        {# Gene/Item Link - Standard Style #}
-                                        <a href="{{ url_for('show_details', item_id=item_id) }}" class="py-1 px-2 text-sm text-dtu-red hover:underline hover:bg-gray-50 rounded">
-                                            {{ display_name }}
-                                        </a>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
+    {# Display grouped items (e.g., PanGenes by Class) #}
+    {% if grouped_items %}
+        <div class="accordion space-y-1">
+            {% for group_name, items_in_group in grouped_items.items() %}
+                <div class="border border-gray-300 rounded overflow-hidden">
+                    {# Accordion Header #}
+                    <button class="accordion-header">
+                        {# Add link to group details if group_name is a resource ID #}
+                        {# This requires passing more info from the backend if needed #}
+                        <span>{{ group_name }} ({{ items_in_group | length }} items)</span>
+                        <span class="accordion-icon text-lg font-mono">+</span>
+                    </button>
+                    {# Accordion Content #}
+                    <div class="accordion-content hidden"> {# Start hidden #}
+                        <ul class="list-disc list-inside space-y-1">
+                            {# items_in_group is a list of (item_id, display_name) tuples #}
+                            {% for item_id, display_name in items_in_group %}
+                                <li>
+                                    {# Gene/Item Link #}
+                                    <a href="{{ url_for('details', item_id=item_id | urlencode) }}" class="py-1 px-2 text-sm text-dtu-red hover:underline hover:bg-gray-50 rounded">
+                                        {{ display_name }}
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
                     </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-                <p class="text-gray-500 italic">No items found matching the criteria.</p>
-            </div>
-        {% endif %}
-
-    </main>
-
-    {# --- Footer --- #}
-    <footer class="p-4 bg-gray-100 border-t border-gray-200 mt-auto">
-        <div class="container mx-auto text-center sm:flex sm:items-center sm:justify-between">
-            <div class="flex justify-center sm:justify-start items-center mb-4 sm:mb-0">
-                 <a href="https://www.genomicepidemiology.org/" class="flex items-center" target="_blank" rel="noopener noreferrer">
-                     <img class="mr-3 h-8" src="{{ url_for('static', filename='DTU_Food_logo_UK_RED_SMALL.png') }}" alt="DTU Food Logo"/>
-                 </a>
-            </div>
-            <span class="block text-sm text-gray-500 text-center">
-                © {{ current_year }}
-                <a href="https://www.genomicepidemiology.org/" class="hover:underline" target="_blank" rel="noopener noreferrer">Center for Genomic Epidemiology™</a>.
-                All Rights Reserved. |
-                <a href="https://www.genomicepidemiology.org/contact/" target="_blank" rel="noopener noreferrer" class="hover:underline">Contact</a> |
-                <a href="https://www.genomicepidemiology.org/privacy-policy/" target="_blank" rel="noopener noreferrer" class="hover:underline">Privacy Policy</a>
-            </span>
+                </div>
+            {% endfor %}
         </div>
-    </footer>
 
-    {# Accordion Script #}
+    {# Display flat list of items #}
+    {% elif items %}
+         <div class="bg-white p-4 rounded-lg shadow-md border border-gray-200">
+            <ul class="list-disc list-inside space-y-1">
+                 {# items is a list of {'id': '...', 'display_name': '...', 'link': '...'} #}
+                {% for item in items %}
+                    <li>
+                        {% if item.link %}
+                            <a href="{{ item.link }}" class="py-1 px-2 text-sm text-dtu-red hover:underline hover:bg-gray-50 rounded">
+                                {{ item.display_name }}
+                            </a>
+                        {% else %}
+                            <span class="py-1 px-2 text-sm text-gray-700">{{ item.display_name }}</span> {# Display as plain text if no link #}
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+    {# No items found message #}
+    {% else %}
+        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <p class="text-gray-500 italic">No items found matching the criteria.</p>
+        </div>
+    {% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+    {# Accordion Script (Only include if grouped_items might exist) #}
+    {% if grouped_items %}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const accordionHeaders = document.querySelectorAll('.accordion-header');
@@ -149,22 +93,16 @@
                 header.addEventListener('click', function() {
                     const content = this.nextElementSibling;
                     const icon = this.querySelector('.accordion-icon');
-                    // Check using class 'hidden' for state
                     const isHidden = content.classList.contains('hidden');
 
-                    // Toggle content visibility using Tailwind 'hidden' class
                     if (isHidden) {
                         content.classList.remove('hidden');
-                        if(icon) {
-                            icon.textContent = '−'; // Use minus sign when expanded
-                        }
+                        if(icon) icon.textContent = '−';
                         // Optional: Add active state styling to header
                         // this.classList.add('bg-gray-200');
                     } else {
                         content.classList.add('hidden');
-                         if(icon) {
-                             icon.textContent = '+'; // Use plus sign when collapsed
-                         }
+                         if(icon) icon.textContent = '+';
                          // Optional: Remove active state styling
                          // this.classList.remove('bg-gray-200');
                     }
@@ -172,6 +110,5 @@
             });
         });
     </script>
-
-</body>
-</html> 
+    {% endif %}
+{% endblock %} 

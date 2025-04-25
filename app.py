@@ -1,5 +1,5 @@
 import sqlite3
-from flask import Flask, render_template, g, abort, url_for, current_app, jsonify
+from flask import Flask, render_template, g, abort, url_for, current_app, jsonify, request
 import os
 import logging
 from urllib.parse import unquote, quote
@@ -103,10 +103,6 @@ def query_db(query, args=(), one=False):
 
 # --- Data Fetching Logic ---
 
-def get_predicate_map():
-    """Returns the predefined predicate map."""
-    return PREDICATE_MAP
-
 def get_label(item_id):
     """Fetches the rdfs:label for a given item ID."""
     result = query_db("SELECT object FROM triples WHERE subject = ? AND predicate = ?", (item_id, RDFS_LABEL), one=True)
@@ -115,10 +111,12 @@ def get_label(item_id):
 def get_item_details(item_id):
     """Fetches all properties and referencing items for a given item ID."""
     db = get_db()
+    predicate_map = PREDICATE_MAP
     details = {
         'id': item_id,
         'label': get_label(item_id),
         'properties': defaultdict(list),
+        'raw_properties': defaultdict(list),
         'referencing_items': [],
         'primary_type': None,
         'primary_type_display': None,
@@ -131,7 +129,7 @@ def get_item_details(item_id):
     properties_cursor = db.execute("SELECT predicate, object FROM triples WHERE subject = ?", (item_id,))
     for row in properties_cursor:
         predicate, obj = row['predicate'], row['object']
-        details['properties'][predicate].append(obj)
+        details['raw_properties'][predicate].append(obj)
         # Try to determine primary type and description
         if predicate == RDF_TYPE:
             details['primary_type'] = obj # Store the raw type
@@ -142,13 +140,47 @@ def get_item_details(item_id):
 
     properties_cursor.close()
 
+    # 1b. Process properties for display (check links, get labels)
+    db_check = get_db()
+    check_cur = db_check.cursor()
+    for predicate, objects in details['raw_properties'].items():
+        pred_display = predicate_map.get(predicate, predicate)
+        processed_values = []
+        for obj_val in objects:
+            # Check if the object exists as a subject (heuristic for being a resource/link)
+            check_cur.execute("SELECT 1 FROM triples WHERE subject = ? LIMIT 1", (obj_val,))
+            is_link = check_cur.fetchone() is not None
+            display_val = get_label(obj_val) if is_link else obj_val # Get label if it's a link
+
+            # Prepare info for potential "list related" link
+            list_link_info = None
+            # Only add "list related" for predicates that make sense to group by (like class, phenotype, db)
+            if is_link and predicate in [HAS_RESISTANCE_CLASS, HAS_PREDICTED_PHENOTYPE, IS_FROM_DATABASE, RDF_TYPE]:
+                 list_link_info = {
+                     'predicate_key': predicate, # Use the raw predicate key
+                     'predicate_display': pred_display,
+                     'object_value_encoded': quote(obj_val) # Pass encoded value for URL
+                 }
+
+            processed_values.append({
+                'value': obj_val, # Raw value needed for link generation
+                'display': display_val,
+                'is_link': is_link,
+                'list_link_info': list_link_info
+            })
+        details['properties'][pred_display] = sorted(processed_values, key=lambda x: x['display']) # Sort values by display name
+    check_cur.close()
+    del details['raw_properties'] # Remove temporary raw storage
+
     # 2. Fetch incoming references (subject -> predicate -> item_id)
     references_cursor = db.execute("SELECT subject, predicate FROM triples WHERE object = ?", (item_id,))
     for row in references_cursor:
+        ref_pred_display = predicate_map.get(row['predicate'], row['predicate'])
         details['referencing_items'].append({
             'ref_id': row['subject'],
             'predicate': row['predicate'],
-            'ref_label': get_label(row['subject']) # Get label for referencing item
+            'predicate_display': ref_pred_display,
+            'ref_label': get_label(row['subject'])
         })
     references_cursor.close()
 
@@ -395,16 +427,30 @@ def get_items_for_category(category_key):
     return items, total_count
 
 def get_grouped_pangen_data():
-    """Fetches all PanGenes and groups them by resistance class and phenotype."""
+    """
+    Fetches all PanGenes and groups them by resistance class and phenotype.
+    Returns two dictionaries:
+    - grouped_by_class: {'class_name': [('gene_id', 'gene_display_name'), ...], ...}
+    - grouped_by_phenotype: {'phenotype_name': [('gene_id', 'gene_display_name'), ...], ...}
+    And the total count of PanGenes.
+    """
     db = get_db()
-    grouped_by_class = defaultdict(lambda: {'genes': [], 'id': None})
-    grouped_by_phenotype = defaultdict(lambda: {'genes': [], 'id': None})
+    grouped_by_class = defaultdict(list)
+    grouped_by_phenotype = defaultdict(list)
     all_pangen_ids = set()
+    gene_labels = {} # Cache labels {gene_id: label}
 
-    # 1. Get all PanGene IDs
-    pangen_cursor = db.execute("SELECT subject FROM triples WHERE predicate = ? AND object = 'PanGene'", (RDF_TYPE,))
+    # 1. Get all PanGene IDs and their labels
+    pangen_cursor = db.execute("""
+        SELECT t1.subject, t2.object AS label
+        FROM triples t1
+        LEFT JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ?
+        WHERE t1.predicate = ? AND t1.object = 'PanGene'
+    """, (RDFS_LABEL, RDF_TYPE))
     for row in pangen_cursor:
-        all_pangen_ids.add(row['subject'])
+        gene_id = row['subject']
+        all_pangen_ids.add(gene_id)
+        gene_labels[gene_id] = row['label'] if row['label'] else gene_id # Fallback to ID if no label
     pangen_cursor.close()
     total_count = len(all_pangen_ids)
 
@@ -423,10 +469,8 @@ def get_grouped_pangen_data():
     """
     class_cursor = db.execute(class_query, (HAS_RESISTANCE_CLASS, *pangen_list))
     pangen_to_class = defaultdict(list)
-    all_classes = set()
     for row in class_cursor:
         pangen_to_class[row['subject']].append(row['object'])
-        all_classes.add(row['object'])
     class_cursor.close()
 
     # 3. Get phenotype associations for all PanGenes
@@ -437,63 +481,39 @@ def get_grouped_pangen_data():
     """
     phenotype_cursor = db.execute(phenotype_query, (HAS_PREDICTED_PHENOTYPE, *pangen_list))
     pangen_to_phenotype = defaultdict(list)
-    all_phenotypes = set()
     for row in phenotype_cursor:
         pangen_to_phenotype[row['subject']].append(row['object'])
-        all_phenotypes.add(row['object'])
     phenotype_cursor.close()
 
-    # 4. Populate the grouped dictionaries
-    gene_link_cache = {} # Cache gene links
-    def get_gene_entry(gene_id):
-        if gene_id not in gene_link_cache:
-            gene_link_cache[gene_id] = {'id': gene_id, 'link': url_for('details', item_id=quote(gene_id))}
-        return gene_link_cache[gene_id]
-
-    # Check which classes/phenotypes are resources (have detail pages)
-    resource_ids = set()
-    if all_classes or all_phenotypes:
-        all_potential_resources = list(all_classes.union(all_phenotypes))
-        res_placeholders = ','.join('?' * len(all_potential_resources))
-        res_query = f"SELECT DISTINCT subject FROM triples WHERE subject IN ({res_placeholders})"
-        res_cursor = db.execute(res_query, all_potential_resources)
-        for row in res_cursor:
-            resource_ids.add(row['subject'])
-        res_cursor.close()
-
-    # Group by class
+    # 4. Populate the grouped dictionaries with (id, display_name) tuples
     for gene_id in all_pangen_ids:
+        gene_display_name = gene_labels[gene_id]
+        gene_entry = (gene_id, gene_display_name) # Tuple (id, display_name)
+
+        # Group by class
         classes = pangen_to_class.get(gene_id)
-        gene_entry = get_gene_entry(gene_id)
         if classes:
             for class_label in classes:
-                grouped_by_class[class_label]['genes'].append(gene_entry)
-                if class_label in resource_ids and not grouped_by_class[class_label]['id']:
-                     grouped_by_class[class_label]['id'] = quote(class_label) # Store encoded ID for URL
+                grouped_by_class[class_label].append(gene_entry)
         else:
-            grouped_by_class['No Class Assigned']['genes'].append(gene_entry)
+            grouped_by_class['No Class Assigned'].append(gene_entry)
 
-    # Group by phenotype
-    for gene_id in all_pangen_ids:
+        # Group by phenotype
         phenotypes = pangen_to_phenotype.get(gene_id)
-        gene_entry = get_gene_entry(gene_id)
         if phenotypes:
             for phenotype_label in phenotypes:
-                grouped_by_phenotype[phenotype_label]['genes'].append(gene_entry)
-                if phenotype_label in resource_ids and not grouped_by_phenotype[phenotype_label]['id']:
-                     grouped_by_phenotype[phenotype_label]['id'] = quote(phenotype_label) # Store encoded ID for URL
+                grouped_by_phenotype[phenotype_label].append(gene_entry)
         else:
-            grouped_by_phenotype['No Phenotype Assigned']['genes'].append(gene_entry)
+            grouped_by_phenotype['No Phenotype Assigned'].append(gene_entry)
 
-    # Sort the groups by label and genes within groups by ID
+    # Sort the groups by label and genes within groups by display name
     def sort_grouped_data(grouped_dict):
         sorted_dict = {}
-        # Sort keys (labels) alphabetically, handling 'No ... Assigned' specifically if needed
         sorted_keys = sorted(grouped_dict.keys(), key=lambda k: (k.startswith("No "), k))
         for key in sorted_keys:
-            data = grouped_dict[key]
-            data['genes'] = sorted(data['genes'], key=lambda g: g['id'])
-            sorted_dict[key] = data
+            # Sort genes by display name (the second element in the tuple)
+            sorted_genes = sorted(grouped_dict[key], key=lambda g: g[1])
+            sorted_dict[key] = sorted_genes
         return sorted_dict
 
     return sort_grouped_data(grouped_by_class), sort_grouped_data(grouped_by_phenotype), total_count
@@ -508,7 +528,20 @@ def get_related_subjects(predicate, object_value):
     results = query_db(query, (predicate, object_value))
 
     if results:
-        items = [{'id': row['subject'], 'link': url_for('details', item_id=quote(row['subject']))} for row in results]
+        # Fetch labels for the subjects efficiently
+        subject_ids = [row['subject'] for row in results]
+        labels = {}
+        if subject_ids:
+            placeholders = ','.join('?' * len(subject_ids))
+            label_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
+            label_results = query_db(label_query, (RDFS_LABEL, *subject_ids))
+            if label_results:
+                labels = {row['subject']: row['object'] for row in label_results}
+
+        items = [{'id': row['subject'],
+                  'display_name': labels.get(row['subject'], row['subject']), # Use label or fallback to ID
+                  'link': url_for('details', item_id=quote(row['subject']))}
+                 for row in results]
         total_count = len(items)
 
     return items, total_count
@@ -531,15 +564,15 @@ def index():
     category_counts = get_category_counts()
     chart_data = get_chart_data()
     return render_template('index.html',
+                           index_categories=INDEX_CATEGORIES,
                            category_counts=category_counts,
-                           index_categories=INDEX_CATEGORIES, # Pass category config for descriptions etc.
                            source_db_chart_data=chart_data.get('source_db_chart_data'),
                            phenotype_chart_data=chart_data.get('phenotype_chart_data'),
                            antibiotic_chart_data=chart_data.get('antibiotic_chart_data'),
-                           show_error=False) # Add show_error flag
+                           show_error=False)
 
 @app.route('/list/<category_key>')
-@app.route('/list/related/<predicate>/<path:object_value>') # Changed route slightly for clarity
+@app.route('/list/related/<predicate>/<path:object_value>')
 def list_items(category_key=None, predicate=None, object_value=None):
     """
     Renders a list of items.
@@ -548,76 +581,68 @@ def list_items(category_key=None, predicate=None, object_value=None):
     - If predicate and object_value are provided, lists items (subjects)
       related via that predicate/object pair.
     """
-    predicate_map = get_predicate_map()
+    predicate_map = PREDICATE_MAP
     items = []
-    grouped_by_class = None
-    grouped_by_phenotype = None
+    grouped_items = None
     total_item_count = 0
-    is_grouped_view = False
-    page_title = "Item List" # Default
-    description = ""
-    # Keep track of original request type for back links etc.
-    original_category_key = category_key
-    original_predicate = predicate
-    original_object_value = object_value
+    page_title = "Item List"
+    item_type = ""
+    grouping_predicate_display = None
+    grouping_value_display = None
+    parent_category_key = None
 
     if predicate and object_value:
         # --- Listing related items ---
-        decoded_object_value = unquote(object_value)
+        decoded_object_value = object_value
         items, total_item_count = get_related_subjects(predicate, decoded_object_value)
         predicate_display = predicate_map.get(predicate, predicate)
-        # Try to get label for object_value if it's a resource
         object_label = get_label(decoded_object_value)
 
-        page_title = f"Items with {predicate_display}: {object_label}"
-        description = f"Listing items (subjects) where the property <code>{predicate_display}</code> is <code>{object_label}</code>. Found {total_item_count} item(s)."
-        is_grouped_view = False
-        # category_key might be passed in URL but isn't the primary driver here
-        category_key = f"related_{predicate}" # Use a synthetic key for context
+        page_title = f"Items related to {object_label}"
+        item_type = "Related Item"
+        grouping_predicate_display = predicate_display
+        grouping_value_display = object_label
+
+        # Try to find the category this object belongs to for the back link
+        details_for_object = get_item_details(decoded_object_value)
+        if details_for_object and details_for_object.get('primary_type_category_key'):
+            parent_category_key = details_for_object['primary_type_category_key']
 
     elif category_key and category_key in INDEX_CATEGORIES:
         # --- Listing items by category ---
         category_info = INDEX_CATEGORIES[category_key]
-        category_display_name = category_key
-        page_title = category_display_name
+        page_title = category_key
+        item_type = category_info.get('value', category_key)
 
         if category_key == "PanRes Genes":
             # Special grouped view for PanGenes
-            grouped_by_class, grouped_by_phenotype, total_item_count = get_grouped_pangen_data()
-            is_grouped_view = True
-            description = f"Listing items of type <code>PanGene</code>, grouped by Resistance Class and Predicted Phenotype. Found {total_item_count} item(s)."
+            grouped_items, _, total_item_count = get_grouped_pangen_data()
+            grouping_predicate_display = predicate_map.get(HAS_RESISTANCE_CLASS)
+            item_type = "PanGene"
         else:
             # Standard category list (flat)
             items, total_item_count = get_items_for_category(category_key)
-            is_grouped_view = False
-            cat_desc = category_info.get('description', '')
-            description = f"Listing items for category: {category_key}. Found {total_item_count} item(s). {cat_desc}"
 
     else:
         abort(404, description=f"Category or relationship '{category_key or object_value}' not recognized.")
 
     return render_template('list.html',
                            page_title=page_title,
-                           description=description,
-                           items=items, # For flat lists
-                           grouped_by_class=grouped_by_class, # For grouped PanGene view
-                           grouped_by_phenotype=grouped_by_phenotype, # For grouped PanGene view
-                           total_item_count=total_item_count,
-                           is_grouped_view=is_grouped_view,
-                           category_key=original_category_key, # Original category for context
-                           predicate=original_predicate, # Original predicate for context
-                           object_value=original_object_value, # Original object value for context
-                           # Pass other necessary vars directly as context processor handles them
+                           item_type=item_type,
+                           items=items,
+                           grouped_items=grouped_items,
+                           total_items=total_item_count,
+                           grouping_predicate_display=grouping_predicate_display,
+                           grouping_value_display=grouping_value_display,
+                           parent_category_key=parent_category_key,
+                           # predicate_map is available via context processor if needed elsewhere
                            )
 
 
 @app.route('/details/<path:item_id>')
 def details(item_id):
     """Shows details (properties and references) for a specific item."""
-    # Ensure item_id is correctly quoted/unquoted if necessary, but Flask handles path parameters well.
-    # However, IDs coming *from* the DB might need quoting for URL generation.
-    # IDs coming *to* this route from URLs are automatically unquoted by Flask.
-    decoded_item_id = unquote(item_id) # Usually not needed for path: converter, but safe.
+    decoded_item_id = unquote(item_id)
     app.logger.info(f"Details route: Fetching details for item ID: {decoded_item_id}")
 
     item_details = get_item_details(decoded_item_id)
@@ -626,19 +651,12 @@ def details(item_id):
         app.logger.warning(f"No data found for item_id: {decoded_item_id}. Returning 404.")
         abort(404, description=f"Item '{decoded_item_id}' not found in the PanRes data.")
 
-    # Define predicates for the PanGene specific layout (needed for template logic)
-    pangen_key_info_preds = ['has_length', 'same_as', 'card_link', 'accession', IS_FROM_DATABASE]
-    pangen_right_col_preds = [HAS_RESISTANCE_CLASS, HAS_PREDICTED_PHENOTYPE, 'translates_to', 'member_of']
-
+    # No need to pass predicate map, it's processed in get_item_details
     return render_template(
         'details.html',
-        item_id=decoded_item_id, # Display the decoded ID
-        encoded_item_id=quote(decoded_item_id), # Use encoded ID for potential future URL generation within the page
+        item_id=decoded_item_id,
         details=item_details,
-        is_pangen=item_details['is_pangen'],
-        pangen_key_info_preds=pangen_key_info_preds,
-        pangen_right_col_preds=pangen_right_col_preds
-        # predicate_map, site_name, etc., are available via context processor
+        # predicate_map is available via context processor if needed elsewhere
     )
 
 
@@ -646,33 +664,37 @@ def details(item_id):
 @app.errorhandler(404)
 def handle_not_found(e):
     """Handle 404 Not Found errors by showing info on the index page."""
-    app.logger.warning(f"404 Not Found: {request.path} - {e.description}")
-    error_message = e.description or f"The requested page '{request.path}' could not be found."
+    path = request.path if request else "Unknown path"
+    app.logger.warning(f"404 Not Found: {path} - {e.description}")
+    error_message = e.description or f"The requested page '{path}' could not be found."
     # Render index page with error message
     return render_template('index.html',
                            show_error=True,
                            error_code=404,
                            error_message=error_message,
-                           # Pass empty data for charts/categories to avoid errors
-                           categories={},
-                           antibiotic_class_data={'labels': [], 'data': []},
-                           source_db_data={'labels': [], 'data': []}), 404
+                           # Pass empty/default data for charts/categories to avoid template errors
+                           index_categories=INDEX_CATEGORIES, # Still need this for layout
+                           category_counts={},
+                           antibiotic_chart_data=None,
+                           source_db_chart_data=None,
+                           phenotype_chart_data=None), 404
 
 @app.errorhandler(500)
 def internal_server_error(e):
     """Handle 500 Internal Server errors by showing info on the index page."""
     app.logger.error(f"500 Internal Server Error: {e}", exc_info=True) # Log exception info
-    # Use original exception description if available, otherwise generic message
     error_message = getattr(e, 'original_exception', None) or getattr(e, 'description', "An internal server error occurred. Please try again later.")
     # Render index page with error message
     return render_template('index.html',
                            show_error=True,
                            error_code=500,
-                           error_message=str(error_message), # Ensure it's a string
-                           # Pass empty data for charts/categories
-                           categories={},
-                           antibiotic_class_data={'labels': [], 'data': []},
-                           source_db_data={'labels': [], 'data': []}), 500
+                           error_message=str(error_message),
+                           # Pass empty/default data
+                           index_categories=INDEX_CATEGORIES, # Still need this for layout
+                           category_counts={},
+                           antibiotic_chart_data=None,
+                           source_db_chart_data=None,
+                           phenotype_chart_data=None), 500
 
 # --- Utility Route (Example - can be removed) ---
 @app.route('/testdb')

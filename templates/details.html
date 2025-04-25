@@ -1,163 +1,95 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Details for {{ item_id }} - {{ site_name }}</title>
+{% extends "base.html" %}
 
-    {# Add Tailwind CSS via CDN #}
-    <script src="https://cdn.tailwindcss.com"></script>
+{% block title %}Details for {{ item_id }} - {{ site_name }}{% endblock %}
 
-    {# Link to your simplified custom CSS #}
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% block content %}
+    {# Use item_id directly, details.label for the label #}
+    <h2 class="text-3xl font-semibold text-gray-800 mb-1">Details for <code class="text-2xl bg-gray-100 px-2 py-1 rounded">{{ item_id }}</code></h2>
+    {% if details.label and details.label != item_id %} {# Show label only if it's different from ID #}
+        <p class="text-xl text-gray-600 mb-4">({{ details.label }})</p>
+    {% endif %}
 
-    <link rel="icon" href="{{ url_for('static', filename='panres_logo.png') }}" type="image/png">
-
-    {# Basic Tailwind Configuration #}
-    <script>
-        tailwind.config = {
-          theme: {
-            extend: {
-              colors: {
-                'dtu-red': '#990000',
-              },
-              fontFamily: {
-                sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
-                mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
-              }
-            }
-          }
-        }
-      </script>
-      <style type="text/tailwindcss">
-        body {
-            @apply font-sans bg-gray-50 text-gray-800;
-        }
-        .btn {
-             @apply inline-block bg-dtu-red/80 hover:bg-dtu-red text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2;
-        }
-        code {
-             @apply bg-gray-200 text-gray-700 px-1 py-0.5 rounded text-sm font-mono break-all; /* Added break-all for long IDs */
-        }
-        .dtu-pattern-bg {
-            background-image: url("{{ url_for('static', filename='DTU_Background_Pattern_Corporate_Red_RGB.jpg') }}");
-            background-color: #990000;
-            background-size: cover;
-            background-position: center center;
-            background-repeat: no-repeat;
-        }
-        /* Simple definition list styling */
-        dt {
-            @apply text-gray-500 w-1/3 shrink-0 pr-2 text-right text-xs uppercase tracking-wide font-semibold;
-        }
-        dd {
-            @apply w-2/3 break-words; /* Allow long words/URLs to break */
-        }
-        .property-row {
-            @apply flex items-start mb-1;
-        }
-      </style>
-</head>
-<body class="flex flex-col min-h-screen">
-
-    {# --- Header --- #}
-    <header class="bg-white shadow-md sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center space-x-4">
-                 <a href="{{ url_for('index') }}">
-                    <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="h-10">
-                 </a>
-                 <div>
-                    <h1 class="text-xl font-semibold text-gray-700">Centre for Genomic Epidemiology</h1>
-                    <div class="text-sm text-gray-500">{{ site_name }}</div>
-                 </div>
-            </div>
-            <div></div> {# Placeholder #}
-        </div>
-    </header>
-
-    {# --- Main Content Area --- #}
-    <main class="container mx-auto px-4 py-8 flex-grow">
-        <h2 class="text-3xl font-semibold text-gray-800 mb-1">Details for <code class="text-2xl bg-gray-100 px-2 py-1 rounded">{{ item_id }}</code></h2>
-        {% if details.label %}
-            <p class="text-xl text-gray-600 mb-4">({{ details.label }})</p>
+    {# Back Links #}
+    <div class="mb-6 text-sm">
+        <a href="{{ url_for('index') }}" class="text-dtu-red hover:underline">&laquo; Back to Home</a>
+        {# Link back to the primary category list if available #}
+        {% if details.primary_type_category_key %}
+             <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="ml-4 text-dtu-red hover:underline">&laquo; Back to {{ details.primary_type_display }} List</a>
         {% endif %}
+        {# General back button using browser history #}
+        <button onclick="window.history.back();" class="ml-4 text-dtu-red hover:underline">Back</button>
+    </div>
 
-        {# Back Links - Standard Link Style #}
-        <div class="mb-6 text-sm">
-            <a href="{{ url_for('index') }}" class="text-dtu-red hover:underline">&laquo; Back to Home</a>
-            {# Link back to the primary category list if available #}
-            {% if details.primary_type_category_key %}
-                 <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="ml-4 text-dtu-red hover:underline">&laquo; Back to {{ details.primary_type_display }} List</a>
-            {% endif %}
-            {# Add a general back button using browser history #}
-            <button onclick="window.history.back();" class="ml-4 text-dtu-red hover:underline">Back</button>
-        </div>
+    {# --- Main Details Card --- #}
+    <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
+        <h3 class="text-xl font-semibold text-dtu-red border-b border-gray-200 pb-2 mb-4">Properties</h3>
+        {% if details.properties %}
+            {# Using a definition list for semantics #}
+            <dl class="divide-y divide-gray-100">
+                {# details.properties is now {'Predicate Display Name': [{'value': 'raw_val', 'display': 'display_val', 'is_link': True/False, 'list_link_info': {...}}, ...]} #}
+                {% for pred_display, values in details.properties.items() | sort %} {# Sort by predicate display name #}
+                    <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                        <dt class="text-sm font-medium leading-6 text-gray-900">{{ pred_display }}</dt>
+                        <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                            <ul class="list-none space-y-1">
+                            {% for value_info in values %} {# Values are already sorted by display name in app.py #}
+                                <li>
+                                    {% if value_info.is_link %}
+                                        {# Link to the detail page of the related item #}
+                                        <a href="{{ url_for('details', item_id=value_info.value | urlencode ) }}" class="text-dtu-red hover:underline" title="View details for {{ value_info.value }}">
+                                            {{ value_info.display }} {# Show label or ID #}
+                                        </a>
+                                        {# Add link to list related items view #}
+                                        {% if value_info.list_link_info %}
+                                            <a href="{{ url_for('list_items', predicate=value_info.list_link_info.predicate_key, object_value=value_info.list_link_info.object_value_encoded) }}"
+                                               class="ml-2 text-xs text-gray-500 hover:text-dtu-red hover:underline"
+                                               title="List all items where {{ value_info.list_link_info.predicate_display }} is {{ value_info.display }}">
+                                                (List related)
+                                            </a>
+                                        {% endif %}
+                                    {% else %}
+                                        {# Display as plain text, use code tag for potential IDs/literals #}
+                                        <code>{{ value_info.display }}</code>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                            </ul>
+                        </dd>
+                    </div>
+                {% endfor %}
+            </dl>
+        {% else %}
+            <p class="text-gray-500 italic">No properties found for this item.</p>
+        {% endif %}
+    </div>
 
-        {# Details Card - Standard Card Style #}
-        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
-            <h3 class="text-xl font-semibold text-dtu-red border-b border-gray-200 pb-2 mb-4">Properties</h3>
-            {% if details.properties %}
-                <dl class="divide-y divide-gray-100">
-                    {% for pred_display, values in details.properties.items() %}
-                        <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                            <dt class="text-sm font-medium leading-6 text-gray-900">{{ pred_display }}</dt>
-                            <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                                {% if values is iterable and values is not string %}
-                                    <ul class="list-none space-y-1">
-                                    {% for value_info in values %}
-                                        <li>
-                                            {% if value_info.is_link %}
-                                                {# Standard Link Style #}
-                                                <a href="{{ url_for('show_details', item_id=value_info.value) }}" class="text-dtu-red hover:underline" title="View details for {{ value_info.value }}">
-                                                    {{ value_info.display }}
-                                                </a>
-                                                {# Add link to list view if applicable #}
-                                                {% if value_info.list_link_info %}
-                                                    <a href="{{ url_for('list_related_items', predicate_key=value_info.list_link_info.predicate_key, object_value=value_info.value) }}" class="ml-2 text-xs text-gray-500 hover:text-dtu-red hover:underline" title="List all items with {{ value_info.list_link_info.predicate_display }} = {{ value_info.display }}">(List related)</a>
-                                                {% endif %}
-                                            {% else %}
-                                                {{ value_info.display }} {# Display as plain text #}
-                                            {% endif %}
-                                        </li>
-                                    {% endfor %}
-                                    </ul>
-                                {% else %}
-                                     {{ values.display if values is mapping else values }} {# Handle single non-iterable value #}
-                                {% endif %}
-                            </dd>
-                        </div>
-                    {% endfor %}
-                </dl>
-            {% else %}
-                <p class="text-gray-500 italic">No properties found for this item.</p>
-            {% endif %}
-        </div>
+    {# --- Referencing Items Card (Incoming Links) --- #}
+    <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
+        <h3 class="text-xl font-semibold text-dtu-red border-b border-gray-200 pb-2 mb-4">Referenced By</h3>
+        {% if details.referencing_items %}
+            <dl class="divide-y divide-gray-100">
+                 {# details.referencing_items is [{'ref_id': '...', 'predicate_display': '...', 'ref_label': '...'}] #}
+                {% for ref_info in details.referencing_items | sort(attribute='predicate_display') %} {# Sort by predicate #}
+                     <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                        {# Show the item that references the current one #}
+                        <dt class="text-sm font-medium leading-6 text-gray-900">
+                             <a href="{{ url_for('details', item_id=ref_info.ref_id | urlencode) }}" class="text-dtu-red hover:underline" title="View details for {{ ref_info.ref_id }}">
+                                {{ ref_info.ref_label }}
+                             </a>
+                        </dt>
+                        {# Show how it references the current item #}
+                        <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                            (via predicate: <code>{{ ref_info.predicate_display }}</code>)
+                        </dd>
+                    </div>
+                {% endfor %}
+            </dl>
+        {% else %}
+            <p class="text-gray-500 italic">This item is not referenced by any other items via known predicates.</p>
+        {% endif %}
+    </div>
 
-        {# Optional: Add sections for related items (incoming/outgoing links) if needed, using standard card/link styles #}
+{% endblock %}
 
-    </main>
-
-    {# --- Footer --- #}
-    <footer class="p-4 bg-gray-100 border-t border-gray-200 mt-auto">
-        <div class="container mx-auto text-center sm:flex sm:items-center sm:justify-between">
-            <div class="flex justify-center sm:justify-start items-center mb-4 sm:mb-0">
-                 <a href="https://www.genomicepidemiology.org/" class="flex items-center" target="_blank" rel="noopener noreferrer">
-                     <img class="mr-3 h-8" src="{{ url_for('static', filename='DTU_Food_logo_UK_RED_SMALL.png') }}" alt="DTU Food Logo"/>
-                 </a>
-            </div>
-            <span class="block text-sm text-gray-500 text-center">
-                © {{ current_year }}
-                <a href="https://www.genomicepidemiology.org/" class="hover:underline" target="_blank" rel="noopener noreferrer">Center for Genomic Epidemiology™</a>.
-                All Rights Reserved. |
-                <a href="https://www.genomicepidemiology.org/contact/" target="_blank" rel="noopener noreferrer" class="hover:underline">Contact</a> |
-                <a href="https://www.genomicepidemiology.org/privacy-policy/" target="_blank" rel="noopener noreferrer" class="hover:underline">Privacy Policy</a>
-            </span>
-        </div>
-    </footer>
-
-    {# Page specific scripts block (if any needed in future) #}
-    {% block scripts %}{% endblock %}
-
-</body>
-</html> 
+{# No specific scripts needed for details page currently #}
+{% block scripts %}{% endblock %} 
