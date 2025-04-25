@@ -47,8 +47,13 @@
 
     /* Chart container - if you need consistent sizing */
     .chart-container {
-        @apply relative h-80 md:h-96; /* Example height, adjust as needed */
-        /* height: 350px; */ /* Or use fixed height */
+        @apply relative h-80 md:h-96 mx-auto max-w-full; /* Add mx-auto for centering and max-w-full */
+        /* Improved height for better visualization */
+    }
+    
+    /* Chart legend styling */
+    .chart-legend {
+        @apply mt-4 text-sm text-gray-600 text-center;
     }
 }
 

@@ -14,14 +14,14 @@
     </p>
 
     {# Back Links #}
-    <div class="mb-6 text-sm">
-         <a href="{{ url_for('index') }}" class="text-dtu-red hover:underline">&laquo; Back to Home</a>
+    <div class="mb-6 flex flex-wrap gap-2">
+         <a href="{{ url_for('index') }}" class="btn text-sm">Back to Home</a>
          {# Link back to the parent category list if available #}
          {% if parent_category_key %}
-             <a href="{{ url_for('list_items', category_key=parent_category_key) }}" class="ml-4 text-dtu-red hover:underline">&laquo; Back to {{ parent_category_key }} List</a>
+             <a href="{{ url_for('list_items', category_key=parent_category_key) }}" class="btn text-sm">Back to {{ parent_category_key }} List</a>
          {% endif %}
          {# General back button using browser history #}
-         <button onclick="window.history.back();" class="ml-4 text-dtu-red hover:underline">Back</button>
+         <button onclick="window.history.back();" class="btn text-sm">Back</button>
     </div>
 
     {# Display grouped items (e.g., PanGenes by Class) #}
