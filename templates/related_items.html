@@ -3,118 +3,104 @@
 {% block title %}{{ page_title }} - {{ site_name }}{% endblock %}
 
 {% block content %}
-    <h2>{{ page_title }}</h2>
-    <p>{{ description|safe }}</p> {# Use safe filter because description contains <code> tags #}
+    <h2 class="text-2xl font-medium text-dtu-red mb-2">{{ page_title }}</h2>
+    <p class="text-sm text-gray-600 mb-6">{{ description|safe }}</p> {# Use safe filter because description contains <code> tags #}
 
     {# --- Conditional Display: Grouped View or Flat List --- #}
     {% if is_grouped_view and grouped_genes %}
         {# --- Grouped View (e.g., by Resistance Class) --- #}
-        <p>Found {{ total_gene_count }} related item(s), grouped by Resistance Class:</p>
+        <p class="text-sm text-gray-700 mb-4">Found {{ total_gene_count }} related item(s), grouped by {{ predicate_map.get(predicate, predicate) }}:</p>
 
-        <div class="list-grouping-container related-items-grouping"> {# Add specific class #}
-            <div class="accordion">
-                {% for class_label, data in grouped_genes.items() %}
-                    <div class="accordion-item">
-                        <button class="accordion-header" aria-expanded="false">
-                            {# Link the class label if its ID is known and it's not 'No Class Assigned' #}
-                            {% if data.id %}
-                                <a href="{{ url_for('details', item_id=data.id) }}" class="group-label-link" title="View details for {{ class_label }}"><code>{{ class_label }}</code></a>
-                            {% else %}
-                                {# Display label without link (e.g., for 'No Class Assigned') #}
-                                <code>{{ class_label }}</code>
-                            {% endif %}
-                            <span class="accordion-count">({{ data.genes | length }})</span>
-                            <span class="accordion-icon">+</span>
-                        </button>
-                        <div class="accordion-content" style="display: none;"> {# Content hidden by default #}
-                            <ul class="grouped-item-list"> {# Reuse class from list.html #}
-                                {% for gene in data.genes %}
-                                    <li><a href="{{ gene.link }}"><code>{{ gene.id }}</code></a></li>
-                                {% endfor %}
-                            </ul>
+        {# Use Tailwind grid for potential multi-column layout if many groups #}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {# Card for the grouped items #}
+            <div class="md:col-span-2 bg-white rounded-md shadow-lg p-4"> {# Span full width or adjust as needed #}
+                <div class="accordion space-y-2">
+                    {% for class_label, data in grouped_genes.items() %}
+                        <div class="accordion-item border border-gray-200 rounded">
+                            <button class="accordion-header w-full flex justify-between items-center p-3 text-left bg-gray-50 hover:bg-gray-100 focus:outline-none transition-colors duration-150">
+                                <span class="font-semibold text-sm">
+                                    {% if data.id %}
+                                        <a href="{{ url_for('details', item_id=data.id) }}" class="text-dtu-red hover:underline" title="View details for {{ class_label }}"><code>{{ class_label }}</code></a>
+                                    {% else %}
+                                        <code>{{ class_label }}</code> {# e.g., No Class Assigned #}
+                                    {% endif %}
+                                    <span class="text-gray-500 font-normal ml-2">({{ data.genes|length }} items)</span>
+                                </span>
+                                <span class="accordion-icon text-gray-500 text-xl font-light transform transition-transform duration-200">+</span>
+                            </button>
+                            <div class="accordion-content p-3 border-t border-gray-200 hidden">
+                                <ul class="list-disc list-inside space-y-1 text-sm columns-1 sm:columns-2 md:columns-3">
+                                    {% for gene in data.genes %}
+                                        <li class="break-inside-avoid mb-1"><a href="{{ gene.link }}" class="text-dtu-red hover:underline"><code>{{ gene.id }}</code></a></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
                         </div>
-                    </div>
-                {% else %}
-                    {# This part should ideally not be reached if grouped_genes is not empty,
-                       but added as a fallback inside the loop context #}
-                    <p>No resistance classes found for grouping.</p>
-                {% endfor %}
-            </div> {# End accordion #}
-        </div> {# End list-grouping-container #}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
 
     {% elif genes %}
-        {# --- Flat List View (Fallback or other predicates) --- #}
-        <p>Found {{ total_gene_count }} related item(s):</p>
-        <ul class="item-list"> {# Reuse item-list style #}
-            {% for gene in genes %}
-                <li>
-                    <a href="{{ gene.link }}"><code>{{ gene.id }}</code></a>
-                </li>
-            {% endfor %}
-        </ul>
+        {# --- Flat List View --- #}
+         <p class="text-sm text-gray-700 mb-4">Found {{ total_gene_count }} related item(s):</p>
+         <div class="bg-white rounded-md shadow-lg p-4">
+            <ul class="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-x-6 text-sm space-y-1">
+                {% for gene in genes %}
+                    <li class="break-inside-avoid mb-1">
+                        <a href="{{ gene.link }}" class="text-dtu-red hover:underline"><code>{{ gene.id }}</code></a>
+                    </li>
+                {% else %}
+                    <li>No related items found.</li>
+                {% endfor %}
+            </ul>
+        </div>
     {% else %}
-        {# --- No Genes Found --- #}
-        <p>No items found related to <code>{{ object_value }}</code> via the property <code>{{ predicate_map.get(predicate, predicate) }}</code>.</p>
+         <div class="bg-yellow-50 border border-yellow-300 text-yellow-800 p-4 rounded text-center">
+            No related items found for this relationship.
+         </div>
     {% endif %}
-    {# --- End Conditional Display --- #}
 
-
-    {# Add back links for navigation #}
-    <div class="back-links-footer">
-         <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
-         {# Attempt to find the original category list link (e.g., Source Databases) #}
-         {# Find the category key where the 'value' matches the current predicate using filters on items() #}
-         {% set source_category_key = index_categories.items()
-              | selectattr('1.query_type', 'equalto', 'predicate_object')
-              | selectattr('1.value', 'equalto', predicate)
-              | map(attribute='0')
-              | first
-         %}
-         {# Comments moved outside:
-            - selectattr('1.query_type', 'equalto', 'predicate_object') -> Check query_type in value (index 1)
-            - selectattr('1.value', 'equalto', predicate) -> Check value in value (index 1)
-            - map(attribute='0') -> Map to the key (index 0)
-         #}
-         {# The above replaces the previous filter chain and the original for loop #}
-
-         {% if source_category_key %}
-             {# Link back to the list of items for that predicate (e.g., list of databases) #}
-             {# The key *is* the display name in the current INDEX_CATEGORIES setup #}
-             {% set source_category_display_name = source_category_key %}
-             <p class="back-link"><a href="{{ url_for('list_items', category_key=source_category_key) }}">&laquo; Back to {{ source_category_display_name }} list</a></p>
-         {% endif %}
-         {# Optionally, add a link back to the details page of the object_value if it's not a literal #}
-         {# {% if not object_value.isdigit() %}
-            <p class="back-link"><a href="{{ url_for('details', item_id=object_value) }}">&laquo; Back to details for {{ object_value }}</a></p>
-         {% endif %} #}
+    {# Back Link #}
+    <div class="mt-8 text-center">
+        {# Link back to the object's details page if it's likely an internal item #}
+        {# Heuristic: check if object_value looks like a typical ID (not perfect) #}
+        {% if object_value and not (' ' in object_value or ':' in object_value or '/' in object_value) %}
+             <a href="{{ url_for('details', item_id=object_value) }}" class="text-sm text-dtu-red hover:underline mr-4">&laquo; Back to Details for <code>{{ object_value }}</code></a>
+        {% endif %}
+        <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
     </div>
 
-    {# --- Add Simple Accordion JavaScript (only if grouping is used) --- #}
-    {% if is_grouped_view %}
+{% endblock %}
+
+{% block scripts %}
+    {# Accordion Script (Same as list.html) #}
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', () => {
             const accordionHeaders = document.querySelectorAll('.accordion-header');
 
             accordionHeaders.forEach(header => {
                 header.addEventListener('click', function() {
                     const content = this.nextElementSibling;
                     const icon = this.querySelector('.accordion-icon');
-                    const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                    const isExpanded = content.classList.contains('hidden');
 
-                    // Toggle current accordion item
-                    if (content.style.display === 'none' || content.style.display === '') {
-                        content.style.display = 'block';
-                        this.setAttribute('aria-expanded', 'true');
-                        if(icon) icon.textContent = '−'; // Use minus sign when expanded
+                    if (isExpanded) {
+                        content.classList.remove('hidden');
+                        if(icon) {
+                            icon.textContent = '−';
+                            icon.classList.add('rotate-180');
+                        }
                     } else {
-                        content.style.display = 'none';
-                        this.setAttribute('aria-expanded', 'false');
-                         if(icon) icon.textContent = '+'; // Use plus sign when collapsed
+                        content.classList.add('hidden');
+                         if(icon) {
+                             icon.textContent = '+';
+                             icon.classList.remove('rotate-180');
+                         }
                     }
                 });
             });
         });
     </script>
-    {% endif %}
-
 {% endblock %} 

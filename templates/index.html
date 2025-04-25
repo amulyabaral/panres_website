@@ -2,187 +2,162 @@
 
 {% block title %}PanRes 2.0 ARG Database - CGE{% endblock %}
 
-{# Header content is now handled by base.html and CSS #}
-{% block header_content %}{% endblock %}
+{# Citation is now handled in base.html via header_content block #}
+{% block header_content %}
+    {% if citation_text %}
+    <div class="p-4 bg-gray-100 my-6 rounded-md shadow-lg">
+        <div class="bg-white rounded-md p-4 space-y-2">
+             <h3 class="text-xl font-medium text-dtu-red">Citation</h3>
+             <p class="text-sm text-gray-700">{{ citation_text|safe }}</p>
+        </div>
+    </div>
+    {% endif %}
+{% endblock %}
+
 
 {% block content %}
-    {# --- Logo moved to body --- #}
-    <div class="body-logo-container">
-        <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="body-logo">
-    </div>
+    {# --- Logo moved to body (Optional - can be removed if header logo is sufficient) --- #}
+    {# <div class="flex justify-center my-4">
+        <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="h-16">
+    </div> #}
 
-    {# --- Citation Section --- #}
-    <div class="citation-section">
-        <h4>Citation:</h4>
-        <p>{{ citation_text|safe }}</p>
-    </div>
+    <p class="text-center text-gray-700 mb-6">
+        Take a quick look at what has been collected in the PanRes database. Browse categories below or view details via the charts.
+    </p>
 
-    {# --- Grid Container for Side-by-Side Visualizations --- #}
-    <div class="viz-grid-container">
+    {# --- Main Grid for Visualizations and Categories --- #}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
 
-        {# --- Wrapper Div for Left Column (Source DB + Phenotypes) --- #}
-        <div class="viz-column-left">
-
-            <p class="intro-paragraph">
-                Take a quick look at what has been collected in the PanRes database.
-            </p>
+        {# --- Left Column --- #}
+        <div class="space-y-6">
 
             {# --- Source Database Visualization --- #}
-            {% if source_db_counts %}
-            <div class="visualization-section source-db-chart">
-                <div class="visualization-header">
-                    <h4>ARGs by Source Database</h4>
-                    <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button">Browse Sources</a>
+            <div class="bg-white rounded-md shadow-lg p-4">
+                <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
+                    <h4 class="text-lg font-medium text-dtu-red">ARGs by Source Database</h4>
+                    <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="text-sm bg-dtu-red/80 hover:bg-dtu-red text-white px-3 py-1 rounded transition-colors duration-200">Browse Sources</a>
                 </div>
-                <div class="v-barplot-container">
+                {% if source_db_counts %}
+                <div class="space-y-2"> {# Replaces v-barplot-container #}
                     {% for row in source_db_counts %}
                         {% set bar_width_percent = (row.gene_count / max_db_count * 100) if max_db_count else 0 %}
                         {% set bar_width_percent = [0, bar_width_percent] | max %}
                         {% set bar_width_percent = [100, bar_width_percent] | min %}
                         {% set formatted_count = "{:,}".format(row.gene_count) %}
-                        <div class="v-barplot-item" title="{{ row.database_name }} ({{ formatted_count }} genes)">
-                            <div class="v-barplot-label">
-                                 <a href="{{ url_for('show_related_items', predicate='is_from_database', object_value=row.database_name) }}" title="View genes from {{ row.database_name }}">
+                        <div class="text-xs group" title="{{ row.database_name }} ({{ formatted_count }} genes)">
+                            <div class="flex justify-between items-center mb-0.5">
+                                <a href="{{ url_for('show_related_items', predicate='is_from_database', object_value=row.database_name) }}" title="View genes from {{ row.database_name }}" class="text-dtu-red hover:underline truncate pr-2">
                                     {{ row.database_name }}
-                                 </a>
+                                </a>
+                                <span class="text-gray-600 font-medium">{{ formatted_count }}</span>
                             </div>
-                            <div class="v-barplot-bar-wrapper">
-                                <div class="v-barplot-bar" data-target-width="{{ bar_width_percent }}%" style="width: 0%;">
-                                </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-dtu-red h-2.5 rounded-full transition-all duration-500 ease-out" data-target-width="{{ bar_width_percent }}%" style="width: 0%;"></div>
                             </div>
-                            <div class="v-barplot-count">{{ formatted_count }}</div>
                         </div>
                     {% endfor %}
                 </div>
+                {% else %}
+                 <p class="text-center text-gray-500 italic py-4">No data available.</p>
+                {% endif %}
             </div>
-            {% else %}
-             <div class="visualization-section placeholder source-db-chart">
-                 <div class="visualization-header">
-                     <h4>ARGs by Source Database</h4>
-                     <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="browse-button">Browse Sources</a>
-                 </div>
-                 <p>No data available.</p>
-             </div>
-            {% endif %}
 
             {# --- Predicted Phenotype Stacked Bar Section --- #}
-            {% if phenotype_chart_data and phenotype_chart_data.segments %}
-            <div class="visualization-section phenotype-stacked-bar">
-                 <div class="visualization-header">
-                    <h4>ARGs by Predicted Phenotype</h4>
-                     <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="browse-button">Browse Phenotypes</a>
+            <div class="bg-white rounded-md shadow-lg p-4">
+                 <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
+                    <h4 class="text-lg font-medium text-dtu-red">ARGs by Predicted Phenotype</h4>
+                     <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="text-sm bg-dtu-red/80 hover:bg-dtu-red text-white px-3 py-1 rounded transition-colors duration-200">Browse Phenotypes</a>
                 </div>
-                <div class="stacked-bar-container">
+                {% if phenotype_chart_data and phenotype_chart_data.segments %}
+                {# Stacked Bar Container #}
+                <div class="w-full h-6 flex rounded overflow-hidden mb-3">
                     {% for segment in phenotype_chart_data.segments %}
-                        <span class="stacked-bar-segment"
+                        <div class="h-full transition-all duration-500 ease-out" {# Tailwind class for the bar segment #}
                               data-target-width="{{ segment.percentage }}%"
                               style="background-color: {{ segment.color }}; width: 0%;"
                               title="{{ segment.name }} ({{ '{:,}'.format(segment.count) }} genes, {{ '%.1f'|format(segment.percentage) }}%)">
-                        </span>
+                        </div>
                     {% endfor %}
                 </div>
-                <div class="stacked-bar-legend">
+                {# Legend #}
+                <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
                     {% for segment in phenotype_chart_data.segments %}
-                    <div class="legend-item">
-                        <a href="{{ url_for('show_related_items', predicate='has_predicted_phenotype', object_value=segment.name) }}" title="View genes with phenotype {{ segment.name }}">
-                            <span class="legend-color-box" style="background-color: {{ segment.color }};"></span>
-                            <span class="legend-label">{{ segment.name }}</span>
-                            <span class="legend-count">({{ '{:,}'.format(segment.count) }})</span>
-                        </a>
-                    </div>
+                    <a href="{{ url_for('show_related_items', predicate='has_predicted_phenotype', object_value=segment.name) }}" title="View genes with phenotype {{ segment.name }}" class="flex items-center group">
+                        <span class="inline-block w-3 h-3 rounded-sm mr-1.5 border border-gray-400" style="background-color: {{ segment.color }};"></span>
+                        <span class="text-gray-700 group-hover:text-dtu-red group-hover:underline">{{ segment.name }}</span>
+                        <span class="text-gray-500 ml-1">({{ '{:,}'.format(segment.count) }})</span>
+                    </a>
                     {% endfor %}
                 </div>
+                {% else %}
+                 <p class="text-center text-gray-500 italic py-4">No data available.</p>
+                {% endif %}
             </div>
-            {% else %}
-                <div class="visualization-section placeholder phenotype-stacked-bar">
-                     <div class="visualization-header">
-                         <h4>ARGs by Predicted Phenotype</h4>
-                         <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="browse-button">Browse Phenotypes</a>
-                     </div>
-                     <p>No data available.</p>
+
+        </div> {# --- End Left Column --- #}
+
+        {# --- Right Column --- #}
+        <div class="space-y-6">
+
+             {# --- Antibiotic Class Pie Chart Section --- #}
+            <div class="bg-white rounded-md shadow-lg p-4">
+                 <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
+                    <h4 class="text-lg font-medium text-dtu-red">ARGs by Antibiotic Class</h4>
+                    <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="text-sm bg-dtu-red/80 hover:bg-dtu-red text-white px-3 py-1 rounded transition-colors duration-200">Browse Classes</a>
                 </div>
-            {% endif %}
-
-        </div> {# --- End viz-column-left --- #}
-
-
-        {# --- Antibiotic Class Pie Chart Section (Right Column) --- #}
-        {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
-        <div class="visualization-section antibiotic-class-chart">
-             <div class="visualization-header">
-                <h4>ARGs by Antibiotic Class</h4>
-                 <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
-            </div>
-            <div class="chart-container">
-                <canvas id="antibioticClassChart"></canvas>
-            </div>
-        </div>
-        {% else %}
-            <div class="visualization-section placeholder antibiotic-class-chart">
-                 <div class="visualization-header">
-                     <h4>ARGs by Antibiotic Class</h4>
-                     <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="browse-button">Browse Classes</a>
-                 </div>
-                 <p>No data available to display antibiotic class counts.</p>
-            </div>
-        {% endif %}
-
-    </div> {# --- End viz-grid-container --- #}
-
-
-    {# --- Browse Categories Card --- #}
-    <div class="content-card">
-        <h3>Browse PanRes 2.0 Ontology</h3>
-        <p>Select a category below:</p>
-        <div class="category-grid">
-            {% if category_data %}
-                {% for display_name, data in category_data.items() %}
-                <div class="category-card">
-                    <div>
-                        <h4>{{ display_name }}</h4>
-                         {% if data.config.description %}
-                            <p class="category-description">{{ data.config.description }}</p>
-                         {% endif %}
+                {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
+                    <div class="chart-container"> {# Use the CSS class for sizing #}
+                        <canvas id="antibioticClassChart"></canvas>
                     </div>
-                    <a href="{{ url_for('list_items', category_key=display_name) }}" class="button">
-                        Browse
-                        {% if data.count is number and data.count > 0 %}
-                           ({{ "{:,}".format(data.count) }})
-                        {% elif data.count is string %}
-                            (!)
+                {% else %}
+                    <p class="text-center text-gray-500 italic py-4">No data available.</p>
+                {% endif %}
+            </div>
+
+            {# --- Browse Categories Section --- #}
+            <div class="bg-white rounded-md shadow-lg p-4">
+                <h3 class="text-lg font-medium text-dtu-red mb-4 pb-2 border-b border-gray-200">Browse Categories</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {% for key, cat in index_categories.items() %}
+                    <a href="{{ url_for('list_items', category_key=key) }}" class="block p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition-colors duration-150 group">
+                        <h4 class="font-semibold text-dtu-red group-hover:underline">{{ key }}</h4>
+                        <p class="text-xs text-gray-600 mt-1">{{ cat.description }}</p>
+                        {% if category_data.get(key) is defined %}
+                            <span class="text-xs text-gray-500 block mt-1">({{ "{:,}".format(category_data[key].count) }} items)</span>
                         {% endif %}
                     </a>
+                    {% endfor %}
                 </div>
-                {% endfor %}
-            {% else %}
-                <p>No browseable categories defined or found.</p>
-            {% endif %}
-        </div>
-    </div> {# --- End content-card --- #}
+            </div>
 
-    {# --- JavaScript for Charts and Animations --- #}
+        </div> {# --- End Right Column --- #}
+
+    </div> {# --- End Main Grid --- #}
+
+{% endblock %}
+
+
+{% block scripts %}
+    {# Keep existing script block, just update Chart defaults #}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Chart defaults
-            Chart.defaults.font.size = 11;
-            Chart.defaults.color = '#333'; // Default text color
-            Chart.defaults.font.family = "'Open Sans', sans-serif"; // Use Open Sans for charts
-            Chart.defaults.responsive = true;
-            Chart.defaults.maintainAspectRatio = false;
-
-            // Bar Plot Animation
-            const bars = document.querySelectorAll('.v-barplot-bar');
+            // --- Animate Bars ---
+            const bars = document.querySelectorAll('.v-barplot-bar, .stacked-bar-segment');
             bars.forEach(bar => {
                 const targetWidth = bar.getAttribute('data-target-width');
-                setTimeout(() => { bar.style.width = targetWidth; }, 100);
+                // Add a small delay for visual effect
+                setTimeout(() => {
+                    bar.style.width = targetWidth;
+                }, 100);
             });
 
-            // Stacked Bar Animation
-            const stackedSegments = document.querySelectorAll('.stacked-bar-segment');
-            stackedSegments.forEach(segment => {
-                const targetWidth = segment.getAttribute('data-target-width');
-                setTimeout(() => { segment.style.width = targetWidth; }, 100);
-            });
+            // --- Chart Configuration ---
+            // Chart defaults - Use Roboto font
+            Chart.defaults.font.family = "'Roboto', sans-serif";
+            Chart.defaults.font.size = 11;
+            Chart.defaults.color = '#333'; // Default text color
+            Chart.defaults.responsive = true;
+            Chart.defaults.maintainAspectRatio = false; // Important for custom container size
 
             // --- Define Color Palette in JS (same as in Python) ---
             const colorPalette = [
@@ -191,7 +166,7 @@
             ];
             // --- End Color Palette ---
 
-            // Antibiotic Class Pie Chart
+            // --- Antibiotic Class Pie Chart ---
             const ctxAntibiotic = document.getElementById('antibioticClassChart');
             {% if antibiotic_chart_data and antibiotic_chart_data.labels %}
                 const antibioticLabels = {{ antibiotic_chart_data.labels | tojson }};
@@ -206,7 +181,7 @@
                                 datasets: [{
                                     label: 'Gene Count',
                                     data: antibioticDataPoints,
-                                    backgroundColor: colorPalette, // <-- Apply color palette
+                                    backgroundColor: colorPalette, // Apply color palette
                                     borderColor: '#ffffff', // White border between slices
                                     borderWidth: 1,
                                     hoverOffset: 8,
@@ -214,15 +189,14 @@
                                 }]
                             },
                             options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
+                                // responsive and maintainAspectRatio handled by defaults and container
                                 plugins: {
                                     legend: {
-                                        position: 'right',
+                                        position: 'right', // Keep legend on the right
                                         labels: {
                                             boxWidth: 12,
                                             padding: 15,
-                                            font: { size: 11 } // Consistent font size
+                                            font: { size: 11 }
                                         }
                                     },
                                     tooltip: {
@@ -245,6 +219,17 @@
                                         bodyFont: { size: 11 },
                                         padding: 10
                                     }
+                                    // Datalabels plugin configuration (optional)
+                                    // datalabels: {
+                                    //     formatter: (value, ctx) => {
+                                    //         let sum = 0;
+                                    //         let dataArr = ctx.chart.data.datasets[0].data;
+                                    //         dataArr.map(data => { sum += data; });
+                                    //         let percentage = (value*100 / sum).toFixed(1)+"%";
+                                    //         return percentage;
+                                    //     },
+                                    //     color: '#fff',
+                                    // }
                                 },
                                 onClick: (event, elements) => {
                                     if (elements.length > 0) {
@@ -252,22 +237,29 @@
                                         const index = chartElement.index;
                                         const label = antibioticLabels[index];
                                         if (label && label !== "Others") {
+                                            // Construct URL using Flask's url_for if possible, otherwise hardcode path
+                                            // This JS runs client-side, so url_for isn't directly available
+                                            // Option 1: Hardcode path (simpler)
                                             const relatedUrl = `/related/has_resistance_class/${encodeURIComponent(label)}`;
+                                            // Option 2: Pass base URL from Flask to JS if needed elsewhere
                                             window.location.href = relatedUrl;
                                         }
                                     }
                                 }
                             }
+                            // Register plugin if using datalabels
+                            // plugins: [ChartDataLabels],
                         });
                     } catch (e) {
                         console.error("Error initializing Antibiotic Class Chart:", e);
-                        ctxAntibiotic.parentElement.innerHTML = '<p style="color: red; text-align: center;">Error loading chart.</p>';
+                        // Display error message using Tailwind classes
+                        ctxAntibiotic.parentElement.innerHTML = '<p class="text-red-600 text-center italic py-4">Error loading chart.</p>';
                     }
                 } else {
                      console.warn("Canvas element #antibioticClassChart not found.");
                 }
             {% else %}
-                 console.info("No data available for Antibiotic Class Chart.");
+                 // console.info("No data available for Antibiotic Class Chart."); // Already handled by HTML
             {% endif %}
         });
     </script>

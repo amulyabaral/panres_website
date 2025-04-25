@@ -2,268 +2,166 @@
 
 {% block title %}Details for {{ item_id }} - {{ site_name }}{% endblock %}
 
-{# Override header content specifically for details page to add citation #}
+{# Citation is now handled in base.html #}
 {% block header_content %}
-    <div class="header-citation">
-        <h4>Please Cite:</h4>
-        <p>{{ citation_text|safe }}</p>
+    {% if citation_text %}
+    <div class="p-4 bg-gray-100 my-6 rounded-md shadow-lg">
+        <div class="bg-white rounded-md p-4 space-y-2">
+             <h3 class="text-xl font-medium text-dtu-red">Citation</h3>
+             <p class="text-sm text-gray-700">{{ citation_text|safe }}</p>
+        </div>
     </div>
+    {% endif %}
 {% endblock %}
 
 
 {% block content %}
 
-{# --- Unified Details Layout --- #}
-<div class="details-container"> {# Use a general container class #}
+{# --- Main Details Container --- #}
+<div class="bg-white rounded-md shadow-lg p-6 mb-8">
+
     {# Item ID Highlight #}
-    <h2 class="item-id-highlight"><code>{{ item_id }}</code></h2>
+    <h2 class="text-2xl font-mono font-bold text-dtu-red mb-1 text-center break-all">{{ item_id }}</h2>
 
     {# Display primary type #}
     {% if details.primary_type_display %}
-        <p class="item-type-subheader"> {# General class name #}
+        <p class="text-center text-gray-600 text-sm mb-6">
+            Type:
             {% if details.primary_type_category_key %}
-                <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}">{{ details.primary_type_display }}</a>
+                <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="text-dtu-red hover:underline">
+                    {{ details.primary_type_display }}
+                </a>
             {% else %}
-                {{ details.primary_type_display }} {# Display without link if no key #}
-            {% endif %}
-            {# Optionally list other types #}
-            {% set other_types = [] %}
-            {# Filter out the primary display type and common RDF types #}
-            {% set excluded_types_display = [details.primary_type_display, 'owl:NamedIndividual'] %}
-            {% for type_uri in details.types %}
-                 {# Simple check: if the URI doesn't match the primary display name and isn't owl:NamedIndividual #}
-                 {# A more robust check might involve fetching labels, but this uses available data #}
-                 {% if type_uri not in excluded_types_display %}
-                     {# Display the URI directly as we don't have separate display names for all types #}
-                     {% set _ = other_types.append("<code>" ~ type_uri ~ "</code>") %}
-                 {% endif %}
-            {% endfor %}
-            {% if other_types %}
-                (Type: {{ other_types|join(', ')|safe }})
+                {{ details.primary_type_display }}
             {% endif %}
         </p>
     {% endif %}
 
-    {# --- NEW: Grid for Property Cards --- #}
-    <div class="details-property-grid">
+    {# --- Property Grid --- #}
+    {# Use Tailwind grid for layout #}
+    <div class="grid grid-cols-1 {{ 'md:grid-cols-3' if is_pangen else 'md:grid-cols-2' }} gap-x-8 gap-y-6">
 
-        {# --- Card 1: Key Identifiers --- #}
-        {% set key_preds = ['has_length', 'accession', 'card_link'] %}
-        {% set has_key_info = key_preds | select('in', details.grouped_properties) | list | length > 0 %}
-        {% if has_key_info %}
-        <div class="details-card">
-            <h3>Key Information</h3>
-            <dl class="details-list">
-                {% for predicate in key_preds %}
-                    {% if predicate in details.grouped_properties %}
-                        <dt>{{ predicate_map.get(predicate, predicate) }}</dt>
-                        <dd>
-                            <ul class="property-values">
-                                {% for prop in details.grouped_properties[predicate] %}
-                                    <li>
-                                        {% if prop.is_literal %}
-                                            {{ prop.value }}
-                                        {% elif prop.link and predicate == 'card_link' %} {# Special case for CARD link #}
-                                            <a href="{{ prop.link }}" target="_blank" rel="noopener noreferrer" class="prop-link prop-link-external">
-                                                {{ prop.value }} <span class="external-icon">↗</span>
-                                            </a>
-                                        {% elif prop.link %}
-                                             <a href="{{ prop.link }}" class="prop-link prop-link-general"><code>{{ prop.value }}</code></a>
-                                        {% else %}
-                                            <code>{{ prop.value }}</code>
-                                        {% endif %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </dd>
-                    {% endif %}
-                {% endfor %}
-            </dl>
-        </div>
-        {% endif %}
-        {# --- End Card 1 --- #}
+        {# --- Left/Main Column (or Key Info for PanGene) --- #}
+        <div class="{{ 'md:col-span-2' if is_pangen else '' }}">
+            <h3 class="text-lg font-medium text-dtu-red mb-3 pb-2 border-b border-gray-200">
+                {{ "Key Information" if is_pangen else "Properties" }}
+            </h3>
+            <dl class="space-y-3 text-sm">
+                {# Display Label if present and different from ID #}
+                {% if details.label and details.label != item_id %}
+                    <div>
+                        <dt class="font-semibold text-gray-700 uppercase text-xs tracking-wide">Label</dt>
+                        <dd class="text-gray-800 mt-0.5">{{ details.label }}</dd>
+                    </div>
+                {% endif %}
 
-        {# --- Card 2: Equivalents / Aliases --- #}
-        {% set equiv_pred = 'same_as' %}
-        {% if equiv_pred in details.grouped_properties %}
-        <div class="details-card">
-            <h3>{{ predicate_map.get(equiv_pred, equiv_pred) }}</h3>
-            <dl class="details-list">
-                <dt>{{ predicate_map.get(equiv_pred, equiv_pred) }}</dt> {# Repeat title as dt for consistency #}
-                <dd>
-                    <ul class="property-values">
-                        {% for prop in details.grouped_properties[equiv_pred] %}
-                            <li>
-                                {% if prop.link %}
-                                    <a href="{{ prop.link }}" class="prop-link prop-link-equiv"><code>{{ prop.value }}</code></a>
-                                {% else %}
-                                    <code>{{ prop.value }}</code>
-                                {% endif %}
-                                {% if prop.extra_info %}<span class="extra-info">{{ prop.extra_info }}</span>{% endif %}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </dd>
-            </dl>
-        </div>
-        {% endif %}
-        {# --- End Card 2 --- #}
+                {# Display Description if present #}
+                {% if details.description %}
+                     <div>
+                        <dt class="font-semibold text-gray-700 uppercase text-xs tracking-wide">Description</dt>
+                        <dd class="text-gray-600 mt-0.5">{{ details.description|safe }}</dd> {# Assume description might contain simple HTML #}
+                    </div>
+                {% endif %}
 
-        {# --- Card 3: Resistance Information --- #}
-        {% set resistance_preds = ['has_resistance_class', 'has_predicted_phenotype'] %}
-        {% set has_resistance_info = resistance_preds | select('in', details.grouped_properties) | list | length > 0 %}
-        {% if has_resistance_info %}
-        <div class="details-card">
-            <h3>Resistance Profile</h3>
-            <dl class="details-list">
-                {% for predicate in resistance_preds %}
-                    {% if predicate in details.grouped_properties %}
-                        <dt>{{ predicate_map.get(predicate, predicate) }}</dt>
-                        <dd>
-                            <ul class="property-values property-values-buttons"> {# Add class for button layout #}
-                                {% for prop in details.grouped_properties[predicate] %}
-                                    <li>
-                                        {% if prop.link %}
-                                            {# Assign class based on predicate #}
-                                            {% set link_class = 'prop-link-general' %}
-                                            {% if predicate == 'has_resistance_class' %}
-                                                {% set link_class = 'prop-link-class' %}
-                                            {% elif predicate == 'has_predicted_phenotype' %}
-                                                {% set link_class = 'prop-link-pheno' %}
-                                            {% endif %}
-                                            <a href="{{ prop.link }}" class="prop-link {{ link_class }}"><code>{{ prop.value }}</code></a>
-                                        {% else %}
-                                            <code>{{ prop.value }}</code>
-                                        {% endif %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </dd>
-                    {% endif %}
-                {% endfor %}
-            </dl>
-        </div>
-        {% endif %}
-        {# --- End Card 3 --- #}
-
-        {# --- Card 4: Biological Context --- #}
-        {% set bio_preds = ['translates_to', 'member_of'] %}
-        {% set has_bio_info = bio_preds | select('in', details.grouped_properties) | list | length > 0 %}
-        {% if has_bio_info %}
-        <div class="details-card">
-            <h3>Biological Context</h3>
-            <dl class="details-list">
-                 {% for predicate in bio_preds %}
-                    {% if predicate in details.grouped_properties %}
-                        <dt>{{ predicate_map.get(predicate, predicate) }}</dt>
-                        <dd>
-                            <ul class="property-values">
-                                {% for prop in details.grouped_properties[predicate] %}
-                                    <li>
-                                        {% if prop.link %}
-                                             <a href="{{ prop.link }}" class="prop-link prop-link-bio"><code>{{ prop.value }}</code></a>
-                                        {% else %}
-                                            <code>{{ prop.value }}</code>
-                                        {% endif %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </dd>
-                    {% endif %}
-                {% endfor %}
-            </dl>
-        </div>
-        {% endif %}
-        {# --- End Card 4 --- #}
-
-        {# --- Card 5: Source Databases --- #}
-        {% set source_pred = 'is_from_database' %}
-        {% if source_pred in details.grouped_properties %}
-        <div class="details-card">
-            <h3>{{ predicate_map.get(source_pred, source_pred) }}</h3>
-            <dl class="details-list">
-                 <dt>{{ predicate_map.get(source_pred, source_pred) }}</dt> {# Repeat title as dt #}
-                 <dd>
-                     <ul class="property-values property-values-buttons"> {# Add class for button layout #}
-                         {% for prop in details.grouped_properties[source_pred] %}
-                             <li>
-                                 {% if prop.link %}
-                                     <a href="{{ prop.link }}" class="prop-link prop-link-db"><code>{{ prop.value }}</code></a>
-                                 {% else %}
-                                     <code>{{ prop.value }}</code>
-                                 {% endif %}
-                             </li>
-                         {% endfor %}
-                     </ul>
-                 </dd>
-            </dl>
-        </div>
-        {% endif %}
-        {# --- End Card 5 --- #}
-
-        {# --- Card X: Other Properties (Catch-all) --- #}
-        {% set handled_preds = key_preds + [equiv_pred] + resistance_preds + bio_preds + [source_pred, RDFS_LABEL, RDFS_COMMENT] %}
-        {% set other_properties = {} %}
-        {% for predicate, properties_list in details.grouped_properties.items() %}
-            {% if predicate not in handled_preds %}
-                 {% set _ = other_properties.update({predicate: properties_list}) %}
-            {% endif %}
-        {% endfor %}
-        {% if other_properties %}
-        <div class="details-card">
-            <h3>Other Properties</h3>
-            <dl class="details-list">
-                {% for predicate, properties_list in other_properties.items() %}
-                    <dt>{{ predicate_map.get(predicate, predicate) }}</dt>
-                    <dd>
-                        <ul class="property-values">
-                            {% for prop in properties_list %}
-                                <li>
-                                    {% if prop.is_literal %}
+                {# Display other properties #}
+                {% for prop in details.properties %}
+                     {# Filter properties based on layout type #}
+                     {% set show_prop = not is_pangen or (is_pangen and prop.predicate in pangen_key_info_preds) %}
+                     {% if show_prop and prop.predicate != RDFS_LABEL and prop.predicate != RDFS_COMMENT and prop.predicate not in DESCRIPTION_PREDICATES %}
+                        <div>
+                            <dt class="font-semibold text-gray-700 uppercase text-xs tracking-wide">{{ predicate_map.get(prop.predicate, prop.predicate) }}</dt>
+                            <dd class="text-gray-800 mt-0.5">
+                                {% if prop.is_literal %}
+                                    {# Check for specific literal types if needed, e.g., format numbers #}
+                                    {{ prop.value }}
+                                {% elif prop.is_external_uri %}
+                                    <a href="{{ prop.value }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-dtu-red hover:underline">
                                         {{ prop.value }}
-                                    {% elif prop.link %}
-                                        <a href="{{ prop.link }}" class="prop-link prop-link-general"><code>{{ prop.value }}</code></a>
-                                    {% else %}
+                                        <svg class="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                    </a>
+                                {% elif prop.predicate in LINK_TO_RELATED_PREDICATES %}
+                                     {# Link to related items page #}
+                                     <a href="{{ url_for('show_related_items', predicate=prop.predicate, object_value=prop.value) }}" class="text-dtu-red hover:underline" title="Show items related via '{{ predicate_map.get(prop.predicate, prop.predicate) }}'">
+                                         <code>{{ prop.value }}</code>
+                                     </a>
+                                {% else %}
+                                    {# Link to details page for internal items #}
+                                    <a href="{{ url_for('details', item_id=prop.value) }}" class="text-dtu-red hover:underline">
                                         <code>{{ prop.value }}</code>
-                                    {% endif %}
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    </dd>
+                                    </a>
+                                {% endif %}
+                            </dd>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </dl>
+        </div>
+
+        {# --- Right Column (Only for PanGene) --- #}
+        {% if is_pangen %}
+        <div>
+            <h3 class="text-lg font-medium text-dtu-red mb-3 pb-2 border-b border-gray-200">Resistance & Links</h3>
+             <dl class="space-y-3 text-sm">
+                 {% for prop in details.properties %}
+                     {% if prop.predicate in pangen_right_col_preds %}
+                         <div>
+                            <dt class="font-semibold text-gray-700 uppercase text-xs tracking-wide">{{ predicate_map.get(prop.predicate, prop.predicate) }}</dt>
+                            <dd class="text-gray-800 mt-0.5">
+                                {% if prop.is_literal %}
+                                    {{ prop.value }}
+                                {% elif prop.is_external_uri %}
+                                     <a href="{{ prop.value }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-dtu-red hover:underline">
+                                        {{ prop.value }}
+                                        <svg class="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                    </a>
+                                {% elif prop.predicate in LINK_TO_RELATED_PREDICATES %}
+                                     <a href="{{ url_for('show_related_items', predicate=prop.predicate, object_value=prop.value) }}" class="text-dtu-red hover:underline" title="Show items related via '{{ predicate_map.get(prop.predicate, prop.predicate) }}'">
+                                         <code>{{ prop.value }}</code>
+                                     </a>
+                                {% else %}
+                                    <a href="{{ url_for('details', item_id=prop.value) }}" class="text-dtu-red hover:underline">
+                                        <code>{{ prop.value }}</code>
+                                    </a>
+                                {% endif %}
+                            </dd>
+                        </div>
+                    {% endif %}
                 {% endfor %}
             </dl>
         </div>
         {% endif %}
-        {# --- End Card X --- #}
 
-    </div> {# --- End details-property-grid --- #}
+        {# --- Referenced By Column --- #}
+        <div>
+             <h3 class="text-lg font-medium text-dtu-red mb-3 pb-2 border-b border-gray-200">Referenced By</h3>
+             {% if details.referencing_items %}
+                <dl class="space-y-2 text-sm">
+                    {% for ref_item in details.referencing_items %}
+                        {# Group references by predicate? Or just list them? Listing for now. #}
+                         <div class="flex items-start">
+                             <span class="text-gray-500 w-1/3 shrink-0 pr-2 text-right text-xs uppercase tracking-wide">{{ predicate_map.get(ref_item.predicate, ref_item.predicate) }}:</span>
+                             <a href="{{ url_for('details', item_id=ref_item.ref_id) }}" class="text-dtu-red hover:underline"><code>{{ ref_item.ref_id }}</code></a>
+                         </div>
+                    {% endfor %}
+                </dl>
+            {% else %}
+                <p class="text-sm text-gray-500 italic">This item is not referenced by any other items.</p>
+            {% endif %}
+        </div>
+
+    </div> {# End Property Grid #}
+
+</div> {# End Main Details Container #}
 
 
-    {# Referenced By Section (Keep As Is) #}
-    <div class="details-card referenced-by">
-        <h3>Referenced By</h3>
-        {% if details.referencing_items %} {# Use details.referencing_items now #}
-            <dl class="details-list">
-                {% for ref_item in details.referencing_items %} {# Use details.referencing_items #}
-                    <dt>{{ predicate_map.get(ref_item.predicate, ref_item.predicate) }}</dt>
-                    <dd><a href="{{ url_for('details', item_id=ref_item.ref_id) }}"><code>{{ ref_item.ref_id }}</code></a></dd>
-                {% endfor %}
-            </dl>
-        {% else %}
-            <p>This item is not referenced by any other items.</p>
-        {% endif %}
-    </div>
-
-</div> {# End details-container #}
-
-
-{# Back Links Footer (Keep As Is - url_for should work now) #}
-<div class="back-links-footer">
-    <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
+{# Back Links Footer #}
+<div class="text-center space-x-4">
+    <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
     {# Link back to the primary category list if available #}
     {% if details.primary_type_category_key %}
-         <p class="back-link"><a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}">&laquo; Back to {{ details.primary_type_display }} list</a></p>
+         <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to {{ details.primary_type_display }} list</a>
     {% endif %}
+    {# Add other relevant back links if needed #}
 </div>
 
 {% endblock %} 

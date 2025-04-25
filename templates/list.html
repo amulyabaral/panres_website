@@ -3,238 +3,148 @@
 {% block title %}{{ category_display_name }} - {{ site_name }}{% endblock %}
 
 {% block content %}
-    {# Keep the header consistent #}
-    <h2>{{ category_display_name }}</h2>
-    <p class="category-info">
+    {# Page Header #}
+    <h2 class="text-2xl font-medium text-dtu-red mb-2">{{ category_display_name }}</h2>
+    <p class="text-sm text-gray-600 mb-6">
         {# Display the target value (e.g., PanGene, OriginalGene) if different from key #}
         {% if category_key != query_target_value %}
              Listing items of type <code>{{ query_target_value }}</code> (Category: {{ category_key }}).
         {% else %}
              Listing items for category: {{ category_key }}.
         {% endif %}
-        Found {{ items|length }} item(s).
+        Found {{ items|length if items else (grouped_by_class|length if grouped_by_class else (grouped_by_phenotype|length if grouped_by_phenotype else 0)) }} item(s).
+        {# Add description if available #}
+        {% if category_description %}
+            <span class="block mt-1">{{ category_description }}</span>
+        {% endif %}
     </p>
 
     {# --- Conditional Display --- #}
     {% if is_pangen_list and (grouped_by_class or grouped_by_phenotype) %}
         {# --- PanGene Grouped View --- #}
-        <div class="list-grouping-container">
+        {# Use Tailwind grid for side-by-side cards on larger screens #}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {# Card for Resistance Classes #}
-            <div class="grouping-card">
-                <h3>Grouped by Resistance Class</h3>
-                {% if grouped_by_class %}
-                    <div class="accordion">
-                        {% for class_label, data in grouped_by_class.items() %}
-                            <div class="accordion-item">
-                                <button class="accordion-header" aria-expanded="false">
-                                    {# Link the class label if its ID is known #}
+            {% if grouped_by_class %}
+            <div class="bg-white rounded-md shadow-lg p-4">
+                <h3 class="text-lg font-medium text-dtu-red mb-4 pb-2 border-b border-gray-200">Grouped by Resistance Class</h3>
+                <div class="accordion space-y-2">
+                    {% for class_label, data in grouped_by_class.items() %}
+                        <div class="accordion-item border border-gray-200 rounded">
+                            <button class="accordion-header w-full flex justify-between items-center p-3 text-left bg-gray-50 hover:bg-gray-100 focus:outline-none transition-colors duration-150">
+                                <span class="font-semibold text-sm">
                                     {% if data.id %}
-                                        <a href="{{ url_for('details', item_id=data.id) }}" class="group-label-link" title="View details for {{ class_label }}"><code>{{ class_label }}</code></a>
+                                        <a href="{{ url_for('details', item_id=data.id) }}" class="text-dtu-red hover:underline" title="View details for {{ class_label }}"><code>{{ class_label }}</code></a>
                                     {% else %}
-                                        <code>{{ class_label }}</code> {# Display label even if ID unknown #}
+                                        <code>{{ class_label }}</code> {# e.g., No Class Assigned #}
                                     {% endif %}
-                                    <span class="accordion-count">({{ data.genes|length }})</span>
-                                    <span class="accordion-icon">+</span>
-                                </button>
-                                <div class="accordion-content" style="display: none;"> {# Content hidden by default #}
-                                    <ul class="grouped-item-list">
-                                        {% for gene_id in data.genes %}
-                                            <li><a href="{{ url_for('details', item_id=gene_id) }}"><code>{{ gene_id }}</code></a></li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p>No resistance class groupings found for these genes.</p>
-                {% endif %}
-            </div>
-
-            {# Card for Phenotypes #}
-            <div class="grouping-card">
-                <h3>Grouped by Predicted Phenotype</h3>
-                 {% if grouped_by_phenotype %}
-                    <div class="accordion">
-                        {% for phenotype_label, data in grouped_by_phenotype.items() %}
-                            <div class="accordion-item">
-                                <button class="accordion-header" aria-expanded="false">
-                                     {# Link the phenotype label if its ID is known #}
-                                    {% if data.id %}
-                                        <a href="{{ url_for('details', item_id=data.id) }}" class="group-label-link" title="View details for {{ phenotype_label }}"><code>{{ phenotype_label }}</code></a>
-                                    {% else %}
-                                         <code>{{ phenotype_label }}</code>
-                                    {% endif %}
-                                    <span class="accordion-count">({{ data.genes|length }})</span>
-                                    <span class="accordion-icon">+</span>
-                                </button>
-                                <div class="accordion-content" style="display: none;"> {# Content hidden by default #}
-                                    <ul class="grouped-item-list">
-                                        {% for gene_id in data.genes %}
-                                            <li><a href="{{ url_for('details', item_id=gene_id) }}"><code>{{ gene_id }}</code></a></li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p>No predicted phenotype groupings found for these genes.</p>
-                {% endif %}
-            </div>
-
-        </div> {# End list-grouping-container #}
-
-    {% elif is_sourcegen_list and grouped_data %}
-        {# --- NEW: Source Gene Nested Grouped View --- #}
-        <p>Displaying Source Genes grouped by their original database, then by class and phenotype.</p>
-        {# Outer Accordion for Databases #}
-        <div class="accordion">
-            {% for db_name, db_data in grouped_data.items() %}
-                <div class="accordion-item">
-                    {# Database Header #}
-                    <button class="accordion-header" aria-expanded="false">
-                        {# Link to a filtered list (optional, could be complex) or just display name #}
-                        {# <a href="{{ url_for('genes_related_to', predicate=IS_FROM_DATABASE, object_value=db_name) }}" class="group-label-link" title="View only genes from {{ db_name }}"> #}
-                            {{ db_name }}
-                        {# </a> #}
-                        <span class="accordion-count">({{ db_data.genes|length }} genes)</span>
-                        <span class="accordion-icon">+</span>
-                    </button>
-
-                    {# Content for this Database Group #}
-                    <div class="accordion-content" style="display: none;">
-                        {# Container for Class/Phenotype cards within this DB #}
-                        {# Using single-column for simplicity as requested, nested #}
-                        <div class="list-grouping-container single-column nested-grouping">
-
-                            {# Card for Resistance Classes within this DB #}
-                            {% if db_data.classes %}
-                            <div class="grouping-card">
-                                <h4>Grouped by Resistance Class</h4>
-                                <div class="accordion nested-accordion">
-                                    {% for class_label, gene_list in db_data.classes.items() %}
-                                        <div class="accordion-item">
-                                            <button class="accordion-header" aria-expanded="false">
-                                                {# Link to the general class list page #}
-                                                <a href="{{ url_for('list_items', query_type='class', query_target_value=class_label) }}" class="group-label-link" title="View all items in class '{{ class_label }}'">{{ class_label }}</a>
-                                                <span class="accordion-count">({{ gene_list|length }})</span>
-                                                <span class="accordion-icon">+</span>
-                                            </button>
-                                            <div class="accordion-content" style="display: none;">
-                                                <ul class="grouped-item-list">
-                                                    {% for gene_id in gene_list %}
-                                                        <li><a href="{{ url_for('details', item_id=gene_id) }}"><code>{{ gene_id }}</code></a></li>
-                                                    {% endfor %}
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    {% else %}
-                                        <p>No specific classes found for genes from this database.</p>
+                                    <span class="text-gray-500 font-normal ml-2">({{ data.genes|length }} genes)</span>
+                                </span>
+                                <span class="accordion-icon text-gray-500 text-xl font-light transform transition-transform duration-200">+</span>
+                            </button>
+                            <div class="accordion-content p-3 border-t border-gray-200 hidden">
+                                <ul class="list-disc list-inside space-y-1 text-sm">
+                                    {% for gene in data.genes %}
+                                        <li><a href="{{ gene.link }}" class="text-dtu-red hover:underline"><code>{{ gene.id }}</code></a></li>
                                     {% endfor %}
-                                </div> {# End nested-accordion for classes #}
-                            </div> {# End grouping-card for classes #}
-                            {% else %}
-                                <div class="grouping-card"><p>No resistance class information found for genes from this database.</p></div>
-                            {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
-                            {# Card for Phenotypes within this DB #}
-                            {% if db_data.phenotypes %}
-                            <div class="grouping-card">
-                                <h4>Grouped by Predicted Phenotype</h4>
-                                 <div class="accordion nested-accordion">
-                                    {% for phenotype_label, gene_list in db_data.phenotypes.items() %}
-                                        <div class="accordion-item">
-                                            <button class="accordion-header" aria-expanded="false">
-                                                {# Link to the general phenotype list page #}
-                                                <a href="{{ url_for('list_items', query_type='phenotype', query_target_value=phenotype_label) }}" class="group-label-link" title="View all items with phenotype '{{ phenotype_label }}'">{{ phenotype_label }}</a>
-                                                <span class="accordion-count">({{ gene_list|length }})</span>
-                                                <span class="accordion-icon">+</span>
-                                            </button>
-                                            <div class="accordion-content" style="display: none;">
-                                                <ul class="grouped-item-list">
-                                                    {% for gene_id in gene_list %}
-                                                        <li><a href="{{ url_for('details', item_id=gene_id) }}"><code>{{ gene_id }}</code></a></li>
-                                                    {% endfor %}
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    {% else %}
-                                         <p>No specific phenotypes found for genes from this database.</p>
+            {# Card for Predicted Phenotypes #}
+            {% if grouped_by_phenotype %}
+             <div class="bg-white rounded-md shadow-lg p-4">
+                <h3 class="text-lg font-medium text-dtu-red mb-4 pb-2 border-b border-gray-200">Grouped by Predicted Phenotype</h3>
+                 <div class="accordion space-y-2">
+                    {% for phenotype_label, data in grouped_by_phenotype.items() %}
+                        <div class="accordion-item border border-gray-200 rounded">
+                            <button class="accordion-header w-full flex justify-between items-center p-3 text-left bg-gray-50 hover:bg-gray-100 focus:outline-none transition-colors duration-150">
+                                <span class="font-semibold text-sm">
+                                     {# Phenotypes might not have their own details page, link to related items instead #}
+                                     <a href="{{ url_for('show_related_items', predicate='has_predicted_phenotype', object_value=phenotype_label) }}" class="text-dtu-red hover:underline" title="View genes with phenotype {{ phenotype_label }}"><code>{{ phenotype_label }}</code></a>
+                                     <span class="text-gray-500 font-normal ml-2">({{ data.genes|length }} genes)</span>
+                                </span>
+                                <span class="accordion-icon text-gray-500 text-xl font-light transform transition-transform duration-200">+</span>
+                            </button>
+                            <div class="accordion-content p-3 border-t border-gray-200 hidden">
+                                <ul class="list-disc list-inside space-y-1 text-sm">
+                                    {% for gene in data.genes %}
+                                        <li><a href="{{ gene.link }}" class="text-dtu-red hover:underline"><code>{{ gene.id }}</code></a></li>
                                     {% endfor %}
-                                </div> {# End nested-accordion for phenotypes #}
-                            </div> {# End grouping-card for phenotypes #}
-                            {% else %}
-                                 <div class="grouping-card"><p>No predicted phenotype information found for genes from this database.</p></div>
-                            {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
-                        </div> {# End nested list-grouping-container #}
-                    </div> {# End DB accordion-content #}
-                </div> {# End DB accordion-item #}
-            {% else %}
-                <p>No source genes found matching the criteria.</p>
-            {% endfor %}
-        </div> {# End outer accordion for databases #}
+        </div> {# End Grid #}
 
-    {% else %}
-        {# --- Default Simple List View --- #}
-        {% if items %}
-            <ul class="item-list">
+    {% elif items %}
+        {# --- Flat List View --- #}
+        <div class="bg-white rounded-md shadow-lg p-4">
+             {# Use Tailwind columns for multi-column layout on larger screens #}
+            <ul class="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-x-6 text-sm space-y-1">
                 {% for item in items %}
-                    <li>
-                        {# Determine the correct link based on query_type #}
-                        {% if query_type == 'type' %}
-                            {# Items are subjects (like PanGene, OriginalGene), link to details #}
-                            <a href="{{ url_for('details', item_id=item) }}"><code>{{ item }}</code></a>
-                        {% elif query_type == 'predicate_object' %}
-                            {# Items are objects (like Databases, Classes), link to related genes page #}
-                            {# We need the predicate (query_target_value) for the related genes link #}
-                            {# --- UPDATE url_for HERE --- #}
-                            {# The 'query_type' for the related page is the predicate we are currently listing objects for #}
-                            {# The 'query_target_value' for the related page is the specific object (item) clicked #}
-                            <a href="{{ url_for('show_related_items', predicate=query_target_value, object_value=item) }}">{{ item }}</a>
-                            {# --- END UPDATE --- #}
-                        {% else %}
-                            {# Fallback or handle other query_types if added #}
-                            {{ item }}
-                        {% endif %}
+                    <li class="break-inside-avoid mb-1">
+                        <a href="{{ item.link }}" class="text-dtu-red hover:underline">
+                            <code>{{ item.id }}</code>
+                            {# Optionally display label if available #}
+                            {# {% if item.label and item.label != item.id %} ({{ item.label }}) {% endif %} #}
+                        </a>
                     </li>
+                {% else %}
+                    <li>No items found for this category.</li>
                 {% endfor %}
             </ul>
-        {% else %}
-             <p>No items found in this category.</p> {# Display message if items list is empty #}
-        {% endif %}
-    {% endif %} {# End conditional display #}
+        </div>
+    {% else %}
+         <div class="bg-yellow-50 border border-yellow-300 text-yellow-800 p-4 rounded text-center">
+            No items found for this category.
+         </div>
+    {% endif %}
 
-    <div class="back-links-footer">
-        <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Back to Home</a></p>
+    {# Back Link #}
+    <div class="mt-8 text-center">
+        <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
     </div>
 
-    {# --- Add Simple Accordion JavaScript --- #}
+{% endblock %}
+
+{% block scripts %}
+    {# Accordion Script (Keep this logic) #}
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', () => {
             const accordionHeaders = document.querySelectorAll('.accordion-header');
 
             accordionHeaders.forEach(header => {
                 header.addEventListener('click', function() {
                     const content = this.nextElementSibling;
                     const icon = this.querySelector('.accordion-icon');
-                    const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                    const isExpanded = content.classList.contains('hidden');
 
-                    // Toggle content visibility
-                    if (content.style.display === 'none' || content.style.display === '') {
-                        content.style.display = 'block';
-                        this.setAttribute('aria-expanded', 'true');
-                        if(icon) icon.textContent = '−'; // Use minus sign when expanded
+                    // Toggle content visibility using Tailwind 'hidden' class
+                    if (isExpanded) {
+                        content.classList.remove('hidden');
+                        if(icon) {
+                            icon.textContent = '−'; // Use minus sign when expanded
+                            icon.classList.add('rotate-180'); // Optional: rotate icon
+                        }
                     } else {
-                        content.style.display = 'none';
-                        this.setAttribute('aria-expanded', 'false');
-                         if(icon) icon.textContent = '+'; // Use plus sign when collapsed
+                        content.classList.add('hidden');
+                         if(icon) {
+                             icon.textContent = '+'; // Use plus sign when collapsed
+                             icon.classList.remove('rotate-180'); // Optional: remove rotation
+                         }
                     }
                 });
             });
         });
     </script>
-
 {% endblock %} 
