@@ -36,6 +36,7 @@
             {# Standard Card Style #}
             {# Loop through the configuration dict #}
             {% for key, info in index_categories.items() %}
+            {# Card uses standard utilities already, but ensure button uses utilities now #}
             <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 flex flex-col">
                 <h4 class="text-xl font-semibold text-dtu-red mb-2">{{ key }}</h4>
                 <p class="text-gray-600 text-sm mb-4 flex-grow">{{ info.description }}</p>
@@ -43,8 +44,9 @@
                     {# Access the count from the category_counts dict using the key #}
                     <span class="font-medium">{{ category_counts.get(key, 'N/A') }}</span> items
                 </div>
-                {# Apply the .btn class here #}
-                <a href="{{ url_for('list_items', category_key=key) }}" class="mt-auto btn text-center">
+                {# Apply button utilities directly instead of .btn #}
+                <a href="{{ url_for('list_items', category_key=key) }}"
+                   class="mt-auto inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 text-center">
                     View {{ key }}
                 </a>
             </div>
@@ -63,18 +65,19 @@
         {# Kept lg:grid-cols-2 and gap-8 #}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {# Antibiotic Classes Chart Card (Pie) #}
-            {# Applied .chart-card class here #}
-            <div class="chart-card">
+            {# Apply card utilities directly instead of .chart-card #}
+            <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex flex-col">
                 <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Genes per Antibiotic Class</h4>
                 <p class="text-gray-600 text-sm mb-4 text-center">Distribution of PanRes genes across different antibiotic resistance classes</p>
                 {% if antibiotic and antibiotic.data %}
-                    {# Use the chart-container class for sizing and spacing #}
-                    <div class="chart-container">
+                    {# Apply chart container utilities directly #}
+                    <div class="relative h-80 md:h-96 mx-auto max-w-full mb-4">
                         <canvas id="antibiotic"></canvas>
                     </div>
-                    {# Add Browse Button - Ensure it has the btn class and center it #}
-                    <div class="mt-auto text-center"> {# Use mt-auto to push button down, text-center to center it #}
-                        <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="btn">
+                    {# Apply button utilities directly #}
+                    <div class="mt-auto text-center">
+                        <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}"
+                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
                             Browse by Antibiotic Class
                         </a>
                     </div>
@@ -84,18 +87,19 @@
             </div>
 
             {# Source Databases Chart Card (Bar) #}
-            {# Applied .chart-card class here #}
-            <div class="chart-card">
+            {# Apply card utilities directly instead of .chart-card #}
+            <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex flex-col">
                 <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Genes per Source Database</h4>
                 <p class="text-gray-600 text-sm mb-4 text-center">Number of genes contributed by each source database to the PanRes collection</p>
                 {% if source_db and source_db.segments %}
-                    {# Use the chart-container class for sizing and spacing #}
-                    <div class="chart-container">
+                    {# Apply chart container utilities directly #}
+                    <div class="relative h-80 md:h-96 mx-auto max-w-full mb-4">
                         <canvas id="sourceDb"></canvas>
                     </div>
-                    {# Add Browse Button - Ensure it has the btn class and center it #}
+                    {# Apply button utilities directly #}
                     <div class="mt-auto text-center">
-                        <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="btn">
+                        <a href="{{ url_for('list_items', category_key='Source Databases') }}"
+                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
                             Browse by Source Database
                         </a>
                     </div>
@@ -108,18 +112,19 @@
         {# Container for the bottom chart (Phenotype Stacked Bar) #}
         {# Kept flex container to center the card #}
         <div class="flex justify-center">
-            {# Applied .chart-card class here, kept width constraints #}
-            <div class="chart-card w-full lg:max-w-xl">
+            {# Apply card utilities directly instead of .chart-card #}
+            <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 flex flex-col w-full lg:max-w-xl">
                 <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Predicted Phenotype Proportions</h4>
                 <p class="text-gray-600 text-sm mb-4 text-center">Relative distribution of phenotypes across PanGenes</p>
                 {% if phenotype and phenotype.segments %}
-                    {# Use the chart-container class for sizing and spacing #}
-                    <div class="chart-container">
+                    {# Apply chart container utilities directly #}
+                    <div class="relative h-80 md:h-96 mx-auto max-w-full mb-4">
                         <canvas id="phenotype"></canvas>
                     </div>
-                    {# Add Browse Button - Ensure it has the btn class and center it #}
+                    {# Apply button utilities directly #}
                     <div class="mt-auto text-center">
-                        <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="btn">
+                        <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}"
+                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
                             Browse by Predicted Phenotype
                         </a>
                     </div>

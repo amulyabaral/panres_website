@@ -15,13 +15,16 @@
 
     {# Back Links #}
     <div class="mb-6 flex flex-wrap gap-2">
-         <a href="{{ url_for('index') }}" class="btn text-sm">Back to Home</a>
+         {# Apply button utilities directly #}
+         <a href="{{ url_for('index') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">Back to Home</a>
          {# Link back to the parent category list if available #}
          {% if parent_category_key %}
-             <a href="{{ url_for('list_items', category_key=parent_category_key) }}" class="btn text-sm">Back to {{ parent_category_key }} List</a>
+             {# Apply button utilities directly #}
+             <a href="{{ url_for('list_items', category_key=parent_category_key) }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">Back to {{ parent_category_key }} List</a>
          {% endif %}
          {# General back button using browser history #}
-         <button onclick="window.history.back();" class="btn text-sm">Back</button>
+         {# Apply button utilities directly #}
+         <button onclick="window.history.back();" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">Back</button>
     </div>
 
     {# Display grouped items (e.g., PanGenes by Class) #}

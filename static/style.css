@@ -20,10 +20,10 @@
 }
 
 @layer components {
-    .btn {
-         /* Use solid DTU red, hover makes it slightly lighter/transparent */
-         @apply inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2;
-    }
+    /* .btn definition removed - apply utilities directly in HTML */
+    /* .chart-card definition removed - apply utilities directly in HTML */
+    /* .chart-container definition removed - apply utilities directly in HTML */
+
     .dtu-pattern-bg {
         /* Ensure the path is correct relative to the web root */
         background-image: url('/static/DTU_Background_Pattern_Corporate_Red_RGB.jpg');
@@ -36,6 +36,7 @@
     /* .property-row { ... } */
 
     /* Accordion styles (if you want to keep them centralized) */
+    /* These might still work if you only use the classes, but better to apply directly if possible */
     .accordion-header {
          @apply w-full text-left px-4 py-3 bg-gray-100 hover:bg-gray-200 font-semibold text-gray-700 flex justify-between items-center transition-colors duration-150 cursor-pointer;
     }
@@ -46,21 +47,9 @@
         @apply text-lg font-mono;
     }
 
-    /* Chart container - defines height and spacing */
-    .chart-container {
-        @apply relative h-80 md:h-96 mx-auto max-w-full mb-4; /* Add mb-4 for spacing below chart */
-        /* Improved height for better visualization */
-    }
-    
     /* Chart legend styling (no longer used by default, but keep if needed elsewhere) */
     .chart-legend {
         @apply mt-4 text-sm text-gray-600 text-center;
-    }
-
-    /* Chart card - provides background, padding, shadow, border, and flex layout */
-    .chart-card {
-        @apply bg-white p-6 rounded-lg shadow-md border border-gray-200 flex flex-col;
-        /* flex flex-col allows button to be pushed to bottom with mt-auto */
     }
 }
 
