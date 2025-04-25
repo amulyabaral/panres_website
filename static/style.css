@@ -47,11 +47,11 @@
 
     /* Chart container - if you need consistent sizing */
     .chart-container {
-        @apply relative h-80 md:h-96 mx-auto max-w-full; /* Add mx-auto for centering and max-w-full */
+        @apply relative h-80 md:h-96 mx-auto max-w-full mb-4; /* Add mb-4 for spacing below chart */
         /* Improved height for better visualization */
     }
     
-    /* Chart legend styling */
+    /* Chart legend styling (no longer used by default, but keep if needed elsewhere) */
     .chart-legend {
         @apply mt-4 text-sm text-gray-600 text-center;
     }
