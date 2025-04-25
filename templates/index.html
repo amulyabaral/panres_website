@@ -71,10 +71,9 @@
                 </div>
                 <div class="stacked-bar-container">
                     {% for segment in phenotype_chart_data.segments %}
-                        {# Colors are now passed from app.py based on the new palette #}
                         <span class="stacked-bar-segment"
                               data-target-width="{{ segment.percentage }}%"
-                              style="width: 0%; background-color: {{ segment.color }};"
+                              style="width: 0%;"
                               title="{{ segment.name }} ({{ '{:,}'.format(segment.count) }} genes, {{ '%.1f'|format(segment.percentage) }}%)">
                         </span>
                     {% endfor %}
@@ -83,8 +82,6 @@
                     {% for segment in phenotype_chart_data.segments %}
                     <div class="legend-item">
                         <a href="{{ url_for('show_related_items', predicate='has_predicted_phenotype', object_value=segment.name) }}" title="View genes with phenotype {{ segment.name }}">
-                            {# Colors are passed from app.py #}
-                            <span class="legend-color-box" style="background-color: {{ segment.color }};"></span>
                             <span class="legend-label">{{ segment.name }}</span>
                             <span class="legend-count">({{ '{:,}'.format(segment.count) }})</span>
                         </a>
@@ -158,123 +155,6 @@
             {% endif %}
         </div>
     </div> {# --- End content-card --- #}
-
-    {# --- PanRes Example Section --- #}
-    <div class="example-section">
-        <p class="example-intro">
-            Unique gene sequences are curated in PanRes. Take a look at this example:
-        </p>
-        {% if pan_1_details %}
-        <div class="gene-example-container">
-            <h3 class="example-gene-id">
-                Example: <a href="{{ url_for('details', item_id='pan_1') }}"><code>{{ pan_1_details.id }}</code></a>
-            </h3>
-            {% if pan_1_details.primary_type_display %}
-                <p class="example-gene-type">
-                    {{ pan_1_details.primary_type_display }}
-                    {# Displaying other types simplified in details.html, mimic here if needed #}
-                </p>
-            {% endif %}
-
-            <div class="example-details-grid">
-                {# Column 1: Key Identifiers & Links #}
-                <div class="example-column">
-                    <dl class="example-details-list">
-                        {% if pan_1_details.grouped_properties['has_length'] %}
-                        <dt>Length (bp)</dt>
-                        <dd>{{ pan_1_details.grouped_properties['has_length'][0].value }}</dd>
-                        {% endif %}
-                        {% if pan_1_details.grouped_properties['accession'] %}
-                        <dt>Accession</dt>
-                        <dd>
-                            <ul>
-                            {% for prop in pan_1_details.grouped_properties['accession'] %}
-                                <li>{{ prop.value }}</li>
-                            {% endfor %}
-                            </ul>
-                        </dd>
-                        {% endif %}
-                        {% if pan_1_details.grouped_properties['card_link'] %}
-                        <dt>CARD Ontology Link</dt>
-                        <dd>
-                            <a href="{{ pan_1_details.grouped_properties['card_link'][0].value }}" target="_blank" rel="noopener noreferrer" class="external-link">
-                                {{ pan_1_details.grouped_properties['card_link'][0].value }} <span class="external-icon">↗</span>
-                            </a>
-                        </dd>
-                        {% endif %}
-                    </dl>
-                </div>
-                {# Column 2: Resistance Info #}
-                <div class="example-column">
-                     <dl class="example-details-list">
-                         {% if pan_1_details.grouped_properties['has_resistance_class'] %}
-                         <dt>Resistance Class</dt>
-                         <dd>
-                             <ul>
-                             {% for prop in pan_1_details.grouped_properties['has_resistance_class'] %}
-                                 <li><a href="{{ prop.link }}"><code>{{ prop.value }}</code></a></li>
-                             {% endfor %}
-                             </ul>
-                         </dd>
-                         {% endif %}
-                         {% if pan_1_details.grouped_properties['has_predicted_phenotype'] %}
-                         <dt>Predicted Phenotype</dt>
-                         <dd>
-                             <ul>
-                             {% for prop in pan_1_details.grouped_properties['has_predicted_phenotype'] %}
-                                 <li><a href="{{ prop.link }}"><code>{{ prop.value }}</code></a></li>
-                             {% endfor %}
-                             </ul>
-                         </dd>
-                         {% endif %}
-                     </dl>
-                </div>
-                {# Column 3: Source Info #}
-                <div class="example-column">
-                     <dl class="example-details-list">
-                         {% if pan_1_details.grouped_properties['same_as'] %}
-                         <dt>Equivalent To / Also Known As</dt>
-                         <dd>
-                             <ul>
-                             {% for prop in pan_1_details.grouped_properties['same_as'] %}
-                                 <li>
-                                     <a href="{{ prop.link }}"><code>{{ prop.value }}</code></a>
-                                     {% if prop.extra_info %}<span class="extra-info">{{ prop.extra_info }}</span>{% endif %}
-                                 </li>
-                             {% endfor %}
-                             </ul>
-                         </dd>
-                         {% endif %}
-                     </dl>
-                </div>
-                 {# Column 4: Other Info #}
-                 <div class="example-column">
-                     <dl class="example-details-list">
-                         {% if pan_1_details.grouped_properties['translates_to'] %}
-                         <dt>Translates To Protein</dt>
-                         <dd>
-                             {% set prop = pan_1_details.grouped_properties['translates_to'][0] %}
-                             <a href="{{ prop.link }}"><code>{{ prop.value }}</code></a>
-                         </dd>
-                         {% endif %}
-                         {% if pan_1_details.grouped_properties['member_of'] %}
-                         <dt>Member Of Cluster</dt>
-                         <dd>
-                              {% set prop = pan_1_details.grouped_properties['member_of'][0] %}
-                             <a href="{{ prop.link }}"><code>{{ prop.value }}</code></a>
-                         </dd>
-                         {% endif %}
-                     </dl>
-                 </div>
-            </div> {# End example-details-grid #}
-        </div>
-        {% else %}
-        <div class="gene-example-container placeholder"> {# Add placeholder class #}
-             <p><em>Example gene details (pan_1) could not be loaded.</em></p>
-        </div>
-        {% endif %}
-    </div>
-    {# --- END PanRes Example Section --- #}
 
     {# --- JavaScript for Charts and Animations --- #}
     <script>

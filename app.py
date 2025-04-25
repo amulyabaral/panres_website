@@ -71,6 +71,15 @@ pangen_right_col_preds = [
     'member_of'
 ]
 
+# --- Define Predicates that should link to related items list ---
+# Restore this definition
+LINK_TO_RELATED_PREDICATES = {
+    'is_from_database',
+    'has_resistance_class',
+    'has_predicted_phenotype',
+    # Add others if needed, e.g., 'member_of' if clusters should link to members
+}
+
 # --- Flask App Setup ---
 app = Flask(__name__)
 app.config['DATABASE'] = DATABASE
@@ -488,8 +497,6 @@ def index():
         if phenotype_counts:
             top_n_pheno = 8 # Or adjust as needed
             pheno_segments = []
-            # Define a minimal, local color list for the stacked bar/legend
-            pheno_colors = ['#990000', '#666666', '#999999', '#cccccc', '#333333', '#000000'] # Red, Grays, Black
 
             # Take top N
             top_phenotypes = phenotype_counts[:top_n_pheno]
@@ -507,9 +514,7 @@ def index():
                     pheno_segments.append({
                         'name': row['phenotype_name'],
                         'count': row['gene_count'],
-                        'percentage': percentage,
-                        # Cycle through the minimal local color list
-                        'color': pheno_colors[i % len(pheno_colors)]
+                        'percentage': percentage
                     })
 
                 # Add "Others" segment if applicable
@@ -518,9 +523,7 @@ def index():
                     pheno_segments.append({
                         'name': "Others",
                         'count': other_count_pheno,
-                        'percentage': percentage,
-                        # Use the last color or cycle for Others
-                        'color': pheno_colors[top_n_pheno % len(pheno_colors)]
+                        'percentage': percentage
                     })
 
                 phenotype_chart_data = {
@@ -534,16 +537,6 @@ def index():
         phenotype_chart_data = None
     # --- End Phenotype Section ---
 
-    # --- Fetch details for pan_1 example ---
-    pan_1_details = None
-    try:
-        pan_1_details = get_item_details('pan_1')
-        if not pan_1_details:
-            app.logger.warning("Could not fetch details for pan_1 example for the index page.")
-    except Exception as e:
-        app.logger.error(f"Error fetching pan_1 details for index page: {e}")
-    # --- End fetch pan_1 details ---
-
     # --- Convert Row objects to Dictionaries ---
     source_db_counts = [dict(row) for row in source_db_counts_rows]
 
@@ -555,9 +548,8 @@ def index():
         category_data=category_data,
         source_db_counts=source_db_counts,
         max_db_count=max_db_count,
-        antibiotic_chart_data=antibiotic_chart_data, # Now only contains labels and data
-        phenotype_chart_data=phenotype_chart_data, # Still contains colors from local list
-        pan_1_details=pan_1_details
+        antibiotic_chart_data=antibiotic_chart_data,
+        phenotype_chart_data=phenotype_chart_data, # Will no longer contain colors
     )
 
 
