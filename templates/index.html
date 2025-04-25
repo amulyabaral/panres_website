@@ -53,16 +53,14 @@
     {# --- Charts Section (Only show if NOT showing an error) --- #}
     <section class="mb-12">
         <h3 class="text-2xl font-semibold text-gray-700 mb-6 text-center">Data Overview</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {# Antibiotic Classes Chart #}
-            <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <div class="chart-card">
                 <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Genes per Antibiotic Class</h4>
                 <p class="text-gray-600 text-sm mb-4 text-center">Distribution of PanRes genes across different antibiotic resistance classes</p>
-                {# Use the updated variable name from app.py #}
-                {% if antibiotic_chart_data and antibiotic_chart_data.data %}
-                    {# Use the chart-container class for consistent sizing #}
+                {% if antibiotic and antibiotic.data %}
                     <div class="chart-container">
-                        <canvas id="antibioticClassChart"></canvas>
+                        <canvas id="antibiotic"></canvas>
                     </div>
                     <div class="mt-4 text-center">
                         <a href="{{ url_for('list_items', category_key='PanRes Genes') }}" class="btn">
@@ -75,14 +73,12 @@
             </div>
 
             {# Source Databases Chart #}
-            <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <div class="chart-card">
                 <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Genes per Source Database</h4>
                 <p class="text-gray-600 text-sm mb-4 text-center">Number of genes contributed by each source database to the PanRes collection</p>
-                {# Use the updated variable name from app.py #}
-                {% if source_db_chart_data and source_db_chart_data.segments %}
-                     {# Use the chart-container class for consistent sizing #}
-                     <div class="chart-container">
-                        <canvas id="sourceDbChart"></canvas>
+                {% if source_db and source_db.segments %}
+                    <div class="chart-container">
+                        <canvas id="sourceDb"></canvas>
                     </div>
                     <div class="mt-4 text-center">
                         <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="btn">
@@ -91,6 +87,19 @@
                     </div>
                 {% else %}
                     <p class="text-gray-500 italic text-center py-4">No data available for source databases chart.</p>
+                {% endif %}
+            </div>
+
+            <!-- Phenotype stacked bar -->
+            <div class="chart-card">
+                <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Predicted Phenotype Proportions</h4>
+                <p class="text-gray-600 text-sm mb-4 text-center">Relative distribution of phenotypes across PanGenes</p>
+                {% if phenotype and phenotype.segments %}
+                    <div class="chart-container">
+                        <canvas id="phenotype"></canvas>
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 italic text-center py-4">No phenotype data available.</p>
                 {% endif %}
             </div>
         </div>
@@ -117,109 +126,46 @@
 
     {# Custom JS for Charts #}
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const isErrorPage = document.querySelector('.bg-red-100');
-            if (isErrorPage) {
-                console.log("Error page detected, skipping chart initialization.");
-                return;
-            }
+      document.addEventListener('DOMContentLoaded', () => {
+        if (document.querySelector('.bg-red-100')) return; // skip on error page
 
-            // Simplified Chart Initialization Logic
-            const initPieChart = (canvasId, chartData) => {
-                const ctx = document.getElementById(canvasId);
-                if (!ctx || !chartData || !chartData.data || chartData.data.length === 0) {
-                    console.warn(`Canvas #${canvasId} not found or no data provided.`);
-                    return;
-                }
-                new Chart(ctx, {
-                    type: 'pie',
-                    data: {
-                        labels: chartData.labels,
-                        datasets: [{
-                            label: `Count (Total: ${chartData.total_count})`,
-                            data: chartData.data,
-                            backgroundColor: chartData.colors, // Use colors from backend
-                            hoverOffset: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false, // Allow chart to fill container height
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                            },
-                            tooltip: {
-                                callbacks: {
-                                     label: function(context) {
-                                         let label = context.label || '';
-                                         if (label) {
-                                             label += ': ';
-                                         }
-                                         if (context.parsed !== null) {
-                                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                             const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
-                                             label += `${context.parsed} (${percentage}%)`;
-                                         }
-                                         return label;
-                                     }
-                                }
-                            }
-                        }
-                    }
-                });
-            };
+        const pieCfg       = JSON.parse('{{ antibiotic   | tojson | safe }}');
+        const barCfg       = JSON.parse('{{ source_db    | tojson | safe }}');
+        const stackedCfg   = JSON.parse('{{ phenotype    | tojson | safe }}');
 
-            const initBarChart = (canvasId, chartData) => {
-                 const ctx = document.getElementById(canvasId);
-                 if (!ctx || !chartData || !chartData.segments || chartData.segments.length === 0) {
-                     console.warn(`Canvas #${canvasId} not found or no data provided.`);
-                     return;
-                 }
-                 new Chart(ctx, {
-                     type: 'bar',
-                     data: {
-                         labels: chartData.segments.map(s => s.name),
-                         datasets: [{
-                             label: `Gene Count (Total: ${chartData.total_count})`,
-                             data: chartData.segments.map(s => s.count),
-                             backgroundColor: chartData.segments.map(s => s.color),
-                             borderColor: chartData.segments.map(s => s.color), // Optional: border
-                             borderWidth: 1
-                         }]
-                     },
-                     options: {
-                         indexAxis: 'y', // Horizontal bars often better for long labels
-                         responsive: true,
-                         maintainAspectRatio: false,
-                         scales: {
-                             x: { beginAtZero: true }
-                         },
-                         plugins: {
-                             legend: { display: false } // Hide legend for bar chart if label is clear
-                         }
-                     }
-                 });
-            };
-
-            // Initialize charts using data passed from Flask
-            const antibioticData = JSON.parse('{{ antibiotic_chart_data | tojson | safe }}');
-            const sourceDbData = JSON.parse('{{ source_db_chart_data | tojson | safe }}');
-            
-            if (antibioticData) {
-                initPieChart('antibioticClassChart', antibioticData);
-            }
-            
-            if (sourceDbData) {
-                initBarChart('sourceDbChart', sourceDbData);
-            }
-            
-            // Add phenotype chart if needed:
-            // const phenotypeData = JSON.parse('{{ phenotype_chart_data | tojson | safe }}');
-            // if (phenotypeData) {
-            //     initBarChart('phenotypeChart', phenotypeData);
-            // }
-
+        /* helpers – one per chart style */
+        const pie = (id, d) => new Chart(id, {
+          type: 'pie',
+          data: {labels: d.labels, datasets:[{data:d.data, backgroundColor:d.colors}]},
+          options:{responsive:true, plugins:{legend:{position:'right'}}}
         });
+        const bar = (id, d) => new Chart(id, {
+          type:'bar',
+          data:{
+            labels:d.segments.map(s=>s.name),
+            datasets:[{data:d.segments.map(s=>s.count), backgroundColor:d.segments.map(s=>s.color)}]
+          },
+          options:{
+            indexAxis:'y',
+            plugins:{legend:{display:false}},
+            scales:{y:{position:'right'}, x:{beginAtZero:true}}
+          }
+        });
+        const stacked = (id, d) => new Chart(id, {
+          type:'bar',
+          data:{
+            labels:['Predicted Phenotypes'],
+            datasets:d.segments.map(s=>({label:s.name,data:[s.count],backgroundColor:s.color}))
+          },
+          options:{
+            indexAxis:'y', responsive:true, scales:{x:{stacked:true},y:{stacked:true,display:false}},
+            plugins:{legend:{position:'right'}}
+          }
+        });
+
+        if (pieCfg)       pie(document.getElementById('antibiotic'), pieCfg);
+        if (barCfg)       bar(document.getElementById('sourceDb'),  barCfg);
+        if (stackedCfg)   stacked(document.getElementById('phenotype'), stackedCfg);
+      });
     </script>
 {% endblock %} 

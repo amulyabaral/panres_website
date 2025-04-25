@@ -272,9 +272,10 @@ def get_category_counts():
 def get_chart_data():
     """Fetches data specifically formatted for the homepage charts."""
     chart_data = {
-        'source_db_chart_data': None,
-        'phenotype_chart_data': None,
-        'antibiotic_chart_data': None,
+        # three compact dicts that the front-end can render generically
+        'source_db': None,
+        'phenotype': None,
+        'antibiotic': None,
     }
     db = get_db()
 
@@ -292,7 +293,7 @@ def get_chart_data():
         results = query_db(query, (IS_FROM_DATABASE, RDF_TYPE))
         if results:
             total_genes = sum(row['gene_count'] for row in results)
-            chart_data['source_db_chart_data'] = {
+            chart_data['source_db'] = {
                 'segments': [
                     {
                         'name': row['database_name'],
@@ -320,7 +321,7 @@ def get_chart_data():
         results = query_db(query, (HAS_PREDICTED_PHENOTYPE, RDF_TYPE))
         if results:
             total_genes = sum(row['gene_count'] for row in results)
-            chart_data['phenotype_chart_data'] = {
+            chart_data['phenotype'] = {
                 'segments': [
                     {
                         'name': row['phenotype_name'],
@@ -352,7 +353,7 @@ def get_chart_data():
             data_points = [row['gene_count'] for row in results]
             colors = [get_color_for_item(label, i) for i, label in enumerate(labels)] # Generate colors
 
-            chart_data['antibiotic_chart_data'] = {
+            chart_data['antibiotic'] = {
                 'labels': labels,
                 'data': data_points,
                 'colors': colors, # Pass colors to template
@@ -566,9 +567,9 @@ def index():
     return render_template('index.html',
                            index_categories=INDEX_CATEGORIES,
                            category_counts=category_counts,
-                           source_db_chart_data=chart_data.get('source_db_chart_data'),
-                           phenotype_chart_data=chart_data.get('phenotype_chart_data'),
-                           antibiotic_chart_data=chart_data.get('antibiotic_chart_data'),
+                           source_db_chart_data=chart_data.get('source_db'),
+                           phenotype_chart_data=chart_data.get('phenotype'),
+                           antibiotic_chart_data=chart_data.get('antibiotic'),
                            show_error=False)
 
 @app.route('/list/<category_key>')
