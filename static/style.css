@@ -1,23 +1,3 @@
-/* Remove all previous CSS rules */
-
-/* Keep only if absolutely necessary and cannot be done with Tailwind */
-/* Example: Maybe specific chart styling if needed */
-
-/* body { */
-    /* Tailwind handles this */
-/* } */
-
-/* .chart-container { */
-    /* Apply height/width directly in HTML using style or Tailwind classes */
-/* } */
-
-/* code { */
-    /* Use Tailwind's 'prose' plugin or utility classes like `bg-gray-100 text-sm font-mono px-1 rounded` if needed inline */
-/* } */
-
-/* Add any other absolutely essential custom styles here, but aim for none. */
-
-/* Import Tailwind base, components, and utilities */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -31,14 +11,9 @@
         /* Apply base code styling */
         @apply bg-gray-200 text-gray-700 px-1 py-0.5 rounded text-sm font-mono break-all;
     }
-    /* Simple definition list styling */
     dt {
-        /* Adjusted for details page */
-        /* @apply text-gray-500 w-1/3 shrink-0 pr-2 text-right text-xs uppercase tracking-wide font-semibold; */
     }
     dd {
-        /* Adjusted for details page */
-        /* @apply w-2/3 break-words; */ /* Allow long words/URLs to break */
     }
 }
 
@@ -77,15 +52,5 @@
     }
 }
 
-/* You can add custom utilities here if needed */
-/* @layer utilities { */
-/* } */
 
-/* --- Tailwind Config (Integrated) --- */
-/* Removed the invalid commented-out block */
-
-/* --- TEMPORARY WORKAROUND FOR CDN --- */
-/* Keep the config script in base.html for now if only using CDN */
-/* Add this comment to remind you */
-/* Removed extra comment and blank lines */
 
