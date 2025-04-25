@@ -1,124 +1,205 @@
-{% extends "base.html" %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ page_title }} - {{ site_name }}</title>
 
-{% block title %}{{ category_display_name }} - {{ site_name }}{% endblock %}
+    {# Add Tailwind CSS via CDN #}
+    <script src="https://cdn.tailwindcss.com"></script>
 
-{% block content %}
-    {# Page Header #}
-    <h2 class="text-2xl font-medium text-dtu-red mb-2">{{ category_display_name }}</h2>
-    <p class="text-sm text-gray-600 mb-6">
-        {# Display the target value (e.g., PanGene, OriginalGene) if different from key #}
-        {% if category_key != query_target_value %}
-             Listing items of type <code>{{ query_target_value }}</code> (Category: {{ category_key }}).
-        {% else %}
-             Listing items for category: {{ category_key }}.
-        {% endif %}
-        Found {{ items|length if items else (grouped_by_class|length if grouped_by_class else (grouped_by_phenotype|length if grouped_by_phenotype else 0)) }} item(s).
-        {# Add description if available #}
-        {% if category_description %}
-            <span class="block mt-1">{{ category_description }}</span>
-        {% endif %}
-    </p>
+    {# Link to your simplified custom CSS #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
-    {# --- Conditional Display --- #}
-    {% if is_pangen_list and (grouped_by_class or grouped_by_phenotype) %}
-        {# --- PanGene Grouped View --- #}
-        {# Use Tailwind grid for side-by-side cards on larger screens #}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <link rel="icon" href="{{ url_for('static', filename='panres_logo.png') }}" type="image/png">
 
-            {# Card for Resistance Classes #}
-            {% if grouped_by_class %}
-            <div class="bg-white rounded-md shadow-lg p-4">
-                <h3 class="text-lg font-medium text-dtu-red mb-4 pb-2 border-b border-gray-200">Grouped by Resistance Class</h3>
-                <div class="accordion space-y-2">
-                    {% for class_label, data in grouped_by_class.items() %}
-                        <div class="accordion-item border border-gray-200 rounded">
-                            <button class="accordion-header w-full flex justify-between items-center p-3 text-left bg-gray-50 hover:bg-gray-100 focus:outline-none transition-colors duration-150">
-                                <span class="font-semibold text-sm">
-                                    {% if data.id %}
-                                        <a href="{{ url_for('details', item_id=data.id) }}" class="text-dtu-red hover:underline" title="View details for {{ class_label }}"><code>{{ class_label }}</code></a>
-                                    {% else %}
-                                        <code>{{ class_label }}</code> {# e.g., No Class Assigned #}
-                                    {% endif %}
-                                    <span class="text-gray-500 font-normal ml-2">({{ data.genes|length }} genes)</span>
-                                </span>
-                                <span class="accordion-icon text-gray-500 text-xl font-light transform transition-transform duration-200">+</span>
-                            </button>
-                            <div class="accordion-content p-3 border-t border-gray-200 hidden">
-                                <ul class="list-disc list-inside space-y-1 text-sm">
-                                    {% for gene in data.genes %}
-                                        <li><a href="{{ gene.link }}" class="text-dtu-red hover:underline"><code>{{ gene.id }}</code></a></li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
+    {# Basic Tailwind Configuration #}
+    <script>
+        tailwind.config = {
+          theme: {
+            extend: {
+              colors: {
+                'dtu-red': '#990000',
+              },
+              fontFamily: {
+                sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
+                mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
+              }
+            }
+          }
+        }
+      </script>
+      <style type="text/tailwindcss">
+        body {
+            @apply font-sans bg-gray-50 text-gray-800;
+        }
+        .btn {
+             @apply inline-block bg-dtu-red/80 hover:bg-dtu-red text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2;
+        }
+        code {
+             @apply bg-gray-200 text-gray-700 px-1 py-0.5 rounded text-sm font-mono;
+        }
+        .dtu-pattern-bg {
+            background-image: url("{{ url_for('static', filename='DTU_Background_Pattern_Corporate_Red_RGB.jpg') }}");
+            background-color: #990000;
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+        }
+      </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    {# --- Header --- #}
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                 <a href="{{ url_for('index') }}">
+                    <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="h-10">
+                 </a>
+                 <div>
+                    <h1 class="text-xl font-semibold text-gray-700">Centre for Genomic Epidemiology</h1>
+                    <div class="text-sm text-gray-500">{{ site_name }}</div>
+                 </div>
             </div>
-            {% endif %}
-
-            {# Card for Predicted Phenotypes #}
-            {% if grouped_by_phenotype %}
-             <div class="bg-white rounded-md shadow-lg p-4">
-                <h3 class="text-lg font-medium text-dtu-red mb-4 pb-2 border-b border-gray-200">Grouped by Predicted Phenotype</h3>
-                 <div class="accordion space-y-2">
-                    {% for phenotype_label, data in grouped_by_phenotype.items() %}
-                        <div class="accordion-item border border-gray-200 rounded">
-                            <button class="accordion-header w-full flex justify-between items-center p-3 text-left bg-gray-50 hover:bg-gray-100 focus:outline-none transition-colors duration-150">
-                                <span class="font-semibold text-sm">
-                                     {# Phenotypes might not have their own details page, link to related items instead #}
-                                     <a href="{{ url_for('show_related_items', predicate='has_predicted_phenotype', object_value=phenotype_label) }}" class="text-dtu-red hover:underline" title="View genes with phenotype {{ phenotype_label }}"><code>{{ phenotype_label }}</code></a>
-                                     <span class="text-gray-500 font-normal ml-2">({{ data.genes|length }} genes)</span>
-                                </span>
-                                <span class="accordion-icon text-gray-500 text-xl font-light transform transition-transform duration-200">+</span>
-                            </button>
-                            <div class="accordion-content p-3 border-t border-gray-200 hidden">
-                                <ul class="list-disc list-inside space-y-1 text-sm">
-                                    {% for gene in data.genes %}
-                                        <li><a href="{{ gene.link }}" class="text-dtu-red hover:underline"><code>{{ gene.id }}</code></a></li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-        </div> {# End Grid #}
-
-    {% elif items %}
-        {# --- Flat List View --- #}
-        <div class="bg-white rounded-md shadow-lg p-4">
-             {# Use Tailwind columns for multi-column layout on larger screens #}
-            <ul class="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-x-6 text-sm space-y-1">
-                {% for item in items %}
-                    <li class="break-inside-avoid mb-1">
-                        <a href="{{ item.link }}" class="text-dtu-red hover:underline">
-                            <code>{{ item.id }}</code>
-                            {# Optionally display label if available #}
-                            {# {% if item.label and item.label != item.id %} ({{ item.label }}) {% endif %} #}
-                        </a>
-                    </li>
-                {% else %}
-                    <li>No items found for this category.</li>
-                {% endfor %}
-            </ul>
+            <div></div> {# Placeholder #}
         </div>
-    {% else %}
-         <div class="bg-yellow-50 border border-yellow-300 text-yellow-800 p-4 rounded text-center">
-            No items found for this category.
-         </div>
-    {% endif %}
+    </header>
 
-    {# Back Link #}
-    <div class="mt-8 text-center">
-        <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
-    </div>
+    {# --- Main Content Area --- #}
+    <main class="container mx-auto px-4 py-8 flex-grow">
 
-{% endblock %}
+        <h2 class="text-2xl font-medium text-dtu-red mb-2">{{ page_title }}</h2>
+        <p class="text-sm text-gray-600 mb-6">{{ description|safe }}</p> {# Use safe filter for potential <code> tags #}
 
-{% block scripts %}
-    {# Accordion Script (Keep this logic) #}
+        {# --- Conditional Display: Grouped View or Flat List --- #}
+        {% if is_grouped_view and (grouped_by_class or grouped_by_phenotype) %}
+            {# --- Grouped View (PanRes Genes) --- #}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                {# Card for Resistance Classes #}
+                {% if grouped_by_class %}
+                <div class="bg-white rounded-md shadow-lg p-4">
+                    <h3 class="text-lg font-medium text-dtu-red mb-4 pb-2 border-b border-gray-200">Grouped by Resistance Class</h3>
+                    <div class="accordion space-y-2 max-h-[60vh] overflow-y-auto pr-2"> {# Added max height and scroll #}
+                        {% for class_label, data in grouped_by_class.items() %}
+                            <div class="accordion-item border border-gray-200 rounded">
+                                <button class="accordion-header w-full flex justify-between items-center p-3 text-left bg-gray-50 hover:bg-gray-100 focus:outline-none transition-colors duration-150">
+                                    <span class="font-semibold text-sm">
+                                        {# Link the class label if its ID is known #}
+                                        {% if data.id %}
+                                            <a href="{{ url_for('details', item_id=data.id) }}" class="text-dtu-red hover:underline" title="View details for {{ class_label }}"><code>{{ class_label }}</code></a>
+                                        {% else %}
+                                            <code>{{ class_label }}</code> {# e.g., No Class Assigned #}
+                                        {% endif %}
+                                        <span class="text-gray-500 font-normal ml-2">({{ data.genes|length }} genes)</span>
+                                    </span>
+                                    <span class="accordion-icon text-gray-500 text-xl font-light transform transition-transform duration-200">+</span>
+                                </button>
+                                <div class="accordion-content p-3 border-t border-gray-200 hidden bg-white">
+                                    <ul class="list-disc list-inside space-y-1 text-sm columns-1 sm:columns-2 md:columns-3">
+                                        {% for gene in data.genes %}
+                                            <li class="break-inside-avoid mb-1"><a href="{{ gene.link }}" class="text-dtu-red hover:underline"><code>{{ gene.id }}</code></a></li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {# Card for Predicted Phenotypes #}
+                {% if grouped_by_phenotype %}
+                <div class="bg-white rounded-md shadow-lg p-4">
+                    <h3 class="text-lg font-medium text-dtu-red mb-4 pb-2 border-b border-gray-200">Grouped by Predicted Phenotype</h3>
+                     <div class="accordion space-y-2 max-h-[60vh] overflow-y-auto pr-2"> {# Added max height and scroll #}
+                        {% for phenotype_label, data in grouped_by_phenotype.items() %}
+                            <div class="accordion-item border border-gray-200 rounded">
+                                <button class="accordion-header w-full flex justify-between items-center p-3 text-left bg-gray-50 hover:bg-gray-100 focus:outline-none transition-colors duration-150">
+                                    <span class="font-semibold text-sm">
+                                        {# Link the phenotype label if its ID is known #}
+                                        {% if data.id %}
+                                            <a href="{{ url_for('details', item_id=data.id) }}" class="text-dtu-red hover:underline" title="View details for {{ phenotype_label }}"><code>{{ phenotype_label }}</code></a>
+                                        {% else %}
+                                            <code>{{ phenotype_label }}</code> {# e.g., No Phenotype Assigned #}
+                                        {% endif %}
+                                        <span class="text-gray-500 font-normal ml-2">({{ data.genes|length }} genes)</span>
+                                    </span>
+                                    <span class="accordion-icon text-gray-500 text-xl font-light transform transition-transform duration-200">+</span>
+                                </button>
+                                <div class="accordion-content p-3 border-t border-gray-200 hidden bg-white">
+                                    <ul class="list-disc list-inside space-y-1 text-sm columns-1 sm:columns-2 md:columns-3">
+                                        {% for gene in data.genes %}
+                                            <li class="break-inside-avoid mb-1"><a href="{{ gene.link }}" class="text-dtu-red hover:underline"><code>{{ gene.id }}</code></a></li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+            </div> {# End Grid #}
+
+        {% elif items %}
+            {# --- Flat List View (Other Categories or Related Items) --- #}
+             <div class="bg-white rounded-md shadow-lg p-4">
+                 <ul class="list-disc list-inside space-y-1 text-sm columns-1 sm:columns-2 md:columns-3 lg:columns-4">
+                    {% for item in items %}
+                        <li class="break-inside-avoid mb-1">
+                            {% if item.link %}
+                                <a href="{{ item.link }}" class="text-dtu-red hover:underline"><code>{{ item.id }}</code></a>
+                            {% else %}
+                                <code>{{ item.id }}</code> {# Display as code even if not linkable #}
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+             </div>
+        {% else %}
+            <p class="text-gray-500 italic">No items found matching the criteria.</p>
+        {% endif %}
+
+        {# Back Link #}
+        <div class="mt-8 text-center">
+            {# Provide context-specific back link if possible #}
+            {% if predicate and object_value %}
+                 {# If viewing related items, link back to the object's detail page if it exists #}
+                 {# We need to check if object_value corresponds to an item with a details page #}
+                 {# This logic might be complex here, maybe just link to index? Or pass object details? #}
+                 {# Simple approach: Link back to index #}
+                 <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
+            {% elif category_key %}
+                 {# If viewing a category list, link back to index #}
+                 <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
+            {% else %}
+                 <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
+            {% endif %}
+        </div>
+
+    </main>
+
+    {# --- Footer --- #}
+    <footer class="p-4 bg-gray-100 border-t border-gray-200 mt-auto">
+        <div class="container mx-auto text-center sm:flex sm:items-center sm:justify-between">
+            <div class="flex justify-center sm:justify-start items-center mb-4 sm:mb-0">
+                 <a href="https://www.genomicepidemiology.org/" class="flex items-center" target="_blank" rel="noopener noreferrer">
+                     <img class="mr-3 h-8" src="{{ url_for('static', filename='DTU_Food_logo_UK_RED_SMALL.png') }}" alt="DTU Food Logo"/>
+                 </a>
+            </div>
+            <span class="block text-sm text-gray-500 text-center">
+                © {{ current_year }}
+                <a href="https://www.genomicepidemiology.org/" class="hover:underline" target="_blank" rel="noopener noreferrer">Center for Genomic Epidemiology™</a>.
+                All Rights Reserved. |
+                <a href="https://www.genomicepidemiology.org/contact/" target="_blank" rel="noopener noreferrer" class="hover:underline">Contact</a> |
+                <a href="https://www.genomicepidemiology.org/privacy-policy/" target="_blank" rel="noopener noreferrer" class="hover:underline">Privacy Policy</a>
+            </span>
+        </div>
+    </footer>
+
+    {# Accordion Script #}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const accordionHeaders = document.querySelectorAll('.accordion-header');
@@ -127,24 +208,27 @@
                 header.addEventListener('click', function() {
                     const content = this.nextElementSibling;
                     const icon = this.querySelector('.accordion-icon');
-                    const isExpanded = content.classList.contains('hidden');
+                    // Check using class 'hidden' for state
+                    const isHidden = content.classList.contains('hidden');
 
                     // Toggle content visibility using Tailwind 'hidden' class
-                    if (isExpanded) {
+                    if (isHidden) {
                         content.classList.remove('hidden');
                         if(icon) {
                             icon.textContent = '−'; // Use minus sign when expanded
-                            icon.classList.add('rotate-180'); // Optional: rotate icon
+                            // icon.classList.add('rotate-180'); // Optional rotation
                         }
                     } else {
                         content.classList.add('hidden');
                          if(icon) {
                              icon.textContent = '+'; // Use plus sign when collapsed
-                             icon.classList.remove('rotate-180'); // Optional: remove rotation
+                             // icon.classList.remove('rotate-180'); // Optional rotation
                          }
                     }
                 });
             });
         });
     </script>
-{% endblock %} 
+
+</body>
+</html> 

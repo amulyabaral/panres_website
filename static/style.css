@@ -1,36 +1,26 @@
-/* Remove almost all previous CSS rules */
+/* Remove most previous CSS rules */
 
-/* Keep only minimal overrides or base styles if needed */
 body {
-    font-family: 'Roboto', sans-serif; /* Fallback font */
+    /* Tailwind handles fonts, but you can set a base fallback */
+    font-family: sans-serif;
 }
 
-/* Keep background pattern definition if not using Tailwind class in base.html */
-/*
-.dtu-pattern-bg {
-    background-image: url("DTU_Background_Pattern_Corporate_Red_RGB.jpg");
-    background-color: #990000;
-    background-size: cover;
-    background-position: center center;
-    background-repeat: no-repeat;
-}
-*/
-
-/* Keep chart container style if needed */
+/* Keep chart container style if needed, or apply height directly with Tailwind */
 .chart-container {
     position: relative;
-    height: 300px; /* Adjust height as needed */
+    height: 300px; /* Or use Tailwind h-72, h-80 etc. */
     width: 100%;
 }
 
-/* Keep code styling if not using @apply in base.html */
+/* Tailwind provides 'code' styling via prose plugin or custom base styles.
+   If you need specific overrides, add them here. Otherwise, remove. */
 /*
 code {
      background-color: #f0f0f0;
      color: #333333;
      padding: 0.1em 0.3em;
      border-radius: 3px;
-     font-family: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+     font-family: monospace;
      font-size: 0.9em;
 }
 */

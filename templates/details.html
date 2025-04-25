@@ -1,167 +1,214 @@
-{% extends "base.html" %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Details for {{ item_id }} - {{ site_name }}</title>
 
-{% block title %}Details for {{ item_id }} - {{ site_name }}{% endblock %}
+    {# Add Tailwind CSS via CDN #}
+    <script src="https://cdn.tailwindcss.com"></script>
 
-{# Citation is now handled in base.html #}
-{% block header_content %}
-    {% if citation_text %}
-    <div class="p-4 bg-gray-100 my-6 rounded-md shadow-lg">
-        <div class="bg-white rounded-md p-4 space-y-2">
-             <h3 class="text-xl font-medium text-dtu-red">Citation</h3>
-             <p class="text-sm text-gray-700">{{ citation_text|safe }}</p>
+    {# Link to your simplified custom CSS #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <link rel="icon" href="{{ url_for('static', filename='panres_logo.png') }}" type="image/png">
+
+    {# Basic Tailwind Configuration #}
+    <script>
+        tailwind.config = {
+          theme: {
+            extend: {
+              colors: {
+                'dtu-red': '#990000',
+              },
+              fontFamily: {
+                sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
+                mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
+              }
+            }
+          }
+        }
+      </script>
+      <style type="text/tailwindcss">
+        body {
+            @apply font-sans bg-gray-50 text-gray-800;
+        }
+        .btn {
+             @apply inline-block bg-dtu-red/80 hover:bg-dtu-red text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2;
+        }
+        code {
+             @apply bg-gray-200 text-gray-700 px-1 py-0.5 rounded text-sm font-mono break-all; /* Added break-all for long IDs */
+        }
+        .dtu-pattern-bg {
+            background-image: url("{{ url_for('static', filename='DTU_Background_Pattern_Corporate_Red_RGB.jpg') }}");
+            background-color: #990000;
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+        }
+        /* Simple definition list styling */
+        dt {
+            @apply text-gray-500 w-1/3 shrink-0 pr-2 text-right text-xs uppercase tracking-wide font-semibold;
+        }
+        dd {
+            @apply w-2/3 break-words; /* Allow long words/URLs to break */
+        }
+        .property-row {
+            @apply flex items-start mb-1;
+        }
+      </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    {# --- Header --- #}
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                 <a href="{{ url_for('index') }}">
+                    <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="h-10">
+                 </a>
+                 <div>
+                    <h1 class="text-xl font-semibold text-gray-700">Centre for Genomic Epidemiology</h1>
+                    <div class="text-sm text-gray-500">{{ site_name }}</div>
+                 </div>
+            </div>
+            <div></div> {# Placeholder #}
         </div>
-    </div>
-    {% endif %}
-{% endblock %}
+    </header>
+
+    {# --- Main Content Area --- #}
+    <main class="container mx-auto px-4 py-8 flex-grow">
+
+        {# --- Main Details Container --- #}
+        <div class="bg-white rounded-md shadow-lg p-6 mb-8">
+
+            {# Item ID Highlight #}
+            <h2 class="text-2xl font-mono font-bold text-dtu-red mb-1 text-center break-all">{{ item_id }}</h2>
+
+            {# Display primary type and link to category list #}
+            {% if details.primary_type_display %}
+                <p class="text-center text-gray-600 text-sm mb-6">
+                    Type:
+                    {% if details.primary_type_category_key %}
+                        <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="text-dtu-red hover:underline">
+                            {{ details.primary_type_display }}
+                        </a>
+                    {% else %}
+                        {{ details.primary_type_display }}
+                    {% endif %}
+                </p>
+            {% endif %}
+
+            {# Display Description if available #}
+             {% if details.description %}
+                 <div class="mb-6 p-4 bg-gray-50 rounded border border-gray-200">
+                     <h4 class="font-semibold text-gray-700 mb-1">Description</h4>
+                     <p class="text-sm text-gray-600">{{ details.description }}</p>
+                 </div>
+             {% endif %}
 
 
-{% block content %}
+            {# --- Property Grid --- #}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
 
-{# --- Main Details Container --- #}
-<div class="bg-white rounded-md shadow-lg p-6 mb-8">
+                {# --- Properties Column --- #}
+                <div>
+                    <h3 class="text-lg font-medium text-dtu-red mb-3 pb-2 border-b border-gray-200">Properties</h3>
+                    {% if details.properties %}
+                        <dl class="space-y-1 text-sm">
+                            {% for predicate, objects in details.properties.items() %}
+                                {# Skip rdf:type and description as they are handled above #}
+                                {% if predicate != 'rdf:type' and predicate not in DESCRIPTION_PREDICATES %}
+                                    <div class="property-row">
+                                        <dt>{{ predicate_map.get(predicate, predicate) }}:</dt>
+                                        <dd>
+                                            {% for obj in objects %}
+                                                {# Check if object is likely a URL #}
+                                                {% if obj.startswith('http://') or obj.startswith('https://') %}
+                                                    <a href="{{ obj }}" target="_blank" rel="noopener noreferrer" class="text-dtu-red hover:underline"><code>{{ obj }}</code></a>
+                                                {# Check if object is another resource in our DB (simple check) #}
+                                                {% elif obj in details.referencing_items | map(attribute='ref_id') or obj in details.properties.get(HAS_RESISTANCE_CLASS, []) or obj in details.properties.get(HAS_PREDICTED_PHENOTYPE, []) or obj in details.properties.get(IS_FROM_DATABASE, []) %}
+                                                    {# Crude check - better to have a dedicated function in backend if possible #}
+                                                    {# Or pass a list of known resource IDs #}
+                                                    <a href="{{ url_for('details', item_id=obj) }}" class="text-dtu-red hover:underline"><code>{{ obj }}</code></a>
+                                                {# Otherwise, display as plain text/code #}
+                                                {% else %}
+                                                    <code>{{ obj }}</code>
+                                                {% endif %}
+                                                {% if not loop.last %}<br>{% endif %} {# Line break if multiple objects for same predicate #}
+                                            {% endfor %}
+                                        </dd>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </dl>
+                    {% else %}
+                         <p class="text-sm text-gray-500 italic">No specific properties found for this item (besides type/description).</p>
+                    {% endif %}
+                </div>
 
-    {# Item ID Highlight #}
-    <h2 class="text-2xl font-mono font-bold text-dtu-red mb-1 text-center break-all">{{ item_id }}</h2>
 
-    {# Display primary type #}
-    {% if details.primary_type_display %}
-        <p class="text-center text-gray-600 text-sm mb-6">
-            Type:
+                {# --- Referenced By Column --- #}
+                <div>
+                     <h3 class="text-lg font-medium text-dtu-red mb-3 pb-2 border-b border-gray-200">Referenced By</h3>
+                     {% if details.referencing_items %}
+                        <dl class="space-y-1 text-sm">
+                            {% for ref_item in details.referencing_items %}
+                                 <div class="property-row">
+                                     <dt>{{ predicate_map.get(ref_item.predicate, ref_item.predicate) }}:</dt>
+                                     <dd>
+                                         <a href="{{ url_for('details', item_id=ref_item.ref_id) }}" class="text-dtu-red hover:underline"><code>{{ ref_item.ref_id }}</code></a>
+                                         {# Optionally show label of referencing item #}
+                                         {# {% if ref_item.ref_label and ref_item.ref_label != ref_item.ref_id %}
+                                             <span class="text-gray-500 text-xs ml-1">({{ ref_item.ref_label }})</span>
+                                         {% endif %} #}
+                                     </dd>
+                                 </div>
+                            {% endfor %}
+                        </dl>
+                    {% else %}
+                        <p class="text-sm text-gray-500 italic">This item is not directly referenced by other items shown here.</p>
+                    {% endif %}
+                </div>
+
+            </div> {# End Property Grid #}
+
+        </div> {# End Main Details Container #}
+
+
+        {# Back Links Footer #}
+        <div class="text-center space-x-4">
+            <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
+            {# Link back to the primary category list if available #}
             {% if details.primary_type_category_key %}
-                <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="text-dtu-red hover:underline">
-                    {{ details.primary_type_display }}
-                </a>
-            {% else %}
-                {{ details.primary_type_display }}
+                 <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to {{ details.primary_type_display }} List</a>
             {% endif %}
-        </p>
-    {% endif %}
-
-    {# --- Property Grid --- #}
-    {# Use Tailwind grid for layout #}
-    <div class="grid grid-cols-1 {{ 'md:grid-cols-3' if is_pangen else 'md:grid-cols-2' }} gap-x-8 gap-y-6">
-
-        {# --- Left/Main Column (or Key Info for PanGene) --- #}
-        <div class="{{ 'md:col-span-2' if is_pangen else '' }}">
-            <h3 class="text-lg font-medium text-dtu-red mb-3 pb-2 border-b border-gray-200">
-                {{ "Key Information" if is_pangen else "Properties" }}
-            </h3>
-            <dl class="space-y-3 text-sm">
-                {# Display Label if present and different from ID #}
-                {% if details.label and details.label != item_id %}
-                    <div>
-                        <dt class="font-semibold text-gray-700 uppercase text-xs tracking-wide">Label</dt>
-                        <dd class="text-gray-800 mt-0.5">{{ details.label }}</dd>
-                    </div>
-                {% endif %}
-
-                {# Display Description if present #}
-                {% if details.description %}
-                     <div>
-                        <dt class="font-semibold text-gray-700 uppercase text-xs tracking-wide">Description</dt>
-                        <dd class="text-gray-600 mt-0.5">{{ details.description|safe }}</dd> {# Assume description might contain simple HTML #}
-                    </div>
-                {% endif %}
-
-                {# Display other properties #}
-                {% for prop in details.properties %}
-                     {# Filter properties based on layout type #}
-                     {% set show_prop = not is_pangen or (is_pangen and prop.predicate in pangen_key_info_preds) %}
-                     {% if show_prop and prop.predicate != RDFS_LABEL and prop.predicate != RDFS_COMMENT and prop.predicate not in DESCRIPTION_PREDICATES %}
-                        <div>
-                            <dt class="font-semibold text-gray-700 uppercase text-xs tracking-wide">{{ predicate_map.get(prop.predicate, prop.predicate) }}</dt>
-                            <dd class="text-gray-800 mt-0.5">
-                                {% if prop.is_literal %}
-                                    {# Check for specific literal types if needed, e.g., format numbers #}
-                                    {{ prop.value }}
-                                {% elif prop.is_external_uri %}
-                                    <a href="{{ prop.value }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-dtu-red hover:underline">
-                                        {{ prop.value }}
-                                        <svg class="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                                    </a>
-                                {% elif prop.predicate in LINK_TO_RELATED_PREDICATES %}
-                                     {# Link to related items page #}
-                                     <a href="{{ url_for('show_related_items', predicate=prop.predicate, object_value=prop.value) }}" class="text-dtu-red hover:underline" title="Show items related via '{{ predicate_map.get(prop.predicate, prop.predicate) }}'">
-                                         <code>{{ prop.value }}</code>
-                                     </a>
-                                {% else %}
-                                    {# Link to details page for internal items #}
-                                    <a href="{{ url_for('details', item_id=prop.value) }}" class="text-dtu-red hover:underline">
-                                        <code>{{ prop.value }}</code>
-                                    </a>
-                                {% endif %}
-                            </dd>
-                        </div>
-                    {% endif %}
-                {% endfor %}
-            </dl>
+            {# Add a general back button using browser history #}
+            <button onclick="window.history.back();" class="text-sm text-dtu-red hover:underline">Back</button>
         </div>
 
-        {# --- Right Column (Only for PanGene) --- #}
-        {% if is_pangen %}
-        <div>
-            <h3 class="text-lg font-medium text-dtu-red mb-3 pb-2 border-b border-gray-200">Resistance & Links</h3>
-             <dl class="space-y-3 text-sm">
-                 {% for prop in details.properties %}
-                     {% if prop.predicate in pangen_right_col_preds %}
-                         <div>
-                            <dt class="font-semibold text-gray-700 uppercase text-xs tracking-wide">{{ predicate_map.get(prop.predicate, prop.predicate) }}</dt>
-                            <dd class="text-gray-800 mt-0.5">
-                                {% if prop.is_literal %}
-                                    {{ prop.value }}
-                                {% elif prop.is_external_uri %}
-                                     <a href="{{ prop.value }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-dtu-red hover:underline">
-                                        {{ prop.value }}
-                                        <svg class="ml-1 w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                                    </a>
-                                {% elif prop.predicate in LINK_TO_RELATED_PREDICATES %}
-                                     <a href="{{ url_for('show_related_items', predicate=prop.predicate, object_value=prop.value) }}" class="text-dtu-red hover:underline" title="Show items related via '{{ predicate_map.get(prop.predicate, prop.predicate) }}'">
-                                         <code>{{ prop.value }}</code>
-                                     </a>
-                                {% else %}
-                                    <a href="{{ url_for('details', item_id=prop.value) }}" class="text-dtu-red hover:underline">
-                                        <code>{{ prop.value }}</code>
-                                    </a>
-                                {% endif %}
-                            </dd>
-                        </div>
-                    {% endif %}
-                {% endfor %}
-            </dl>
+    </main>
+
+    {# --- Footer --- #}
+    <footer class="p-4 bg-gray-100 border-t border-gray-200 mt-auto">
+        <div class="container mx-auto text-center sm:flex sm:items-center sm:justify-between">
+            <div class="flex justify-center sm:justify-start items-center mb-4 sm:mb-0">
+                 <a href="https://www.genomicepidemiology.org/" class="flex items-center" target="_blank" rel="noopener noreferrer">
+                     <img class="mr-3 h-8" src="{{ url_for('static', filename='DTU_Food_logo_UK_RED_SMALL.png') }}" alt="DTU Food Logo"/>
+                 </a>
+            </div>
+            <span class="block text-sm text-gray-500 text-center">
+                © {{ current_year }}
+                <a href="https://www.genomicepidemiology.org/" class="hover:underline" target="_blank" rel="noopener noreferrer">Center for Genomic Epidemiology™</a>.
+                All Rights Reserved. |
+                <a href="https://www.genomicepidemiology.org/contact/" target="_blank" rel="noopener noreferrer" class="hover:underline">Contact</a> |
+                <a href="https://www.genomicepidemiology.org/privacy-policy/" target="_blank" rel="noopener noreferrer" class="hover:underline">Privacy Policy</a>
+            </span>
         </div>
-        {% endif %}
+    </footer>
 
-        {# --- Referenced By Column --- #}
-        <div>
-             <h3 class="text-lg font-medium text-dtu-red mb-3 pb-2 border-b border-gray-200">Referenced By</h3>
-             {% if details.referencing_items %}
-                <dl class="space-y-2 text-sm">
-                    {% for ref_item in details.referencing_items %}
-                        {# Group references by predicate? Or just list them? Listing for now. #}
-                         <div class="flex items-start">
-                             <span class="text-gray-500 w-1/3 shrink-0 pr-2 text-right text-xs uppercase tracking-wide">{{ predicate_map.get(ref_item.predicate, ref_item.predicate) }}:</span>
-                             <a href="{{ url_for('details', item_id=ref_item.ref_id) }}" class="text-dtu-red hover:underline"><code>{{ ref_item.ref_id }}</code></a>
-                         </div>
-                    {% endfor %}
-                </dl>
-            {% else %}
-                <p class="text-sm text-gray-500 italic">This item is not referenced by any other items.</p>
-            {% endif %}
-        </div>
+    {# Page specific scripts block (if any needed in future) #}
+    {% block scripts %}{% endblock %}
 
-    </div> {# End Property Grid #}
-
-</div> {# End Main Details Container #}
-
-
-{# Back Links Footer #}
-<div class="text-center space-x-4">
-    <a href="{{ url_for('index') }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to Home</a>
-    {# Link back to the primary category list if available #}
-    {% if details.primary_type_category_key %}
-         <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="text-sm text-dtu-red hover:underline">&laquo; Back to {{ details.primary_type_display }} list</a>
-    {% endif %}
-    {# Add other relevant back links if needed #}
-</div>
-
-{% endblock %} 
+</body>
+</html> 
