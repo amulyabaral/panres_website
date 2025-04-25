@@ -676,9 +676,10 @@ def handle_not_found(e):
                            # Pass empty/default data for charts/categories to avoid template errors
                            index_categories=INDEX_CATEGORIES, # Still need this for layout
                            category_counts={},
-                           antibiotic_chart_data=None,
-                           source_db_chart_data=None,
-                           phenotype_chart_data=None), 404
+                           # Pass chart variables expected by the template's JS, set to None
+                           antibiotic=None,
+                           source_db=None,
+                           phenotype=None), 404
 
 @app.errorhandler(500)
 def internal_server_error(e):
@@ -693,9 +694,10 @@ def internal_server_error(e):
                            # Pass empty/default data
                            index_categories=INDEX_CATEGORIES, # Still need this for layout
                            category_counts={},
-                           antibiotic_chart_data=None,
-                           source_db_chart_data=None,
-                           phenotype_chart_data=None), 500
+                           # Pass chart variables expected by the template's JS, set to None
+                           antibiotic=None,
+                           source_db=None,
+                           phenotype=None), 500
 
 # --- Utility Route (Example - can be removed) ---
 @app.route('/testdb')

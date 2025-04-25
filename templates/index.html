@@ -127,11 +127,18 @@
     {# Custom JS for Charts #}
     <script>
       document.addEventListener('DOMContentLoaded', () => {
-        if (document.querySelector('.bg-red-100')) return; // skip on error page
+        // Check if we are showing an error message (rendered by error handlers)
+        // If so, the chart data might not be available or relevant.
+        const isErrorPage = document.querySelector('.bg-red-100[role="alert"]');
+        if (isErrorPage) {
+            console.log("Error page detected, skipping chart initialization.");
+            return; // Don't try to initialize charts on error pages
+        }
 
-        const pieCfg       = JSON.parse('{{ antibiotic   | tojson | safe }}');
-        const barCfg       = JSON.parse('{{ source_db    | tojson | safe }}');
-        const stackedCfg   = JSON.parse('{{ phenotype    | tojson | safe }}');
+        // Parse JSON data - this will result in null if the Python variable was None
+        const pieCfg       = JSON.parse('{{ antibiotic | tojson | safe }}');
+        const barCfg       = JSON.parse('{{ source_db  | tojson | safe }}');
+        const stackedCfg   = JSON.parse('{{ phenotype  | tojson | safe }}');
 
         /* helpers – one per chart style */
         const pie = (id, d) => new Chart(id, {
@@ -163,6 +170,7 @@
           }
         });
 
+        // Check if the parsed config is not null before creating the chart
         if (pieCfg)       pie(document.getElementById('antibiotic'), pieCfg);
         if (barCfg)       bar(document.getElementById('sourceDb'),  barCfg);
         if (stackedCfg)   stacked(document.getElementById('phenotype'), stackedCfg);
