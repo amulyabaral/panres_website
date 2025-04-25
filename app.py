@@ -567,9 +567,9 @@ def index():
     return render_template('index.html',
                            index_categories=INDEX_CATEGORIES,
                            category_counts=category_counts,
-                           source_db_chart_data=chart_data.get('source_db'),
-                           phenotype_chart_data=chart_data.get('phenotype'),
-                           antibiotic_chart_data=chart_data.get('antibiotic'),
+                           source_db=chart_data.get('source_db'),
+                           phenotype=chart_data.get('phenotype'),
+                           antibiotic=chart_data.get('antibiotic'),
                            show_error=False)
 
 @app.route('/list/<category_key>')
