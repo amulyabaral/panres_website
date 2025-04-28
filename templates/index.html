@@ -36,7 +36,6 @@
             {# Standard Card Style #}
             {# Loop through the configuration dict #}
             {% for key, info in index_categories.items() %}
-            {# Card uses standard utilities already, but ensure button uses utilities now #}
             <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 flex flex-col">
                 <h4 class="text-xl font-semibold text-dtu-red mb-2">{{ key }}</h4>
                 <p class="text-gray-600 text-sm mb-4 flex-grow">{{ info.description }}</p>
@@ -56,83 +55,85 @@
         </div>
     </section>
 
-    {# --- Charts Section (Only show if NOT showing an error) --- #}
+    {# --- Charts Section (Combined Card) --- #}
     <section class="mb-12">
-        {# Changed title text #}
-        <h3 class="text-2xl font-semibold text-gray-700 mb-6 text-center">Here's an overview of what you'll find in PanRes 2.0</h3>
+        <h3 class="text-2xl font-semibold text-gray-700 mb-6 text-center">PanRes 2.0 Overview</h3>
 
-        {# Grid for top two charts (Pie and Bar) #}
-        {# Kept lg:grid-cols-2 and gap-8 #}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {# Antibiotic Classes Chart Card (Pie) #}
-            {# Apply card utilities directly, change p-6 to p-4 #}
-            <div class="bg-white p-4 rounded-lg shadow-md border border-gray-200 flex flex-col">
-                <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Genes per Antibiotic Class</h4>
-                <p class="text-gray-600 text-sm mb-4 text-center">Distribution of PanRes genes across different antibiotic resistance classes</p>
-                {% if antibiotic and antibiotic.data %}
-                    {# Apply chart container utilities directly #}
-                    <div class="relative h-80 md:h-96 mx-auto max-w-full mb-4">
-                        <canvas id="antibiotic"></canvas>
-                    </div>
-                    {# Apply button utilities directly #}
-                    <div class="mt-auto text-center">
-                        <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}"
-                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
-                            Browse by Antibiotic Class
-                        </a>
-                    </div>
-                {% else %}
-                    <p class="text-gray-500 italic text-center py-4">No data available for antibiotic classes chart.</p>
-                {% endif %}
-            </div>
+        {# Single Card Container for all charts #}
+        <div class="bg-white p-4 md:p-6 rounded-lg shadow-md border border-gray-200">
 
-            {# Source Databases Chart Card (Bar) #}
-            {# Apply card utilities directly, change p-6 to p-4 #}
-            <div class="bg-white p-4 rounded-lg shadow-md border border-gray-200 flex flex-col">
-                <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Genes per Source Database</h4>
-                <p class="text-gray-600 text-sm mb-4 text-center">Number of genes contributed by each source database to the PanRes collection</p>
-                {% if source_db and source_db.segments %}
-                    {# Apply chart container utilities directly #}
-                    <div class="relative h-80 md:h-96 mx-auto max-w-full mb-4">
-                        <canvas id="sourceDb"></canvas>
-                    </div>
-                    {# Apply button utilities directly #}
-                    <div class="mt-auto text-center">
-                        <a href="{{ url_for('list_items', category_key='Source Databases') }}"
-                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
-                            Browse by Source Database
-                        </a>
-                    </div>
-                {% else %}
-                    <p class="text-gray-500 italic text-center py-4">No data available for source databases chart.</p>
-                {% endif %}
-            </div>
-        </div> {# End of grid for top two charts #}
+            {# Grid for top two charts (Pie and Bar) #}
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-6 lg:mb-8">
 
-        {# Container for the bottom chart (Phenotype Stacked Bar) #}
-        {# Kept flex container to center the card #}
-        <div class="flex justify-center">
-            {# Apply card utilities directly, change p-6 to p-4 #}
-            <div class="bg-white p-4 rounded-lg shadow-md border border-gray-200 flex flex-col w-full lg:max-w-xl">
-                <h4 class="text-lg font-semibold text-gray-700 mb-4 text-center">Predicted Phenotype Proportions</h4>
-                <p class="text-gray-600 text-sm mb-4 text-center">Relative distribution of phenotypes across PanGenes</p>
-                {% if phenotype and phenotype.segments %}
-                    {# Apply chart container utilities directly #}
-                    <div class="relative h-80 md:h-96 mx-auto max-w-full mb-4">
-                        <canvas id="phenotype"></canvas>
-                    </div>
-                    {# Apply button utilities directly #}
-                    <div class="mt-auto text-center">
-                        <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}"
-                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
-                            Browse by Predicted Phenotype
-                        </a>
-                    </div>
-                {% else %}
-                    <p class="text-gray-500 italic text-center py-4">No phenotype data available.</p>
-                {% endif %}
-            </div>
-        </div> {# End of container for bottom chart #}
+                {# Antibiotic Classes Chart Card (Pie) #}
+                <div class="flex flex-col"> {# Removed card styling, just a container #}
+                    <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Genes per Antibiotic Class</h4>
+                    <p class="text-gray-600 text-sm mb-4 text-center">Distribution across resistance classes</p>
+                    {% if antibiotic and antibiotic.data %}
+                        {# Adjusted height, use relative for positioning #}
+                        <div class="relative h-64 md:h-80 mx-auto w-full max-w-sm mb-4">
+                            <canvas id="antibiotic"></canvas>
+                        </div>
+                        {# Button #}
+                        <div class="mt-auto text-center">
+                            <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}"
+                               class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
+                                Browse by Class
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-gray-500 italic text-center py-4">No data available for antibiotic classes chart.</p>
+                    {% endif %}
+                </div>
+
+                {# Source Databases Chart Card (Bar) #}
+                <div class="flex flex-col"> {# Removed card styling, just a container #}
+                    <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Genes per Source Database</h4>
+                    <p class="text-gray-600 text-sm mb-4 text-center">Contributions from source databases</p>
+                    {% if source_db and source_db.segments %}
+                        {# Adjusted height, use relative for positioning #}
+                        <div class="relative h-64 md:h-80 mx-auto w-full mb-4">
+                            <canvas id="sourceDb"></canvas>
+                        </div>
+                        {# Button #}
+                        <div class="mt-auto text-center">
+                            <a href="{{ url_for('list_items', category_key='Source Databases') }}"
+                               class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
+                                Browse by Source
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-gray-500 italic text-center py-4">No data available for source databases chart.</p>
+                    {% endif %}
+                </div>
+            </div> {# End of grid for top two charts #}
+
+            {# Divider (Optional) #}
+            <hr class="my-4 md:my-6 border-gray-200">
+
+            {# Container for the bottom chart (Phenotype Stacked Bar) #}
+            <div class="flex flex-col"> {# Removed card styling, just a container #}
+                 <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Predicted Phenotype Proportions</h4>
+                 <p class="text-gray-600 text-sm mb-4 text-center">Relative distribution of phenotypes across PanGenes</p>
+                 {% if phenotype and phenotype.segments %}
+                     {# Make container wider and adjust height #}
+                     {# Reduced height slightly as labels are now inside #}
+                     <div class="relative h-20 md:h-24 w-full mx-auto mb-4">
+                         <canvas id="phenotype"></canvas>
+                     </div>
+                     {# Button #}
+                     <div class="mt-auto text-center">
+                         <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}"
+                            class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
+                             Browse by Phenotype
+                         </a>
+                     </div>
+                 {% else %}
+                     <p class="text-gray-500 italic text-center py-4">No phenotype data available.</p>
+                 {% endif %}
+            </div> {# End of container for bottom chart #}
+
+        </div> {# End of Single Card Container #}
     </section>
 
     {# --- Citation Section (Only show if NOT showing an error) --- #}
@@ -150,22 +151,26 @@
 {% endblock %}
 
 {% block scripts %}
-    {# Chart.js Scripts #}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    {# <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script> #}
-
+    {# Chart.js Scripts are now in base.html #}
     {# Custom JS for Charts #}
     <script>
       document.addEventListener('DOMContentLoaded', () => {
-        // Check if we are showing an error message (rendered by error handlers)
-        // If so, the chart data might not be available or relevant.
         const isErrorPage = document.querySelector('.bg-red-100[role="alert"]');
         if (isErrorPage) {
             console.log("Error page detected, skipping chart initialization.");
-            return; // Don't try to initialize charts on error pages
+            return;
         }
 
-        // Parse JSON data - this will result in null if the Python variable was None
+        // Register the datalabels plugin globally
+        // Make sure ChartDataLabels is the correct global variable name provided by the plugin script
+        if (typeof ChartDataLabels !== 'undefined') {
+            Chart.register(ChartDataLabels);
+        } else {
+            console.warn('ChartDataLabels plugin not found. Percentages on stacked bar chart will not be displayed.');
+        }
+
+
+        // Parse JSON data
         const pieCfg       = JSON.parse('{{ antibiotic | tojson | safe }}');
         const barCfg       = JSON.parse('{{ source_db  | tojson | safe }}');
         const stackedCfg   = JSON.parse('{{ phenotype  | tojson | safe }}');
@@ -173,37 +178,127 @@
         /* helpers – one per chart style */
         const pie = (id, d) => new Chart(id, {
           type: 'pie',
-          data: {labels: d.labels, datasets:[{data:d.data, backgroundColor:d.colors}]},
-          // Disable legend for pie chart
-          options:{responsive:true, plugins:{legend:{display: false}}}
+          data: {
+              labels: d.labels,
+              datasets:[{
+                  data:d.data,
+                  backgroundColor:d.colors // Use colors from Python
+              }]
+          },
+          options:{
+              responsive: true,
+              maintainAspectRatio: false, // Allow canvas to fill container height/width
+              plugins:{
+                  legend:{ display: true, position: 'bottom', labels: { boxWidth: 12 } }, // Keep legend for pie
+                  tooltip: {
+                      callbacks: { // Optional: Format tooltip
+                          label: function(context) {
+                              let label = context.label || '';
+                              if (label) {
+                                  label += ': ';
+                              }
+                              if (context.parsed !== null) {
+                                  // Calculate percentage for tooltip
+                                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                  const value = context.raw;
+                                  const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                  label += `${value} (${percentage}%)`;
+                              }
+                              return label;
+                          }
+                      }
+                  }
+              }
+          }
         });
+
         const bar = (id, d) => new Chart(id, {
           type:'bar',
           data:{
             labels:d.segments.map(s=>s.name),
-            datasets:[{data:d.segments.map(s=>s.count), backgroundColor:d.segments.map(s=>s.color)}]
+            datasets:[{
+                data:d.segments.map(s=>s.count),
+                backgroundColor:d.segments.map(s=>s.color) // Use colors from Python
+            }]
           },
           options:{
             indexAxis:'y',
-            // Legend is already disabled here, no change needed
-            plugins:{legend:{display:false}},
-            scales:{y:{position:'right'}, x:{beginAtZero:true}}
-          }
-        });
-        const stacked = (id, d) => new Chart(id, {
-          type:'bar',
-          data:{
-            labels:['Predicted Phenotypes'],
-            datasets:d.segments.map(s=>({label:s.name,data:[s.count],backgroundColor:s.color}))
-          },
-          options:{
-            indexAxis:'y', responsive:true, scales:{x:{stacked:true},y:{stacked:true,display:false}},
-            // Disable legend for stacked bar chart
-            plugins:{legend:{display: false}}
+            responsive: true,
+            maintainAspectRatio: false, // Allow canvas to fill container height/width
+            plugins:{ legend:{display:false} }, // No legend for bar
+            scales:{
+                // Adjust padding/position if labels overlap
+                y:{ position:'left', ticks: { autoSkip: false, padding: 5 } }, // Keep labels on left
+                x:{ beginAtZero:true }
+            }
           }
         });
 
-        // Check if the parsed config is not null before creating the chart
+        const stacked = (id, d) => new Chart(id, {
+          type:'bar',
+          data:{
+            labels:['Predicted Phenotypes'], // Single category label for the axis (not displayed)
+            // Map segments to datasets, including the percentage for the datalabels plugin
+            datasets: d.segments.map(s => ({
+                label: s.name, // Used for tooltip
+                data: [s.percentage], // Use percentage as the data value for the bar length
+                backgroundColor: s.color, // Use color from Python
+                // Store count and raw percentage for potential use in tooltips/labels if needed
+                count: s.count,
+                percentage: s.percentage
+            }))
+          },
+          options:{
+            indexAxis:'y',
+            responsive:true,
+            maintainAspectRatio: false, // Allow canvas to fill container height/width
+            scales:{
+                x:{ stacked:true, display: true, max: 100, ticks: { callback: value => value + '%' } }, // Show X-axis with %
+                y:{ stacked:true, display:false } // Hide Y-axis labels/ticks
+            },
+            plugins:{
+                legend:{ display: false }, // Hide legend
+                tooltip: {
+                    callbacks: { // Custom tooltip to show name and original count/percentage
+                         label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            // Access the original count and percentage stored in the dataset
+                            const count = context.dataset.count;
+                            const percentage = context.dataset.percentage;
+                            if (count !== undefined && percentage !== undefined) {
+                                label += `${count} (${percentage.toFixed(1)}%)`;
+                            } else {
+                                // Fallback if data is missing
+                                label += context.formattedValue + '%';
+                            }
+                            return label;
+                        }
+                    }
+                },
+                // Configure datalabels plugin
+                datalabels: {
+                    // Display the percentage inside the bar segments
+                    formatter: (value, context) => {
+                        // 'value' here is the percentage we put in data: [s.percentage]
+                        // Only show label if percentage is large enough to fit
+                        return value > 5 ? value.toFixed(1) + '%' : '';
+                    },
+                    color: '#ffffff', // White text for contrast
+                    // Optional: Add stroke or background for better readability on similar colors
+                    // textStrokeColor: 'black',
+                    // textStrokeWidth: 1,
+                    font: {
+                        weight: 'bold'
+                    }
+                }
+            }
+          }
+        });
+
+        // Initialize charts if data exists
         if (pieCfg)       pie(document.getElementById('antibiotic'), pieCfg);
         if (barCfg)       bar(document.getElementById('sourceDb'),  barCfg);
         if (stackedCfg)   stacked(document.getElementById('phenotype'), stackedCfg);

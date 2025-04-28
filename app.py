@@ -5,6 +5,7 @@ import logging
 from urllib.parse import unquote, quote
 from collections import defaultdict
 import datetime
+import itertools
 
 # --- Configuration ---
 DATABASE = 'panres_ontology.db'
@@ -52,6 +53,14 @@ PREDICATE_MAP = {
     'domain': "Domain",
     'range': "Range",
 }
+
+# Define a nicer color palette
+# (Example using Tableau 10 colors - feel free to replace with your preferred palette)
+COLOR_PALETTE = [
+    '#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
+    '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC'
+]
+color_cycler = itertools.cycle(COLOR_PALETTE) # Create a cycler
 
 # --- Logging Setup ---
 logging.basicConfig(level=logging.INFO)
@@ -338,12 +347,14 @@ def get_category_counts():
 def get_chart_data():
     """Fetches data specifically formatted for the homepage charts."""
     chart_data = {
-        # three compact dicts that the front-end can render generically
         'source_db': None,
         'phenotype': None,
         'antibiotic': None,
     }
     db = get_db()
+    # Reset color cycler for each request to ensure consistency if data changes slightly
+    global color_cycler
+    color_cycler = itertools.cycle(COLOR_PALETTE)
 
     # 1. Source Database Data (Bar Chart - based on OriginalGene sources)
     try:
@@ -365,15 +376,16 @@ def get_chart_data():
                         'name': row['database_name'],
                         'count': row['gene_count'],
                         'percentage': (row['gene_count'] / total_genes * 100) if total_genes else 0,
-                        'color': get_color_for_item(row['database_name'], index) # Simple color assignment
-                    } for index, row in enumerate(results)
+                        # Use the color cycler
+                        'color': next(color_cycler)
+                    } for row in results # No need for index here
                 ],
                 'total_count': total_genes
             }
     except Exception as e:
         app.logger.error(f"Error fetching source database chart data: {e}")
 
-    # 2. Predicted Phenotype Data (Bar Chart - based on PanGene phenotypes)
+    # 2. Predicted Phenotype Data (Stacked Bar Chart - based on PanGene phenotypes)
     try:
         # Count PanGenes per phenotype
         query = f"""
@@ -393,8 +405,9 @@ def get_chart_data():
                         'name': row['phenotype_name'],
                         'count': row['gene_count'],
                         'percentage': (row['gene_count'] / total_genes * 100) if total_genes else 0,
-                        'color': get_color_for_item(row['phenotype_name'], index) # Simple color assignment
-                    } for index, row in enumerate(results)
+                        # Use the color cycler
+                        'color': next(color_cycler)
+                    } for row in results # No need for index here
                 ],
                 'total_count': total_genes
             }
@@ -417,7 +430,8 @@ def get_chart_data():
         if results:
             labels = [row['class_name'] for row in results]
             data_points = [row['gene_count'] for row in results]
-            colors = [get_color_for_item(label, i) for i, label in enumerate(labels)] # Generate colors
+            # Use the color cycler
+            colors = [next(color_cycler) for _ in labels] # Generate colors
 
             chart_data['antibiotic'] = {
                 'labels': labels,
@@ -430,16 +444,6 @@ def get_chart_data():
 
 
     return chart_data
-
-# Simple color generation helper (replace with a better palette if needed)
-def get_color_for_item(item_name, index):
-    """Generates a deterministic-ish color based on index."""
-    # Simple HSL-based color generation, varying hue
-    hue = (index * 137.5) % 360 # Use golden angle approximation for distribution
-    saturation = 70
-    lightness = 50
-    return f'hsl({hue}, {saturation}%, {lightness}%)'
-
 
 def get_items_for_category(category_key):
     """Fetches items belonging to a specific index category (for flat lists)."""

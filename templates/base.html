@@ -64,5 +64,10 @@
     {# Child template scripts go here #}
     {% endblock %}
 
+    {# Include Chart.js Core Library (if needed by child templates) #}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    {# Include Chart.js Datalabels Plugin (if needed by child templates) #}
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
 </body>
 </html> 
