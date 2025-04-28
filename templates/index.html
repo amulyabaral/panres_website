@@ -29,34 +29,42 @@
         </div>
     </section>
 
-    {# --- Browse Categories Section --- #}
-    <section class="mb-12">
-        <h3 class="text-2xl font-semibold text-gray-700 mb-6 text-center">Browse Data</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {# Standard Card Style #}
-            {# Loop through the configuration dict #}
-            {% for key, info in index_categories.items() %}
-            <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 flex flex-col">
-                <h4 class="text-xl font-semibold text-dtu-red mb-2">{{ key }}</h4>
-                <p class="text-gray-600 text-sm mb-4 flex-grow">{{ info.description }}</p>
-                <div class="text-sm text-gray-500 mb-4">
-                    {# Access the count from the category_counts dict using the key #}
-                    <span class="font-medium">{{ category_counts.get(key, 'N/A') }}</span> items
-                </div>
-                {# Apply button utilities directly instead of .btn #}
-                <a href="{{ url_for('list_items', category_key=key) }}"
-                   class="mt-auto inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 text-center">
-                    View {{ key }}
+    {# --- New Access/Browse Section --- #}
+    <section id="access" class="py-12 sm:py-16 bg-dtu-red text-white mb-12 rounded-lg shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl font-extrabold tracking-tight sm:text-4xl">
+                Browse the PanRes Ontology
+            </h2>
+            <p class="mt-4 max-w-3xl mx-auto text-lg text-gray-100">
+                Find detailed information about each PanRes gene: discover its source database(s),
+                see how it's named across different resources, explore its predicted antibiotic resistance phenotype(s),
+                and understand its relationship to antibiotic classes.
+                {# Note: Folding information is not currently part of the data model, but text included as requested #}
+                <!-- and see how they fold -->
+            </p>
+            <div class="mt-10 flex justify-center items-center gap-x-6">
+                 {# This button can link back to the index or a future dedicated search page #}
+                 {# For now, it reinforces that browsing happens via the charts/categories below #}
+                <a href="{{ url_for('index') }}#charts" class="rounded-md bg-white px-5 py-3 text-base font-semibold text-dtu-red shadow-sm hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition">
+                    Start Browsing Below <span aria-hidden="true">&darr;</span>
                 </a>
+                {# Example secondary link (optional) - could link to documentation or download page if available #}
+                <!--
+                <a href="#" class="text-base font-semibold leading-6 text-gray-100 hover:text-white transition">
+                    Learn more <span aria-hidden="true">&rarr;</span>
+                </a>
+                -->
             </div>
-            {% else %}
-            <p class="text-gray-500 italic md:col-span-2 lg:col-span-4 text-center">No categories found.</p>
-            {% endfor %}
+             <p class="mt-6 text-sm text-gray-200">
+                Use the charts below to browse genes by Antibiotic Class, Source Database, or Predicted Phenotype.
+            </p>
         </div>
     </section>
+    {# --- END New Access/Browse Section --- #}
 
     {# --- Charts Section (Combined Card) --- #}
-    <section class="mb-12">
+    {# Add an id for the anchor link from the button above #}
+    <section id="charts" class="mb-12">
         <h3 class="text-2xl font-semibold text-gray-700 mb-6 text-center">PanRes 2.0 Overview</h3>
 
         {# Single Card Container for all charts #}
@@ -135,6 +143,7 @@
 
         </div> {# End of Single Card Container #}
     </section>
+    {# --- END Charts Section --- #}
 
     {# --- Citation Section (Only show if NOT showing an error) --- #}
     <section class="bg-gray-100 p-6 rounded-lg border border-gray-200 shadow-sm">
