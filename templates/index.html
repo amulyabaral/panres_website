@@ -365,11 +365,13 @@
                  console.log("Data found and canvas '#antibiotic' exists. Attempting to create chart.");
                  createPieDoughnut('antibiotic', antibioticCfg, 'doughnut'); // Keep as doughnut
             } else {
-                 // This case means data was passed, but the {% if %} block didn't render the canvas (shouldn't happen if data is truthy)
+                 /* This case means data was passed, but the {% if %} block in the template
+                    didn't render the canvas (shouldn't happen if data is truthy) */
                  console.warn("Antibiotic data found, but canvas element '#antibiotic' not found in DOM. Skipping chart creation.");
             }
         } else {
-            // This case means antibioticCfg was null/undefined after parsing, likely because no data was passed from Flask.
+            /* This case means antibioticCfg was null/undefined after parsing,
+               likely because no data was passed from Flask or it was empty. */
             console.log("Skipping antibiotic chart initialization (no data parsed or data was null/empty).");
         }
 
@@ -379,9 +381,13 @@
                  console.log("Data found and canvas '#sourceDb' exists. Attempting to create chart.");
                  createPieDoughnut('sourceDb',  sourceDbCfg, 'doughnut'); // Explicitly doughnut
             } else {
+                 /* This case means data was passed, but the {% if %} block in the template
+                    didn't render the canvas (shouldn't happen if data is truthy) */
                  console.warn("Source DB data found, but canvas element '#sourceDb' not found in DOM. Skipping chart creation.");
             }
         } else {
+             /* This case means sourceDbCfg was null/undefined after parsing,
+                likely because no data was passed from Flask or it was empty. */
              console.log("Skipping sourceDb chart initialization (no data parsed or data was null/empty).");
         }
 
@@ -391,9 +397,13 @@
                  console.log("Data found and canvas '#phenotype' exists. Attempting to create chart.");
                  createStackedBar('phenotype', phenotypeCfg);
             } else {
+                 /* This case means data was passed, but the {% if %} block in the template
+                    didn't render the canvas (shouldn't happen if data is truthy) */
                  console.warn("Phenotype data found, but canvas element '#phenotype' not found in DOM. Skipping chart creation.");
             }
         } else {
+             /* This case means phenotypeCfg was null/undefined after parsing,
+                likely because no data was passed from Flask or it was empty. */
              console.log("Skipping phenotype chart initialization (no data parsed or data was null/empty).");
         }
         console.log("Chart initialization finished."); // Log: End initialization
