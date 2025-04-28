@@ -165,126 +165,150 @@
     {# Chart.js Core and Datalabels Plugin are included in base.html #}
     <script>
       document.addEventListener('DOMContentLoaded', () => {
+        // --- Chart Initialization ---
+
+        // 1. Check if we are on an error page; if so, do nothing.
         const isErrorPage = document.querySelector('.bg-red-100[role="alert"]');
         if (isErrorPage) {
-            // Don't try to initialize charts on an error page
+            console.log("Error page detected, skipping chart initialization.");
             return;
         }
 
+        // 2. Find the container holding the chart data attributes.
         const chartDataContainer = document.getElementById('chart-data-container');
         if (!chartDataContainer) {
-            console.error("Chart data container element not found!"); // Keep critical error log
+            console.error("Chart data container element (#chart-data-container) not found!");
+            // Optionally display a general error message if the container is missing
+            const chartsSection = document.getElementById('charts');
+            if(chartsSection) {
+                chartsSection.innerHTML = '<p class="text-center text-red-600 p-4">Error: Could not load chart data container.</p>';
+            }
             return;
         }
 
-        let antibioticCfg = null;
-        let sourceDbCfg = null;
-        let phenotypeCfg = null;
+        // 3. Safely parse chart data from data attributes.
+        let antibioticConfig = null;
+        let sourceDbConfig = null;
+        let phenotypeConfig = null;
 
         try {
             const antibioticData = chartDataContainer.dataset.antibiotic;
             const sourceDbData = chartDataContainer.dataset.sourceDb;
             const phenotypeData = chartDataContainer.dataset.phenotype;
 
-            // Parse data only if it exists and is not the string 'null'
-            if (antibioticData && antibioticData !== 'null') antibioticCfg = JSON.parse(antibioticData);
-            if (sourceDbData && sourceDbData !== 'null') sourceDbCfg = JSON.parse(sourceDbData);
-            if (phenotypeData && phenotypeData !== 'null') phenotypeCfg = JSON.parse(phenotypeData);
-
+            // Parse only if the data attribute exists and is not the string 'null'
+            if (antibioticData && antibioticData !== 'null') {
+                antibioticConfig = JSON.parse(antibioticData);
+            }
+            if (sourceDbData && sourceDbData !== 'null') {
+                sourceDbConfig = JSON.parse(sourceDbData);
+            }
+            if (phenotypeData && phenotypeData !== 'null') {
+                phenotypeConfig = JSON.parse(phenotypeData);
+            }
         } catch (e) {
-            console.error("Error parsing chart JSON data from data attributes:", e); // Keep critical error log
-            return;
+            console.error("Error parsing chart JSON data from data attributes:", e);
+            // Display a general error message within the charts section
+            const chartsSection = document.getElementById('charts');
+            if(chartsSection) {
+                 chartsSection.innerHTML = '<p class="text-center text-red-600 p-4">Error: Could not parse chart data.</p>';
+            }
+            return; // Stop if parsing fails
         }
 
-        /* Chart helper function for Donut charts */
-        const createDonutChart = (canvasId, chartConfig) => {
-            const ctx = document.getElementById(canvasId);
-            if (!ctx) {
-                console.error(`Canvas element with id '${canvasId}' not found.`); // Keep critical error log
-                return null;
+        // 4. Helper function to create a Donut Chart
+        const createDonutChart = (canvasId, config) => {
+            const canvasElement = document.getElementById(canvasId);
+            const chartContainer = canvasElement ? canvasElement.closest('div.relative') : null; // Find the parent container
+
+            // Basic validation: Check if canvas exists
+            if (!canvasElement) {
+                console.error(`Canvas element with id '${canvasId}' not found.`);
+                return null; // Cannot create chart
             }
-            // Check if config data is valid
-            if (!chartConfig || !chartConfig.labels || !chartConfig.data || !chartConfig.colors || chartConfig.data.length !== chartConfig.labels.length) {
-                 console.error(`Invalid or incomplete chart config for canvas id '${canvasId}'.`); // Keep critical error log
-                 // Optionally display a message on the canvas container
-                 const parentDiv = ctx.closest('div.relative'); // Find the parent container
-                 if (parentDiv) {
-                     parentDiv.innerHTML = '<p class="text-center text-gray-500 text-sm p-4">Chart data unavailable.</p>';
+
+            // Data validation: Check if config is valid and has necessary parts
+            if (!config || !config.labels || !config.data || !config.colors || !config.total_count ||
+                config.labels.length !== config.data.length || config.labels.length !== config.colors.length || config.data.length === 0) {
+                console.warn(`Invalid or incomplete chart config for canvas id '${canvasId}'. Config:`, config);
+                if (chartContainer) {
+                    chartContainer.innerHTML = `<p class="text-center text-gray-500 text-sm p-4">${canvasId.charAt(0).toUpperCase() + canvasId.slice(1)} data unavailable.</p>`;
+                }
+                return null; // Cannot create chart with invalid data
+            }
+
+            // Get canvas context
+            const ctx = canvasElement.getContext('2d');
+            if (!ctx) {
+                 console.error(`Failed to get 2D context for canvas id '${canvasId}'.`);
+                 if (chartContainer) {
+                    chartContainer.innerHTML = `<p class="text-center text-gray-500 text-sm p-4">Error initializing ${canvasId} chart.</p>`;
                  }
                  return null;
             }
 
+            // Create the chart
             try {
                 return new Chart(ctx, {
                     type: 'doughnut',
                     data: {
-                        labels: chartConfig.labels,
-                        datasets:[{
-                            data: chartConfig.data,
-                            backgroundColor: chartConfig.colors,
-                            borderColor: '#ffffff', // Add white border for separation
+                        labels: config.labels,
+                        datasets: [{
+                            label: 'Count', // Optional dataset label
+                            data: config.data,
+                            backgroundColor: config.colors,
+                            borderColor: '#ffffff', // White border between segments
                             borderWidth: 1
                         }]
                     },
-                    options:{
+                    options: {
                         responsive: true,
-                        maintainAspectRatio: false, // Allows chart to fill container height
-                        cutout: '60%', // Adjust doughnut thickness
-                        plugins:{
-                            legend:{
-                                display: false // Keep legend hidden as per original design
+                        maintainAspectRatio: false, // Allow chart to fill container height
+                        cutout: '60%', // Adjust doughnut thickness (percentage or pixels)
+                        plugins: {
+                            legend: {
+                                display: false // Hide the default legend
                             },
                             tooltip: {
+                                // Customize tooltip appearance and content
                                 callbacks: {
                                     label: function(context) {
                                         let label = context.label || '';
-                                        if (label) { label += ': '; }
-                                        const value = context.raw;
-                                        // Use total_count from the config for accurate percentage
-                                        const total = chartConfig.total_count;
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        const value = context.raw; // The raw data value for this segment
+                                        const total = config.total_count; // Use total_count from config
                                         const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
                                         label += `${value} (${percentage}%)`;
                                         return label;
                                     }
                                 }
+                            },
+                            // Ensure datalabels plugin (if registered) doesn't interfere if not needed
+                            datalabels: {
+                                display: false // Explicitly disable datalabels on the chart segments
                             }
-                            // Datalabels plugin configuration (if needed later)
-                            // datalabels: { display: false } // Example: explicitly disable if plugin is registered
                         }
                     }
                 });
             } catch (chartError) {
-                console.error(`Error creating chart '${canvasId}':`, chartError); // Keep critical error log
+                console.error(`Error creating chart '${canvasId}':`, chartError);
+                 if (chartContainer) {
+                    chartContainer.innerHTML = `<p class="text-center text-red-600 text-sm p-4">Error rendering ${canvasId} chart.</p>`;
+                 }
                 return null;
             }
         };
 
-        // Initialize charts if config data is available
-        if (antibioticCfg) {
-             createDonutChart('antibiotic', antibioticCfg);
-        } else {
-             // Optionally handle missing chart data visually (e.g., display message)
-             const chartDiv = document.getElementById('antibiotic')?.closest('div.relative');
-             if (chartDiv) chartDiv.innerHTML = '<p class="text-center text-gray-500 text-sm p-4">Antibiotic data unavailable.</p>';
-        }
-
-        if (sourceDbCfg) {
-             createDonutChart('sourceDb', sourceDbCfg);
-        } else {
-             const chartDiv = document.getElementById('sourceDb')?.closest('div.relative');
-             if (chartDiv) chartDiv.innerHTML = '<p class="text-center text-gray-500 text-sm p-4">Source DB data unavailable.</p>';
-        }
-
-        if (phenotypeCfg) {
-             createDonutChart('phenotype', phenotypeCfg);
-        } else {
-             const chartDiv = document.getElementById('phenotype')?.closest('div.relative');
-             if (chartDiv) chartDiv.innerHTML = '<p class="text-center text-gray-500 text-sm p-4">Phenotype data unavailable.</p>';
-        }
+        // 5. Initialize each chart if its config data is valid
+        createDonutChart('antibiotic', antibioticConfig);
+        createDonutChart('sourceDb', sourceDbConfig);
+        createDonutChart('phenotype', phenotypeConfig);
 
       }); // End DOMContentLoaded for charts
 
-      // --- Autocomplete Suggestion Logic ---
+      // --- Autocomplete Suggestion Logic (Keep existing logic below) ---
       let suggestionTimeout; // To debounce hiding suggestions
       let fetchController; // To abort previous fetch requests
 
