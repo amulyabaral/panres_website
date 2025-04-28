@@ -162,33 +162,20 @@
 {% endblock %}
 
 {% block scripts %}
-    {# Chart.js Scripts are now in base.html #}
-    {# Custom JS for Charts #}
+    {# Chart.js Core and Datalabels Plugin are included in base.html #}
     <script>
       document.addEventListener('DOMContentLoaded', () => {
-        console.log("DOM fully loaded and parsed");
-
         const isErrorPage = document.querySelector('.bg-red-100[role="alert"]');
         if (isErrorPage) {
-            console.log("Error page detected, skipping chart initialization.");
+            // Don't try to initialize charts on an error page
             return;
-        }
-        console.log("Not an error page, proceeding with chart setup.");
-
-        // Register the datalabels plugin globally (optional, only if needed for tooltips)
-        if (typeof ChartDataLabels !== 'undefined') {
-            // Chart.register(ChartDataLabels); // Not strictly needed if only using tooltips
-            console.log("ChartDataLabels plugin found.");
-        } else {
-            console.warn('ChartDataLabels plugin not found.');
         }
 
         const chartDataContainer = document.getElementById('chart-data-container');
         if (!chartDataContainer) {
-            console.error("Chart data container element not found!");
+            console.error("Chart data container element not found!"); // Keep critical error log
             return;
         }
-        console.log("Chart data container found.");
 
         let antibioticCfg = null;
         let sourceDbCfg = null;
@@ -199,105 +186,101 @@
             const sourceDbData = chartDataContainer.dataset.sourceDb;
             const phenotypeData = chartDataContainer.dataset.phenotype;
 
+            // Parse data only if it exists and is not the string 'null'
             if (antibioticData && antibioticData !== 'null') antibioticCfg = JSON.parse(antibioticData);
             if (sourceDbData && sourceDbData !== 'null') sourceDbCfg = JSON.parse(sourceDbData);
             if (phenotypeData && phenotypeData !== 'null') phenotypeCfg = JSON.parse(phenotypeData);
 
-            console.log("Parsed antibiotic config:", antibioticCfg);
-            console.log("Parsed sourceDb config:", sourceDbCfg);
-            console.log("Parsed phenotype config:", phenotypeCfg);
-
         } catch (e) {
-            console.error("Error parsing chart JSON data from data attributes:", e);
+            console.error("Error parsing chart JSON data from data attributes:", e); // Keep critical error log
             return;
         }
 
         /* Chart helper function for Donut charts */
-        const createPieDoughnut = (id, d) => { // Removed type parameter, always doughnut
-            console.log(`Attempting to create doughnut chart with id '${id}'`);
-            const ctx = document.getElementById(id);
+        const createDonutChart = (canvasId, chartConfig) => {
+            const ctx = document.getElementById(canvasId);
             if (!ctx) {
-                console.error(`Canvas element with id '${id}' not found for doughnut chart.`);
+                console.error(`Canvas element with id '${canvasId}' not found.`); // Keep critical error log
                 return null;
             }
-            console.log(`Canvas element '${id}' found.`);
+            // Check if config data is valid
+            if (!chartConfig || !chartConfig.labels || !chartConfig.data || !chartConfig.colors || chartConfig.data.length !== chartConfig.labels.length) {
+                 console.error(`Invalid or incomplete chart config for canvas id '${canvasId}'.`); // Keep critical error log
+                 // Optionally display a message on the canvas container
+                 const parentDiv = ctx.closest('div.relative'); // Find the parent container
+                 if (parentDiv) {
+                     parentDiv.innerHTML = '<p class="text-center text-gray-500 text-sm p-4">Chart data unavailable.</p>';
+                 }
+                 return null;
+            }
+
             try {
                 return new Chart(ctx, {
-                    type: 'doughnut', // Explicitly set to doughnut
+                    type: 'doughnut',
                     data: {
-                        labels: d.labels,
+                        labels: chartConfig.labels,
                         datasets:[{
-                            data: d.data,
-                            backgroundColor: d.colors,
-                            borderWidth: 1 // Optional: add border between segments
+                            data: chartConfig.data,
+                            backgroundColor: chartConfig.colors,
+                            borderColor: '#ffffff', // Add white border for separation
+                            borderWidth: 1
                         }]
                     },
                     options:{
                         responsive: true,
-                        maintainAspectRatio: false,
+                        maintainAspectRatio: false, // Allows chart to fill container height
                         cutout: '60%', // Adjust doughnut thickness
                         plugins:{
-                            legend:{ display: false }, // Legend disabled
-                            // Datalabels plugin configuration (if needed, e.g., inside segments)
-                            // datalabels: {
-                            //     formatter: (value, ctx) => {
-                            //         let sum = 0;
-                            //         let dataArr = ctx.chart.data.datasets[0].data;
-                            //         dataArr.map(data => { sum += data; });
-                            //         let percentage = sum > 0 ? (value*100 / sum).toFixed(1)+"%" : '0%';
-                            //         return percentage; // Example: show percentage inside
-                            //     },
-                            //     color: '#fff', // Text color for labels inside
-                            // },
-                            tooltip: { // Tooltip configuration remains useful
+                            legend:{
+                                display: false // Keep legend hidden as per original design
+                            },
+                            tooltip: {
                                 callbacks: {
                                     label: function(context) {
                                         let label = context.label || '';
                                         if (label) { label += ': '; }
-                                        if (context.parsed !== null) {
-                                            // Calculate percentage based on the total count passed from backend
-                                            const total = d.total_count; // Use total_count from data
-                                            const value = context.raw;
-                                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                            label += `${value} (${percentage}%)`;
-                                        }
+                                        const value = context.raw;
+                                        // Use total_count from the config for accurate percentage
+                                        const total = chartConfig.total_count;
+                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                        label += `${value} (${percentage}%)`;
                                         return label;
                                     }
                                 }
                             }
+                            // Datalabels plugin configuration (if needed later)
+                            // datalabels: { display: false } // Example: explicitly disable if plugin is registered
                         }
                     }
                 });
             } catch (chartError) {
-                console.error(`Error creating chart '${id}':`, chartError);
+                console.error(`Error creating chart '${canvasId}':`, chartError); // Keep critical error log
                 return null;
             }
         };
 
-        // Initialize charts if data exists AND canvas elements are found
-        console.log("Initializing charts...");
-
-        if (antibioticCfg && document.getElementById('antibiotic')) {
-             console.log("Data found and canvas '#antibiotic' exists. Creating chart.");
-             createPieDoughnut('antibiotic', antibioticCfg);
+        // Initialize charts if config data is available
+        if (antibioticCfg) {
+             createDonutChart('antibiotic', antibioticCfg);
         } else {
-             console.log("Skipping antibiotic chart initialization (no data or canvas not found).");
+             // Optionally handle missing chart data visually (e.g., display message)
+             const chartDiv = document.getElementById('antibiotic')?.closest('div.relative');
+             if (chartDiv) chartDiv.innerHTML = '<p class="text-center text-gray-500 text-sm p-4">Antibiotic data unavailable.</p>';
         }
 
-        if (sourceDbCfg && document.getElementById('sourceDb')) {
-             console.log("Data found and canvas '#sourceDb' exists. Creating chart.");
-             createPieDoughnut('sourceDb', sourceDbCfg);
+        if (sourceDbCfg) {
+             createDonutChart('sourceDb', sourceDbCfg);
         } else {
-             console.log("Skipping sourceDb chart initialization (no data or canvas not found).");
+             const chartDiv = document.getElementById('sourceDb')?.closest('div.relative');
+             if (chartDiv) chartDiv.innerHTML = '<p class="text-center text-gray-500 text-sm p-4">Source DB data unavailable.</p>';
         }
 
-        if (phenotypeCfg && document.getElementById('phenotype')) {
-             console.log("Data found and canvas '#phenotype' exists. Creating chart.");
-             createPieDoughnut('phenotype', phenotypeCfg);
+        if (phenotypeCfg) {
+             createDonutChart('phenotype', phenotypeCfg);
         } else {
-             console.log("Skipping phenotype chart initialization (no data or canvas not found).");
+             const chartDiv = document.getElementById('phenotype')?.closest('div.relative');
+             if (chartDiv) chartDiv.innerHTML = '<p class="text-center text-gray-500 text-sm p-4">Phenotype data unavailable.</p>';
         }
-        console.log("Chart initialization finished.");
 
       }); // End DOMContentLoaded for charts
 
@@ -408,9 +391,9 @@
               })
               .catch(error => {
                   if (error.name === 'AbortError') {
-                      console.log('Fetch aborted'); // Expected when typing quickly
+                      // console.log('Fetch aborted'); // Ignore abort errors silently
                   } else {
-                      console.error('Error fetching suggestions:', error);
+                      console.error('Error fetching suggestions:', error); // Keep critical error log
                       suggestionsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-red-600">Error loading suggestions.</div>';
                       suggestionsDiv.classList.remove('hidden'); // Show error
                       searchTermInput.removeAttribute('aria-activedescendant');
@@ -433,10 +416,10 @@
       // Debounce hiding to allow clicking on suggestions
       function hideSuggestionsDebounced() {
           clearTimeout(suggestionTimeout);
-          suggestionTimeout = setTimeout(hideSuggestions, 200); // Increased delay slightly
+          suggestionTimeout = setTimeout(hideSuggestions, 200); // Delay allows click
       }
 
-      // --- Keyboard Navigation for Suggestions (Optional but recommended for accessibility) ---
+      // --- Keyboard Navigation for Suggestions ---
       const searchTermInput = document.getElementById('search-term');
       const suggestionsDiv = document.getElementById('suggestions');
       let activeSuggestionIndex = -1;
@@ -466,14 +449,17 @@
                   e.preventDefault(); // Prevent form submission
                   const activeLink = items[activeSuggestionIndex].querySelector('a.suggestion-link');
                   if (activeLink) {
-                      activeLink.click(); // Simulate click or navigate directly
-                      // window.location.href = activeLink.href; // Alternative navigation
+                      // Navigate using the link's href
+                      window.location.href = activeLink.href;
                   }
               }
               // Allow default form submission if Enter is pressed without an active suggestion?
               // Currently form submission is prevented by onsubmit="return false;"
           } else if (e.key === 'Escape') {
               hideSuggestions();
+          } else {
+              // Reset index if user types other keys
+              activeSuggestionIndex = -1;
           }
       });
 
