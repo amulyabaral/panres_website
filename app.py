@@ -115,15 +115,20 @@ def get_item_details(item_id):
     details = {
         'id': item_id,
         'label': get_label(item_id),
-        'properties': defaultdict(list),
-        'raw_properties': defaultdict(list),
-        'referencing_items': [],
+        'properties': defaultdict(list), # Properties the item *has*
+        'raw_properties': defaultdict(list), # Temp storage
+        'referencing_items': [], # Flat list of items *linking to* this item
+        'grouped_referencing_items': None, # Grouped items *linking to* this item (used for DB view)
         'primary_type': None,
         'primary_type_display': None,
         'primary_type_category_key': None,
+        'view_item_type': None, # Specific type for view logic (e.g., 'SourceDatabase', 'AntibioticClass')
+        'grouping_basis': None, # How referencing items are grouped (e.g., 'Antibiotic Class')
         'is_pangen': False,
         'description': None
     }
+    # Properties to hide in category views
+    TECHNICAL_PROPS_DISPLAY = ["Type", "Subclass Of", "Domain", "Range", "Subproperty Of"]
 
     # 1. Fetch outgoing properties (subject -> predicate -> object)
     properties_cursor = db.execute("SELECT predicate, object FROM triples WHERE subject = ?", (item_id,))
@@ -132,9 +137,12 @@ def get_item_details(item_id):
         details['raw_properties'][predicate].append(obj)
         # Try to determine primary type and description
         if predicate == RDF_TYPE:
-            details['primary_type'] = obj # Store the raw type
+            # Store the first type found as primary, check for PanGene specifically
+            if not details['primary_type']:
+                 details['primary_type'] = obj
             if obj == 'PanGene':
                 details['is_pangen'] = True
+                details['view_item_type'] = 'PanGene' # Explicitly set for genes
         elif predicate in DESCRIPTION_PREDICATES and not details['description']:
              details['description'] = obj # Take the first description found
 
@@ -168,67 +176,125 @@ def get_item_details(item_id):
                 'is_link': is_link,
                 'list_link_info': list_link_info
             })
+        # Only add non-technical properties OR if it's not a category view later
+        # We will filter details['properties'] later based on view_item_type
         details['properties'][pred_display] = sorted(processed_values, key=lambda x: x['display']) # Sort values by display name
     check_cur.close()
     del details['raw_properties'] # Remove temporary raw storage
 
     # 2. Fetch incoming references (subject -> predicate -> item_id)
+    # Store these temporarily, we might group them later
+    raw_referencing_items = []
     references_cursor = db.execute("SELECT subject, predicate FROM triples WHERE object = ?", (item_id,))
     for row in references_cursor:
-        ref_pred_display = predicate_map.get(row['predicate'], row['predicate'])
-        details['referencing_items'].append({
+        # ref_pred_display = predicate_map.get(row['predicate'], row['predicate']) # Not needed for gene lists
+        raw_referencing_items.append({
             'ref_id': row['subject'],
-            'predicate': row['predicate'],
-            'predicate_display': ref_pred_display,
-            'ref_label': get_label(row['subject'])
+            'predicate': row['predicate'], # Keep predicate for potential filtering/logic
+            # 'predicate_display': ref_pred_display, # Not shown directly in new design
+            'ref_label': get_label(row['subject']) # Fetch label for display
         })
     references_cursor.close()
+    # Sort raw references primarily by label for consistent ordering before grouping
+    raw_referencing_items.sort(key=lambda x: x['ref_label'])
 
-    # 3. Determine Display Type and Category Key
+    # 3. Determine Display Type, Category Key, and Specific View Type
+    # This section now also sets details['view_item_type'] used for template logic
     if details['primary_type']:
         details['primary_type_display'] = details['primary_type'] # Default display
+        # Check against index categories first
         for cat_key, cat_info in INDEX_CATEGORIES.items():
             if cat_info['query_type'] == 'type' and cat_info['value'] == details['primary_type']:
-                details['primary_type_display'] = cat_key # Use category name if it's a primary type category
+                details['primary_type_display'] = cat_key
                 details['primary_type_category_key'] = cat_key
-                break
-            # Add checks for other types if needed (e.g., if object is an Antibiotic Class)
-            elif cat_info['query_type'] == 'predicate_object' and cat_info['value'] == HAS_RESISTANCE_CLASS:
-                 # Check if the item_id is one of the objects of has_resistance_class
-                 # This requires checking if the item_id exists as an object for that predicate
-                 is_class = query_db("SELECT 1 FROM triples WHERE predicate = ? AND object = ? LIMIT 1", (HAS_RESISTANCE_CLASS, item_id), one=True)
-                 if is_class:
-                     details['primary_type_display'] = "Antibiotic Class" # Or use cat_key
-                     details['primary_type_category_key'] = "Antibiotic Classes"
-                     break # Stop checking once a match is found
-            elif cat_info['query_type'] == 'predicate_object' and cat_info['value'] == HAS_PREDICTED_PHENOTYPE:
+                # Set specific view type if it's a known primary type category (like PanGene)
+                if details['primary_type'] == 'PanGene':
+                     details['view_item_type'] = 'PanGene'
+                # Add other primary type categories here if needed
+                break # Found primary type category
+
+        # If not found via primary type, check if it's an *object* of known category predicates
+        if not details['view_item_type']: # Only check if not already identified (e.g., as PanGene)
+            is_class = query_db("SELECT 1 FROM triples WHERE predicate = ? AND object = ? LIMIT 1", (HAS_RESISTANCE_CLASS, item_id), one=True)
+            if is_class:
+                 details['primary_type_display'] = "Antibiotic Class"
+                 details['primary_type_category_key'] = "Antibiotic Classes"
+                 details['view_item_type'] = 'AntibioticClass'
+            else:
                  is_phenotype = query_db("SELECT 1 FROM triples WHERE predicate = ? AND object = ? LIMIT 1", (HAS_PREDICTED_PHENOTYPE, item_id), one=True)
                  if is_phenotype:
                      details['primary_type_display'] = "Predicted Phenotype"
                      details['primary_type_category_key'] = "Predicted Phenotypes"
-                     break
-            elif cat_info['query_type'] == 'predicate_object' and cat_info['value'] == IS_FROM_DATABASE:
-                 is_database = query_db("SELECT 1 FROM triples WHERE predicate = ? AND object = ? LIMIT 1", (IS_FROM_DATABASE, item_id), one=True)
-                 if is_database:
-                     details['primary_type_display'] = "Source Database"
-                     details['primary_type_category_key'] = "Source Databases"
-                     break
+                     details['view_item_type'] = 'PredictedPhenotype'
+                 else:
+                     is_database = query_db("SELECT 1 FROM triples WHERE predicate = ? AND object = ? LIMIT 1", (IS_FROM_DATABASE, item_id), one=True)
+                     if is_database:
+                         details['primary_type_display'] = "Source Database"
+                         details['primary_type_category_key'] = "Source Databases"
+                         details['view_item_type'] = 'SourceDatabase'
+            # Add more checks here if other category types exist (e.g., based on different predicates)
 
+    # 4. Filter Properties and Process Referencing Items based on View Type
+    if details['view_item_type'] in ['SourceDatabase', 'AntibioticClass', 'PredictedPhenotype']:
+        # Filter out technical properties for category views
+        details['properties'] = {k: v for k, v in details['properties'].items() if k not in TECHNICAL_PROPS_DISPLAY}
+        # Keep description if present
+        if details['description']:
+            details['properties']['Description'] = [{'value': details['description'], 'display': details['description'], 'is_link': False, 'list_link_info': None}]
 
-    # Sort properties for consistent display (optional)
-    details['properties'] = dict(sorted(details['properties'].items()))
-    details['referencing_items'] = sorted(details['referencing_items'], key=lambda x: (x['predicate'], x['ref_id']))
+        if details['view_item_type'] == 'SourceDatabase':
+            # Group referencing genes by Antibiotic Class
+            details['grouping_basis'] = 'Antibiotic Class'
+            grouped = defaultdict(list)
+            gene_ids = [item['ref_id'] for item in raw_referencing_items if item['predicate'] == IS_FROM_DATABASE] # Ensure they are linked via the correct predicate
 
-    # If no properties or references found, the item might still exist if it's only an object
-    if not details['properties'] and not details['referencing_items']:
-         # Check if the ID exists as a subject or object at all
+            if gene_ids:
+                # Fetch classes for these genes
+                placeholders = ','.join('?' * len(gene_ids))
+                class_query = f"""
+                    SELECT subject, object FROM triples
+                    WHERE predicate = ? AND subject IN ({placeholders})
+                """
+                class_results = query_db(class_query, (HAS_RESISTANCE_CLASS, *gene_ids))
+                gene_to_classes = defaultdict(list)
+                if class_results:
+                    for row in class_results:
+                        gene_to_classes[row['subject']].append(row['object'])
+
+                # Populate grouped dictionary
+                gene_info_map = {item['ref_id']: item for item in raw_referencing_items}
+                for gene_id in gene_ids:
+                    gene_item = gene_info_map.get(gene_id)
+                    if not gene_item: continue # Should not happen, but safety check
+
+                    classes = gene_to_classes.get(gene_id)
+                    if classes:
+                        for class_name in classes:
+                            grouped[class_name].append(gene_item)
+                    else:
+                        grouped['No Class Assigned'].append(gene_item)
+
+            # Sort groups by name, and items within groups already sorted by label
+            details['grouped_referencing_items'] = dict(sorted(grouped.items()))
+
+        else: # AntibioticClass or PredictedPhenotype - show flat list of genes
+            details['referencing_items'] = raw_referencing_items
+            # No grouping basis needed, template will show flat list
+
+    else: # Default view (e.g., for PanGene or other types)
+        # Keep all properties (already processed)
+        # Keep referencing items flat
+        details['referencing_items'] = raw_referencing_items
+        # No grouping basis needed
+
+    # Final check for existence if nothing was found
+    if not details['properties'] and not details['referencing_items'] and not details['grouped_referencing_items']:
          exists = query_db("SELECT 1 FROM triples WHERE subject = ? OR object = ? LIMIT 1", (item_id, item_id), one=True)
          if not exists:
              app.logger.warning(f"Item ID {item_id} not found as subject or object.")
-             return None # Indicate item not found
+             return None
 
     return details
-
 
 def get_category_counts():
     """Calculates counts for categories defined in INDEX_CATEGORIES."""
