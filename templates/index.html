@@ -246,6 +246,7 @@
             console.log(`Attempting to create ${type} chart with id '${id}'`); // Log: Chart creation attempt
             const ctx = document.getElementById(id);
             if (!ctx) {
+                // This log should now be redundant because of the checks below, but kept as a fallback.
                 console.error(`Canvas element with id '${id}' not found for ${type} chart.`);
                 return null;
             }
@@ -295,6 +296,7 @@
              console.log(`Attempting to create stacked bar chart with id '${id}'`); // Log: Chart creation attempt
             const ctx = document.getElementById(id);
             if (!ctx) {
+                 // This log should now be redundant because of the checks below, but kept as a fallback.
                 console.error(`Canvas element with id '${id}' not found for stacked bar chart.`);
                 return null;
             }
@@ -354,24 +356,45 @@
             }
         };
 
-        // Initialize charts if data exists and canvas elements are found
+        // Initialize charts if data exists AND canvas elements are found
         console.log("Initializing charts..."); // Log: Start initialization
+
         if (antibioticCfg) {
-            createPieDoughnut('antibiotic', antibioticCfg, 'doughnut'); // <-- Changed type to 'doughnut'
+            // Explicitly check if the canvas element exists in the DOM
+            if (document.getElementById('antibiotic')) {
+                 console.log("Data found and canvas '#antibiotic' exists. Attempting to create chart.");
+                 createPieDoughnut('antibiotic', antibioticCfg, 'doughnut'); // Keep as doughnut
+            } else {
+                 // This case means data was passed, but the {% if %} block didn't render the canvas (shouldn't happen if data is truthy)
+                 console.warn("Antibiotic data found, but canvas element '#antibiotic' not found in DOM. Skipping chart creation.");
+            }
         } else {
-            console.log("Skipping antibiotic chart initialization (no data).");
+            // This case means antibioticCfg was null/undefined after parsing, likely because no data was passed from Flask.
+            console.log("Skipping antibiotic chart initialization (no data parsed or data was null/empty).");
         }
 
         if (sourceDbCfg) {
-            createPieDoughnut('sourceDb',  sourceDbCfg, 'doughnut');
+             // Explicitly check if the canvas element exists in the DOM
+            if (document.getElementById('sourceDb')) {
+                 console.log("Data found and canvas '#sourceDb' exists. Attempting to create chart.");
+                 createPieDoughnut('sourceDb',  sourceDbCfg, 'doughnut'); // Explicitly doughnut
+            } else {
+                 console.warn("Source DB data found, but canvas element '#sourceDb' not found in DOM. Skipping chart creation.");
+            }
         } else {
-             console.log("Skipping sourceDb chart initialization (no data).");
+             console.log("Skipping sourceDb chart initialization (no data parsed or data was null/empty).");
         }
 
         if (phenotypeCfg) {
-            createStackedBar('phenotype', phenotypeCfg);
+             // Explicitly check if the canvas element exists in the DOM
+            if (document.getElementById('phenotype')) {
+                 console.log("Data found and canvas '#phenotype' exists. Attempting to create chart.");
+                 createStackedBar('phenotype', phenotypeCfg);
+            } else {
+                 console.warn("Phenotype data found, but canvas element '#phenotype' not found in DOM. Skipping chart creation.");
+            }
         } else {
-             console.log("Skipping phenotype chart initialization (no data).");
+             console.log("Skipping phenotype chart initialization (no data parsed or data was null/empty).");
         }
         console.log("Chart initialization finished."); // Log: End initialization
 
