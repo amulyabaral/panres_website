@@ -65,6 +65,82 @@ color_cycler = itertools.cycle(COLOR_PALETTE) # Create a cycler
 
 # --- Logging Setup ---
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__) # Use standard Python logger
+
+# --- FTS Setup Function (Modified) ---
+def create_and_populate_fts(db_path):
+    """
+    Creates and populates the FTS5 table for autocomplete.
+    Connects directly to the database path provided.
+    """
+    logger.info(f"Connecting to {db_path} for FTS setup...")
+    db = None
+    try:
+        db = sqlite3.connect(db_path)
+        cur = db.cursor()
+        logger.info("Creating FTS table 'item_search_fts' if not exists...")
+        # Use unicode61 tokenizer, remove diacritics for better matching
+        cur.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS item_search_fts USING fts5(
+                item_id UNINDEXED,    -- Reference back to the original item ID
+                search_term,          -- The primary term to search (label or ID)
+                tokenize = 'unicode61 remove_diacritics 0'
+            );
+        """)
+        logger.info("FTS table created or already exists.")
+
+        # --- Check if population is needed (simple check: is the table empty?) ---
+        # More sophisticated checks could compare counts or timestamps if necessary
+        cur.execute("SELECT COUNT(*) FROM item_search_fts")
+        count = cur.fetchone()[0]
+        if count > 0:
+            logger.info(f"FTS table already contains {count} items. Skipping population.")
+            # Optional: Add logic here to force repopulation based on DB file modification time
+            # or an external flag if needed for more frequent updates without full restart.
+            return # Skip population if already populated
+
+        # --- Populate the FTS table ---
+        logger.info("Populating FTS table...")
+        # Clear existing data (redundant if checking count above, but safe)
+        # cur.execute("DELETE FROM item_search_fts;")
+        # logger.info("Cleared existing FTS data.") # Not needed if checking count
+
+        # Fetch all unique subjects and their labels from the main triples table
+        # Use COALESCE to handle items without a label, using the subject ID instead
+        cur.execute(f"""
+            SELECT DISTINCT
+                t1.subject,
+                COALESCE(t2.object, t1.subject) AS search_text
+            FROM triples t1
+            LEFT JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ?
+            WHERE t1.subject IS NOT NULL AND search_text IS NOT NULL
+        """, (RDFS_LABEL,)) # Pass RDFS_LABEL constant
+        items = cur.fetchall()
+        logger.info(f"Fetched {len(items)} unique items for FTS population.")
+
+        if items:
+            # Prepare data for bulk insert
+            fts_data = [(row[0], row[1]) for row in items]
+            # Bulk insert into FTS table
+            cur.executemany("INSERT INTO item_search_fts (item_id, search_term) VALUES (?, ?)", fts_data)
+            db.commit()
+            logger.info(f"Inserted {len(fts_data)} items into FTS table.")
+        else:
+            logger.warning("No items found to populate FTS table.")
+
+    except sqlite3.Error as e:
+        if db: db.rollback()
+        logger.error(f"Database error during FTS setup: {e}", exc_info=True)
+        # Decide if the app should fail to start or continue without FTS
+        # raise # Re-raise the exception to prevent app start on FTS failure
+    except Exception as e:
+        logger.error(f"Unexpected error during FTS setup: {e}", exc_info=True)
+        # raise # Optionally re-raise
+    finally:
+        if db:
+            db.close()
+            logger.info("Closed database connection for FTS setup.")
+
 
 # --- Flask App Setup ---
 app = Flask(__name__)
@@ -83,43 +159,66 @@ def get_db():
                 detect_types=sqlite3.PARSE_DECLTYPES
             )
             g.db.row_factory = sqlite3.Row
-            app.logger.info(f"Database connection opened: {current_app.config['DATABASE']}")
+            # logger.info(f"Database connection opened for request: {current_app.config['DATABASE']}") # Can be noisy
         except sqlite3.Error as e:
-            app.logger.error(f"Database connection error: {e}")
+            logger.error(f"Database connection error: {e}")
             abort(500, description="Database connection failed.")
     return g.db
 
 @app.teardown_appcontext
 def close_db(error):
     """Closes the database again at the end of the request."""
-    if hasattr(g, 'db'):
-        g.db.close()
-        app.logger.info("Database connection closed.")
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+        # logger.info("Database connection closed for request.") # Can be noisy
     if error:
-        app.logger.error(f"Application context teardown error: {error}")
+        logger.error(f"Application context teardown error: {error}")
 
 # Modified query_db to accept an optional connection (for use within autocomplete)
 def query_db(query, args=(), one=False, db_conn=None):
     """Helper function to query the database. Can use a provided connection."""
-    db = db_conn or get_db() # Use provided connection or get a new one from context
+    # Use provided connection OR the one from Flask's 'g' OR create a temporary one
+    conn_to_use = None
+    created_conn = False
+    if db_conn:
+        conn_to_use = db_conn
+    elif 'db' in g:
+        conn_to_use = g.db
+    else:
+        # Fallback: create a temporary connection if not in request context and no conn provided
+        # This might happen if called outside a request (e.g., during startup if not careful)
+        # logger.warning("Query_db called outside request context or without provided connection. Creating temporary connection.")
+        try:
+            conn_to_use = sqlite3.connect(app.config['DATABASE'], detect_types=sqlite3.PARSE_DECLTYPES)
+            conn_to_use.row_factory = sqlite3.Row
+            created_conn = True
+        except sqlite3.Error as e:
+            logger.error(f"Failed to create temporary DB connection: {e}")
+            return None # Cannot proceed
+
+    if not conn_to_use:
+        logger.error("No database connection available for query_db.")
+        return None
+
     cur = None # Initialize cur to None
     try:
-        cur = db.execute(query, args)
+        cur = conn_to_use.execute(query, args)
         rv = cur.fetchall()
-        # Important: Only close the cursor here, let the context manager handle the connection
-        cur.close()
+        cur.close() # Close the cursor immediately
         return (rv[0] if rv else None) if one else rv
     except sqlite3.Error as e:
-        app.logger.error(f"Database query error: {e}\nQuery: {query}\nArgs: {args}")
-        if cur:
-            cur.close() # Ensure cursor is closed on error
-        # Depending on the context, you might want to return None, an empty list, or re-raise
-        return None # Or return []
-    except Exception as e: # Catch other potential errors
-        app.logger.error(f"Unexpected error during query: {e}\nQuery: {query}\nArgs: {args}")
-        if cur:
-            cur.close()
+        logger.error(f"Database query error: {e}\nQuery: {query}\nArgs: {args}")
+        if cur: cur.close()
         return None
+    except Exception as e: # Catch other potential errors
+        logger.error(f"Unexpected error during query: {e}\nQuery: {query}\nArgs: {args}")
+        if cur: cur.close()
+        return None
+    finally:
+        # Close the connection ONLY if we created it temporarily within this function
+        if created_conn and conn_to_use:
+            conn_to_use.close()
 
 
 # --- Data Fetching Logic ---
@@ -344,7 +443,7 @@ def get_item_details(item_id):
     if not details['properties'] and not details['referencing_items'] and not details['grouped_referencing_items']:
          exists = query_db("SELECT 1 FROM triples WHERE subject = ? OR object = ? LIMIT 1", (item_id, item_id), one=True, db_conn=db)
          if not exists:
-             app.logger.warning(f"Item ID {item_id} not found as subject or object.")
+             logger.warning(f"Item ID {item_id} not found as subject or object.")
              return None
 
     return details
@@ -384,7 +483,7 @@ def get_category_counts():
              count = result['count'] if result else 0
 
         counts[key] = count
-        app.logger.debug(f"Category '{key}': Count = {count}")
+        logger.debug(f"Category '{key}': Count = {count}")
     return counts
 
 def get_chart_data():
@@ -425,7 +524,7 @@ def get_chart_data():
                 'total_count': total_genes
             }
     except Exception as e:
-        app.logger.error(f"Error fetching source database chart data: {e}")
+        logger.error(f"Error fetching source database chart data: {e}")
 
     # 2. Predicted Phenotype Data (Stacked Bar Chart - based on PanGene phenotypes)
     try:
@@ -453,7 +552,7 @@ def get_chart_data():
                 'total_count': total_genes
             }
     except Exception as e:
-        app.logger.error(f"Error fetching phenotype chart data: {e}")
+        logger.error(f"Error fetching phenotype chart data: {e}")
 
 
     # 3. Antibiotic Class Data (Pie Chart - based on PanGene classes)
@@ -480,7 +579,7 @@ def get_chart_data():
                 'total_count': sum(data_points)
             }
     except Exception as e:
-        app.logger.error(f"Error fetching antibiotic class chart data: {e}")
+        logger.error(f"Error fetching antibiotic class chart data: {e}")
 
 
     return chart_data
@@ -784,12 +883,12 @@ def list_items(category_key=None, predicate=None, object_value=None):
 def details(item_id):
     """Shows details (properties and references) for a specific item."""
     decoded_item_id = unquote(item_id)
-    app.logger.info(f"Details route: Fetching details for item ID: {decoded_item_id}")
+    logger.info(f"Details route: Fetching details for item ID: {decoded_item_id}")
 
     item_details = get_item_details(decoded_item_id)
 
     if not item_details:
-        app.logger.warning(f"No data found for item_id: {decoded_item_id}. Returning 404.")
+        logger.warning(f"No data found for item_id: {decoded_item_id}. Returning 404.")
         abort(404, description=f"Item '{decoded_item_id}' not found in the PanRes data.")
 
     # No need to pass predicate map, it's processed in get_item_details
@@ -805,7 +904,7 @@ def details(item_id):
 def handle_not_found(e):
     """Handle 404 Not Found errors by showing info on the index page."""
     path = request.path if request else "Unknown path"
-    app.logger.warning(f"404 Not Found: {path} - {e.description}")
+    logger.warning(f"404 Not Found: {path} - {e.description}")
     error_message = e.description or f"The requested page '{path}' could not be found."
     # Render index page with error message
     return render_template('index.html',
@@ -823,7 +922,7 @@ def handle_not_found(e):
 @app.errorhandler(500)
 def internal_server_error(e):
     """Handle 500 Internal Server errors by showing info on the index page."""
-    app.logger.error(f"500 Internal Server Error: {e}", exc_info=True) # Log exception info
+    logger.error(f"500 Internal Server Error: {e}", exc_info=True) # Log exception info
     error_message = getattr(e, 'original_exception', None) or getattr(e, 'description', "An internal server error occurred. Please try again later.")
     # Render index page with error message
     return render_template('index.html',
@@ -842,7 +941,7 @@ def internal_server_error(e):
 @app.route('/testdb')
 def test_db_connection():
     """A simple route to test database connection and fetch a few triples."""
-    app.logger.info("Accessing /testdb route")
+    logger.info("Accessing /testdb route")
     try:
         results = query_db("SELECT * FROM triples LIMIT 5")
         if results is None:
@@ -853,171 +952,164 @@ def test_db_connection():
         output += "</ul>"
         return output
     except Exception as e:
-        app.logger.error(f"Error in /testdb: {e}")
+        logger.error(f"Error in /testdb: {e}")
         return f"An error occurred: {e}", 500
 
 # --- Autocomplete Route ---
 @app.route('/autocomplete')
 def autocomplete():
-    """Endpoint for search suggestions."""
+    """Endpoint for search suggestions (uses FTS)."""
     search_term = request.args.get('q', '').strip()
-    app.logger.debug(f"Autocomplete request for: '{search_term}'")
-    suggestions = get_autocomplete_suggestions(search_term)
+    # logger.debug(f"Autocomplete request for: '{search_term}'") # Can be noisy
+    suggestions = get_autocomplete_suggestions_fts(search_term)
     return jsonify(suggestions)
 
-# --- Autocomplete Function ---
-def get_autocomplete_suggestions(term, limit=15):
+# --- Autocomplete Function (Using FTS) ---
+def get_autocomplete_suggestions_fts(term, limit=15):
     """
-    Fetches suggestions for autocomplete based on labels and IDs.
-    Includes an indicator for the type of item (Gene, Class, Phenotype, Database, Other).
+    Fetches suggestions using the FTS5 table for speed and efficiency.
+    Includes an indicator for the type of item.
     """
     if not term or len(term) < 2:
         return []
 
-    db = get_db() # Get connection once for this function
-    term_like = f'%{term}%'
-    # Query fetches potential matches based on ID/Label, including rdf:type
-    # Relevance scoring helps prioritize matches
-    query = """
-        SELECT subject, label, type, relevance
-        FROM (
-            -- Exact ID match (highest relevance)
-            SELECT
-                t1.subject,
-                COALESCE(t2.object, t1.subject) AS label,
-                t3.object AS type,
-                1 AS relevance
-            FROM triples t1
-            LEFT JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ? -- rdfs:label
-            LEFT JOIN triples t3 ON t1.subject = t3.subject AND t3.predicate = ? -- rdf:type
-            WHERE t1.subject = ?
+    db = get_db() # Use context-managed connection for request handling
+    # Prepare FTS query term - phrase prefix query for better matching
+    # Ensures terms are searched in order if multiple words are typed
+    fts_query_term = f'"{term}"*'
 
-            UNION
-
-            -- Label starts with term (high relevance)
-            SELECT
-                t1.subject,
-                t1.object AS label,
-                t2.object AS type,
-                2 AS relevance
-            FROM triples t1
-            LEFT JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ? -- rdf:type
-            WHERE t1.predicate = ? AND t1.object LIKE ? -- rdfs:label, term%
-
-            UNION
-
-            -- Label contains term (medium relevance)
-            SELECT
-                t1.subject,
-                t1.object AS label,
-                t2.object AS type,
-                3 AS relevance
-            FROM triples t1
-            LEFT JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ? -- rdf:type
-            WHERE t1.predicate = ? AND t1.object LIKE ? AND t1.object NOT LIKE ? -- rdfs:label, %term%, NOT term%
-
-            UNION
-
-            -- ID contains term (lower relevance, exclude exact match)
-            SELECT
-                t1.subject,
-                COALESCE(t2.object, t1.subject) AS label,
-                t3.object AS type,
-                4 AS relevance
-            FROM triples t1
-            LEFT JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ? -- rdfs:label
-            LEFT JOIN triples t3 ON t1.subject = t3.subject AND t3.predicate = ? -- rdf:type
-            WHERE t1.subject LIKE ? AND t1.subject != ?
-        )
-        -- No specific type filter here, rely on post-processing for indicators
-        ORDER BY relevance, label -- Order by relevance, then alphabetically
-        LIMIT ?
-    """
     try:
-        # Parameters for the query
-        params = (
-            RDFS_LABEL, RDF_TYPE, term,                                     # Exact ID match
-            RDF_TYPE, RDFS_LABEL, f'{term}%',                               # Label starts with
-            RDF_TYPE, RDFS_LABEL, term_like, f'{term}%',                    # Label contains
-            RDFS_LABEL, RDF_TYPE, term_like, term,                          # ID contains
-            limit * 2 # Fetch slightly more initially to account for duplicates before unique check
-        )
-        results = query_db(query, params, db_conn=db) # Use the single connection
+        # 1. Query FTS table - rank helps order by relevance (BM25)
+        # Fetch only item_id initially for speed
+        query_fts = """
+            SELECT item_id
+            FROM item_search_fts
+            WHERE search_term MATCH ?
+            ORDER BY rank -- BM25 relevance ranking
+            LIMIT ?
+        """
+        # Fetch slightly more in case some IDs don't have details, but keep it reasonable
+        initial_results = query_db(query_fts, (fts_query_term, limit * 2), db_conn=db)
 
-        if not results:
+        if not initial_results:
+            logger.debug(f"FTS query for '{fts_query_term}' returned no results.")
             return []
 
-        # Post-process to add indicators and ensure uniqueness, limit final results
-        final_suggestions = []
-        seen_subjects = set()
-        subject_ids_to_check = list({row['subject'] for row in results}) # Unique subjects from initial query
+        # Get unique item IDs from FTS results
+        item_ids = list({row['item_id'] for row in initial_results})
+        if not item_ids: return []
+        logger.debug(f"FTS query found {len(item_ids)} unique candidate IDs.")
 
-        # Pre-fetch usage data for efficiency using the single connection
+        # 2. Efficiently fetch labels, types, and usage data for these specific IDs
+        placeholders = ','.join('?' * len(item_ids))
+
+        # Fetch Labels
+        labels = {}
+        label_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
+        label_results = query_db(label_query, (RDFS_LABEL, *item_ids), db_conn=db)
+        if label_results: labels = {row['subject']: row['object'] for row in label_results}
+
+        # Fetch Types (get the first type associated)
+        types = {}
+        type_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
+        type_results = query_db(type_query, (RDF_TYPE, *item_ids), db_conn=db)
+        if type_results:
+            for row in type_results:
+                if row['subject'] not in types: # Store the first type found
+                    types[row['subject']] = row['object']
+
+        # Fetch Usage Data (Check if the ID appears as an OBJECT for key predicates)
         class_subjects = set()
         pheno_subjects = set()
         db_subjects = set()
 
-        if subject_ids_to_check:
-            placeholders = ','.join('?' * len(subject_ids_to_check))
+        class_q = f"SELECT DISTINCT object FROM triples WHERE predicate = ? AND object IN ({placeholders})"
+        class_res = query_db(class_q, (HAS_RESISTANCE_CLASS, *item_ids), db_conn=db)
+        if class_res: class_subjects = {row['object'] for row in class_res}
 
-            class_q = f"SELECT DISTINCT object FROM triples WHERE predicate = ? AND object IN ({placeholders})"
-            class_res = query_db(class_q, (HAS_RESISTANCE_CLASS, *subject_ids_to_check), db_conn=db)
-            if class_res: class_subjects = {row['object'] for row in class_res}
+        pheno_q = f"SELECT DISTINCT object FROM triples WHERE predicate = ? AND object IN ({placeholders})"
+        pheno_res = query_db(pheno_q, (HAS_PREDICTED_PHENOTYPE, *item_ids), db_conn=db)
+        if pheno_res: pheno_subjects = {row['object'] for row in pheno_res}
 
-            pheno_q = f"SELECT DISTINCT object FROM triples WHERE predicate = ? AND object IN ({placeholders})"
-            pheno_res = query_db(pheno_q, (HAS_PREDICTED_PHENOTYPE, *subject_ids_to_check), db_conn=db)
-            if pheno_res: pheno_subjects = {row['object'] for row in pheno_res}
+        db_q = f"SELECT DISTINCT object FROM triples WHERE predicate = ? AND object IN ({placeholders})"
+        db_res = query_db(db_q, (IS_FROM_DATABASE, *item_ids), db_conn=db)
+        if db_res: db_subjects = {row['object'] for row in db_res}
+        # logger.debug(f"Fetched labels, types, and usage data for {len(item_ids)} IDs.") # Can be noisy
 
-            db_q = f"SELECT DISTINCT object FROM triples WHERE predicate = ? AND object IN ({placeholders})"
-            db_res = query_db(db_q, (IS_FROM_DATABASE, *subject_ids_to_check), db_conn=db)
-            if db_res: db_subjects = {row['object'] for row in db_res}
+        # 3. Process results and determine indicators
+        final_suggestions = []
+        # Iterate through the original FTS results to maintain relevance order
+        seen_subjects = set()
+        for row in initial_results:
+            subject_id = row['item_id']
 
-
-        for row in results:
-            subject_id = row['subject']
             # Apply final limit and uniqueness check
             if subject_id in seen_subjects or len(final_suggestions) >= limit:
                 continue
 
-            rdf_type = row['type']
+            rdf_type = types.get(subject_id)
+            display_name = labels.get(subject_id, subject_id) # Fallback to ID
             indicator = "Other" # Default
 
-            # Determine indicator based on type and usage
+            # Determine indicator (same logic as before)
             if rdf_type == 'PanGene':
                 indicator = "Gene"
             elif subject_id in class_subjects:
-                 indicator = "Class"
+                indicator = "Class"
             elif subject_id in pheno_subjects:
-                 indicator = "Phenotype"
+                indicator = "Phenotype"
             elif subject_id in db_subjects:
-                 indicator = "Database"
+                indicator = "Database"
             elif rdf_type == 'http://www.w3.org/2002/07/owl#Class':
-                 indicator = "Ontology Class"
+                indicator = "Ontology Class"
             elif rdf_type == 'http://www.w3.org/2000/01/rdf-schema#Resource':
-                 indicator = "Resource"
-            # Add more specific checks if needed (e.g., OriginalGene -> "Source Gene")
+                indicator = "Resource"
+            # Add more specific checks if needed
 
             final_suggestions.append({
                 'id': subject_id,
-                'display_name': row['label'],
+                'display_name': display_name,
                 'link': url_for('details', item_id=quote(subject_id)),
-                'type_indicator': indicator # Add the determined indicator
+                'type_indicator': indicator
             })
             seen_subjects.add(subject_id)
 
+        # logger.debug(f"Returning {len(final_suggestions)} suggestions for '{term}'.") # Can be noisy
         return final_suggestions
 
     except sqlite3.Error as e:
-        app.logger.error(f"Autocomplete query error for '{term}': {e}")
+        logger.error(f"FTS Autocomplete query error for '{term}': {e}", exc_info=True)
         return []
     except Exception as e:
-         app.logger.error(f"Unexpected error during autocomplete for '{term}': {e}")
-         return []
+        logger.error(f"Unexpected error during FTS autocomplete for '{term}': {e}", exc_info=True)
+        return []
 
 
 # --- Run the App ---
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5001)) # Use 5001 to avoid potential conflict if 5000 is busy
-    # Set debug=True for development to see errors and auto-reload
-    # Set debug=False for production/deployment
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    # --- Initialize FTS Index Before Starting App ---
+    # Check if the database file exists before trying to index
+    if os.path.exists(DATABASE):
+        logger.info("Database file found. Proceeding with FTS index check/population.")
+        try:
+            create_and_populate_fts(DATABASE)
+            logger.info("FTS index setup check completed.")
+        except Exception as e:
+            # Log the error but allow the app to continue running if desired
+            # If FTS is critical, you might want to exit here instead.
+            logger.error(f"Failed to initialize FTS index: {e}. App will start without FTS.", exc_info=True)
+    else:
+        logger.error(f"Database file '{DATABASE}' not found. Cannot initialize FTS index. Please ensure the database exists.")
+        # Depending on requirements, you might want to exit:
+        # import sys
+        # sys.exit(f"Error: Database file '{DATABASE}' not found.")
+
+    # --- Start Flask Development Server ---
+    port = int(os.environ.get('PORT', 5001))
+    # Set debug=False for production/deployment, True for development
+    app.run(host='0.0.0.0', port=port, debug=False) # Changed debug to False as default for non-manual setup
+
+# --- REMOVE Flask CLI command ---
+# @app.cli.command('init-fts')
+# def init_fts_command():
+#    ... (delete this function) ... 
