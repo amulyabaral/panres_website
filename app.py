@@ -502,9 +502,9 @@ def get_category_counts():
 def get_chart_data():
     """
     Fetches data specifically formatted for the homepage donut charts.
-    - Source DB: Shows Top 7 + Others (Counts PanGenes based on linked OriginalGene source).
-    - Antibiotic Class: Shows Top 7 + Others (Counts PanGenes).
-    - Predicted Phenotype: Shows Top 7 + Others (Counts PanGenes).
+    - Source DB: Shows Top 7 + Others (Counts distinct OriginalGenes).
+    - Antibiotic Class: Shows Top 7 + Others (Counts distinct PanGenes).
+    - Predicted Phenotype: Shows Top 7 + Others (Counts distinct PanGenes).
     """
     chart_data = {
         'source_db': None,
@@ -513,33 +513,32 @@ def get_chart_data():
     }
     db = get_db() # Use context-managed connection
 
-    # Use a consistent color cycle for each chart type
     top_n = 7 # Define Top N for reuse
 
     # Helper function to process results into chart format (handles Top N + Others)
     def process_results_for_donut(results, category_name, show_all=False):
         if not results:
-            logger.warning(f"No results found for chart category: {category_name}")
+            # Reduced logging: Log only if no results found
+            # logger.warning(f"No results found for chart category: {category_name}")
             return None # Return None if no DB results
 
         # Assign colors consistently based on the full list before slicing
         full_color_palette = itertools.cycle(COLOR_PALETTE)
         colors_map = {row[f'{category_name}_name']: next(full_color_palette) for row in results}
-        # Add a default color for "Others"
         others_color = next(full_color_palette) # Get the next color for Others
 
         labels = []
         data_points = []
         colors = []
-        total_count = sum(row['gene_count'] for row in results)
+        total_count = sum(row['item_count'] for row in results) # Adjusted key name
         processed_count = 0 # Keep track of count included in top N
 
-        logger.info(f"Processing {len(results)} results for {category_name} chart (Total Count: {total_count})")
+        # Reduced logging: Removed detailed processing log
 
         # Process top N (or all if show_all is True)
         for i, row in enumerate(results):
             item_name = row[f'{category_name}_name']
-            item_count = row['gene_count']
+            item_count = row['item_count'] # Adjusted key name
             item_label = get_label(item_name, db_conn=db) # Get display label
 
             if show_all or i < top_n:
@@ -548,8 +547,7 @@ def get_chart_data():
                 colors.append(colors_map.get(item_name, '#CCCCCC')) # Use mapped color or fallback
                 processed_count += item_count
             elif not show_all:
-                 # Stop processing if we are beyond top N and not showing all
-                 break
+                 break # Stop processing if we are beyond top N and not showing all
 
         # Calculate "Others" if needed (and not showing all)
         if not show_all and len(results) > top_n:
@@ -570,71 +568,72 @@ def get_chart_data():
             'colors': colors,
             'total_count': total_count # Keep total count of all items
         }
-        logger.info(f"Generated chart config for {category_name}: {chart_config}")
+        # Reduced logging: Removed log of generated config unless debugging needed
+        # logger.info(f"Generated chart config for {category_name}: {chart_config}")
         return chart_config
 
-    # 1. Source Database Data (Counts PanGenes based on linked OriginalGene source) - Top 7 + Others
+    # 1. Source Database Data (Counts distinct OriginalGenes) - Top 7 + Others
     try:
-        # This query links PanGene -> same_as -> OriginalGene -> is_from_database
+        # Simpler query: Count distinct OriginalGene subjects grouped by database
         query_source = f"""
             SELECT
-                T3.object AS database_name, -- The database name
-                COUNT(DISTINCT T1.subject) AS gene_count -- Count distinct PanGenes
+                T1.object AS database_name,
+                COUNT(DISTINCT T1.subject) AS item_count -- Count distinct OriginalGenes
             FROM
-                triples T1 -- Start with PanGenes
+                triples T1
             JOIN
-                triples T2 ON T1.subject = T2.subject AND T2.predicate = 'same_as' -- Link PanGene to its 'same_as' OriginalGene ID
-            JOIN
-                triples T3 ON T2.object = T3.subject AND T3.predicate = ? -- Link OriginalGene ID to its 'is_from_database'
-            JOIN
-                triples T4 ON T2.object = T4.subject AND T4.predicate = ? AND T4.object = 'OriginalGene' -- Ensure the intermediate (T2.object) is an OriginalGene type
+                triples T2 ON T1.subject = T2.subject AND T2.predicate = ? AND T2.object = 'OriginalGene' -- Ensure subject is OriginalGene
             WHERE
-                T1.predicate = ? AND T1.object = 'PanGene' -- T1 subject is a PanGene type
+                T1.predicate = ? -- Filter by is_from_database predicate
             GROUP BY
-                T3.object -- Group by database name
+                T1.object -- Group by database name
             ORDER BY
-                gene_count DESC;
+                item_count DESC;
         """
-        # Predicates needed: is_from_database, rdf:type, rdf:type
-        results_source = query_db(query_source, (IS_FROM_DATABASE, RDF_TYPE, RDF_TYPE), db_conn=db)
-        logger.info(f"Source DB Query Results (Raw): {results_source}") # Log raw results
-        chart_data['source_db'] = process_results_for_donut(results_source, 'database', show_all=False) # Show Top 7 + Others for consistency
+        # Predicates needed: rdf:type, is_from_database
+        results_source = query_db(query_source, (RDF_TYPE, IS_FROM_DATABASE), db_conn=db)
+        # Reduced logging: Removed raw results log
+        # logger.info(f"Source DB Query Results (Raw): {results_source}")
+        chart_data['source_db'] = process_results_for_donut(results_source, 'database', show_all=False)
     except Exception as e:
         logger.error(f"Error fetching source database chart data: {e}", exc_info=True)
 
-    # 2. Predicted Phenotype Data (Counts PanGenes) - Top 7 + Others
+    # 2. Predicted Phenotype Data (Counts distinct PanGenes) - Top 7 + Others
     try:
         query_pheno = f"""
-            SELECT T1.object AS phenotype_name, COUNT(DISTINCT T1.subject) AS gene_count
+            SELECT T1.object AS phenotype_name, COUNT(DISTINCT T1.subject) AS item_count -- Count distinct PanGenes
             FROM triples T1
             JOIN triples T2 ON T1.subject = T2.subject
-            WHERE T1.predicate = ? AND T2.predicate = ? AND T2.object = 'PanGene'
+            WHERE T1.predicate = ? AND T2.predicate = ? AND T2.object = 'PanGene' -- Ensure subject is PanGene
             GROUP BY T1.object
-            ORDER BY gene_count DESC;
+            ORDER BY item_count DESC;
         """
         results_pheno = query_db(query_pheno, (HAS_PREDICTED_PHENOTYPE, RDF_TYPE), db_conn=db)
-        logger.info(f"Phenotype Query Results (Raw): {results_pheno}") # Log raw results
+        # Reduced logging: Removed raw results log
+        # logger.info(f"Phenotype Query Results (Raw): {results_pheno}")
         chart_data['phenotype'] = process_results_for_donut(results_pheno, 'phenotype', show_all=False)
     except Exception as e:
         logger.error(f"Error fetching phenotype chart data: {e}", exc_info=True)
 
-    # 3. Antibiotic Class Data (Counts PanGenes) - Top 7 + Others
+    # 3. Antibiotic Class Data (Counts distinct PanGenes) - Top 7 + Others
     try:
         query_class = f"""
-            SELECT T1.object AS class_name, COUNT(DISTINCT T1.subject) AS gene_count
+            SELECT T1.object AS class_name, COUNT(DISTINCT T1.subject) AS item_count -- Count distinct PanGenes
             FROM triples T1
             JOIN triples T2 ON T1.subject = T2.subject
-            WHERE T1.predicate = ? AND T2.predicate = ? AND T2.object = 'PanGene'
+            WHERE T1.predicate = ? AND T2.predicate = ? AND T2.object = 'PanGene' -- Ensure subject is PanGene
             GROUP BY T1.object
-            ORDER BY gene_count DESC;
+            ORDER BY item_count DESC;
         """
         results_class = query_db(query_class, (HAS_RESISTANCE_CLASS, RDF_TYPE), db_conn=db)
-        logger.info(f"Antibiotic Class Query Results (Raw): {results_class}") # Log raw results
+        # Reduced logging: Removed raw results log
+        # logger.info(f"Antibiotic Class Query Results (Raw): {results_class}")
         chart_data['antibiotic'] = process_results_for_donut(results_class, 'class', show_all=False)
     except Exception as e:
         logger.error(f"Error fetching antibiotic class chart data: {e}", exc_info=True)
 
-    logger.info(f"Final chart_data dictionary: {chart_data}") # Log the final dict
+    # Reduced logging: Log final dict only if needed for debugging
+    # logger.info(f"Final chart_data dictionary: {chart_data}")
     return chart_data
 
 def get_items_for_category(category_key):
@@ -847,8 +846,8 @@ def index():
     """Render the homepage with category counts and charts."""
     category_counts = get_category_counts()
     chart_data = get_chart_data() # Fetch potentially updated chart data
-    # Log the data being passed to the template
-    logger.info(f"Data passed to index template - Antibiotic: {chart_data.get('antibiotic')}, SourceDB: {chart_data.get('source_db')}, Phenotype: {chart_data.get('phenotype')}")
+    # Reduced logging: Log data passed to template only if needed for debugging
+    # logger.info(f"Data passed to index template - Antibiotic: {chart_data.get('antibiotic')}, SourceDB: {chart_data.get('source_db')}, Phenotype: {chart_data.get('phenotype')}")
     return render_template('index.html',
                            index_categories=INDEX_CATEGORIES,
                            category_counts=category_counts,
