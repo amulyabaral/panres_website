@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {# Dynamically set title using a block #}
     <title>{% block title %}{{ site_name }}{% endblock %}</title>
-
-    {# Add Tailwind CSS via CDN #}
     <script src="https://cdn.tailwindcss.com"></script>
-
-    {# Link to your consolidated custom CSS #}
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
     {# Add Font Awesome for icons (like GitHub) #}
@@ -17,7 +13,6 @@
 
     <link rel="icon" href="{{ url_for('static', filename='panres_logo.png') }}" type="image/png">
 
-    {# Basic Tailwind Configuration - Define custom colors here #}
     <script>
       tailwind.config = {
         theme: {

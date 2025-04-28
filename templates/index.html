@@ -28,22 +28,27 @@
 
         {# Container for Search #}
         <div class="mb-4"> {# Added margin-bottom #}
-            {# Search Form - Requires a '/search' route in app.py #}
+            {# Search Form - Autocomplete handled by JS, no action needed #}
             {# Added relative positioning for suggestions dropdown #}
-            <form action="{{ url_for('search_results') }}" method="get" class="flex-grow flex items-center gap-0 relative">
+            {# Added onsubmit="return false;" to prevent default submission #}
+            <form method="get" class="flex-grow flex items-center gap-0 relative" onsubmit="return false;">
                 <label for="search-term" class="sr-only">Search Term</label>
                 {# Added autocomplete="off" and event listeners for suggestions #}
                 <input type="search" id="search-term" name="q" placeholder="Search genes, classes, phenotypes..."
                        class="flex-grow px-4 py-2 border border-gray-300 rounded-l-md focus:ring-dtu-red focus:border-dtu-red focus:z-10"
                        required autocomplete="off"
                        oninput="getSuggestions(this.value)"
-                       onblur="hideSuggestionsDebounced()">
-                <button type="submit" class="inline-flex items-center bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded-r-md text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-0 border border-dtu-red -ml-px"> {# Negative margin to join button #}
+                       onblur="hideSuggestionsDebounced()"
+                       aria-haspopup="listbox" {# Accessibility improvement #}
+                       aria-controls="suggestions">
+                {# Search button can be kept for visual cue or removed if desired #}
+                <button type="button" class="inline-flex items-center bg-dtu-red text-white px-4 py-2 rounded-r-md text-sm font-medium border border-dtu-red -ml-px cursor-default"> {# Changed type to button, removed hover effect #}
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"> <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /> </svg>
                     <span class="sr-only">Search</span>
                 </button>
                 {# Container for suggestions dropdown #}
-                <div id="suggestions" class="absolute left-0 right-0 top-full mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg z-20 hidden overflow-y-auto max-h-60">
+                {# Added role="listbox" for accessibility #}
+                <div id="suggestions" role="listbox" class="absolute left-0 right-0 top-full mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg z-20 hidden overflow-y-auto max-h-60">
                     {/* Suggestions will be loaded here by JavaScript */}
                 </div>
             </form>
@@ -171,24 +176,22 @@
         const isErrorPage = document.querySelector('.bg-red-100[role="alert"]');
         if (isErrorPage) {
             console.log("Error page detected, skipping chart initialization.");
-            return;
+            return; // Skip chart and suggestion setup on error pages
         }
 
         // Register the datalabels plugin globally
-        // Make sure ChartDataLabels is the correct global variable name provided by the plugin script
         if (typeof ChartDataLabels !== 'undefined') {
             Chart.register(ChartDataLabels);
         } else {
             console.warn('ChartDataLabels plugin not found. Percentages on stacked bar chart will not be displayed.');
         }
 
+        // Parse JSON data for charts
+        const pieCfg       = JSON.parse('{{ antibiotic | tojson | safe if antibiotic else 'null' }}');
+        const barCfg       = JSON.parse('{{ source_db  | tojson | safe if source_db else 'null' }}');
+        const stackedCfg   = JSON.parse('{{ phenotype  | tojson | safe if phenotype else 'null' }}');
 
-        // Parse JSON data
-        const pieCfg       = JSON.parse('{{ antibiotic | tojson | safe }}');
-        const barCfg       = JSON.parse('{{ source_db  | tojson | safe }}');
-        const stackedCfg   = JSON.parse('{{ phenotype  | tojson | safe }}');
-
-        /* helpers – one per chart style */
+        /* Chart helper functions (pie, bar, stacked) remain the same */
         const pie = (id, d) => new Chart(id, {
           type: 'pie',
           data: {
@@ -315,63 +318,207 @@
         if (pieCfg)       pie(document.getElementById('antibiotic'), pieCfg);
         if (barCfg)       bar(document.getElementById('sourceDb'),  barCfg);
         if (stackedCfg)   stacked(document.getElementById('phenotype'), stackedCfg);
-      });
+      }); // End DOMContentLoaded for charts
 
       // --- Autocomplete Suggestion Logic ---
       let suggestionTimeout; // To debounce hiding suggestions
+      let fetchController; // To abort previous fetch requests
 
       function getSuggestions(query) {
           const suggestionsDiv = document.getElementById('suggestions');
+          const searchTermInput = document.getElementById('search-term');
+
+          // Abort any ongoing fetch request
+          if (fetchController) {
+              fetchController.abort();
+          }
+
           if (query.length < 2) { // Minimum characters to trigger search
               suggestionsDiv.innerHTML = '';
               suggestionsDiv.classList.add('hidden');
+              searchTermInput.removeAttribute('aria-activedescendant'); // Accessibility
               return;
           }
 
+          // Show loading indicator (optional)
+          suggestionsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500">Loading...</div>';
+          suggestionsDiv.classList.remove('hidden');
+
+          // Create a new AbortController for this request
+          fetchController = new AbortController();
+          const signal = fetchController.signal;
+
           // Fetch suggestions from the backend
-          fetch(`/autocomplete?q=${encodeURIComponent(query)}`)
-              .then(response => response.json())
+          fetch(`/autocomplete?q=${encodeURIComponent(query)}`, { signal })
+              .then(response => {
+                  if (!response.ok) {
+                      throw new Error(`HTTP error! status: ${response.status}`);
+                  }
+                  return response.json();
+               })
               .then(data => {
-                  suggestionsDiv.innerHTML = ''; // Clear previous suggestions
+                  suggestionsDiv.innerHTML = ''; // Clear previous suggestions/loading
                   if (data && data.length > 0) {
                       const list = document.createElement('ul');
-                      data.forEach(item => {
+                      list.id = 'suggestion-list'; // ID for aria-controls
+                      data.forEach((item, index) => {
                           const listItem = document.createElement('li');
+                          listItem.id = `suggestion-${index}`; // Unique ID for each item
+                          listItem.setAttribute('role', 'option');
+
+                          // --- Create Indicator ---
+                          let indicatorIcon = 'fa-question-circle'; // Default icon
+                          let indicatorColor = 'text-gray-400';
+                          let indicatorTitle = item.type_indicator || 'Other'; // Use title from backend
+
+                          switch(item.type_indicator) {
+                              case 'Gene':
+                                  indicatorIcon = 'fa-dna';
+                                  indicatorColor = 'text-blue-500';
+                                  break;
+                              case 'Class':
+                                  indicatorIcon = 'fa-layer-group';
+                                  indicatorColor = 'text-green-500';
+                                  break;
+                              case 'Phenotype':
+                                  indicatorIcon = 'fa-tags';
+                                  indicatorColor = 'text-purple-500';
+                                  break;
+                              case 'Database':
+                                  indicatorIcon = 'fa-database';
+                                  indicatorColor = 'text-orange-500';
+                                  break;
+                              case 'Ontology Class':
+                                  indicatorIcon = 'fa-sitemap';
+                                  indicatorColor = 'text-indigo-500';
+                                  break;
+                               case 'Resource':
+                                  indicatorIcon = 'fa-link';
+                                  indicatorColor = 'text-teal-500';
+                                  break;
+                          }
+                          const indicatorHtml = `<i class="fas ${indicatorIcon} ${indicatorColor} mr-2 fa-fw" title="${indicatorTitle}"></i>`;
+                          // --- End Indicator ---
+
                           // Use 'mousedown' to register click before 'blur' hides the div
-                          listItem.innerHTML = `<a href="${item.link}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-dtu-red">${item.display_name} <span class="text-xs text-gray-500">(${item.id})</span></a>`;
+                          // Use an inner link for navigation
+                          listItem.innerHTML = `<a href="${item.link}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-dtu-red flex items-center suggestion-link">
+                                                    ${indicatorHtml}
+                                                    <span class="flex-grow">${item.display_name}</span>
+                                                    <span class="text-xs text-gray-500 ml-2">(${item.id})</span>
+                                                </a>`;
+                          // Prevent blur when clicking suggestion link
+                          listItem.addEventListener('mousedown', (e) => {
+                              // Allow middle-click/ctrl-click to open in new tab
+                              if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
+                                  window.location.href = item.link;
+                              }
+                          });
                           list.appendChild(listItem);
                       });
                       suggestionsDiv.appendChild(list);
                       suggestionsDiv.classList.remove('hidden');
                   } else {
-                      suggestionsDiv.classList.add('hidden');
+                      // Show "No results" message
+                      suggestionsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500">No results found.</div>';
+                      suggestionsDiv.classList.remove('hidden'); // Keep div visible to show message
+                      searchTermInput.removeAttribute('aria-activedescendant');
                   }
               })
               .catch(error => {
-                  console.error('Error fetching suggestions:', error);
-                  suggestionsDiv.classList.add('hidden');
+                  if (error.name === 'AbortError') {
+                      console.log('Fetch aborted'); // Expected when typing quickly
+                  } else {
+                      console.error('Error fetching suggestions:', error);
+                      suggestionsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-red-600">Error loading suggestions.</div>';
+                      suggestionsDiv.classList.remove('hidden'); // Show error
+                      searchTermInput.removeAttribute('aria-activedescendant');
+                  }
+              })
+              .finally(() => {
+                  // Clear the controller when fetch is done or aborted
+                  fetchController = null;
               });
       }
 
       function hideSuggestions() {
           const suggestionsDiv = document.getElementById('suggestions');
+          const searchTermInput = document.getElementById('search-term');
           suggestionsDiv.classList.add('hidden');
           suggestionsDiv.innerHTML = ''; // Clear content when hiding
+          searchTermInput.removeAttribute('aria-activedescendant');
       }
 
       // Debounce hiding to allow clicking on suggestions
       function hideSuggestionsDebounced() {
           clearTimeout(suggestionTimeout);
-          suggestionTimeout = setTimeout(hideSuggestions, 150); // Delay in ms
+          suggestionTimeout = setTimeout(hideSuggestions, 200); // Increased delay slightly
       }
 
-      // Optional: Hide suggestions if clicked outside
-      // document.addEventListener('click', function(event) {
-      //     const searchForm = document.querySelector('#search-term').closest('form');
-      //     if (!searchForm.contains(event.target)) {
-      //         hideSuggestions();
-      //     }
-      // });
+      // --- Keyboard Navigation for Suggestions (Optional but recommended for accessibility) ---
+      const searchTermInput = document.getElementById('search-term');
+      const suggestionsDiv = document.getElementById('suggestions');
+      let activeSuggestionIndex = -1;
+
+      searchTermInput.addEventListener('keydown', (e) => {
+          const suggestionList = suggestionsDiv.querySelector('#suggestion-list');
+          if (!suggestionList || suggestionsDiv.classList.contains('hidden')) {
+              activeSuggestionIndex = -1;
+              return;
+          }
+
+          const items = suggestionList.querySelectorAll('li[role="option"]');
+          if (!items.length) return;
+
+          if (e.key === 'ArrowDown') {
+              e.preventDefault(); // Prevent cursor move in input
+              activeSuggestionIndex++;
+              if (activeSuggestionIndex >= items.length) activeSuggestionIndex = 0;
+              updateActiveSuggestion(items);
+          } else if (e.key === 'ArrowUp') {
+              e.preventDefault(); // Prevent cursor move in input
+              activeSuggestionIndex--;
+              if (activeSuggestionIndex < 0) activeSuggestionIndex = items.length - 1;
+              updateActiveSuggestion(items);
+          } else if (e.key === 'Enter') {
+              if (activeSuggestionIndex >= 0 && activeSuggestionIndex < items.length) {
+                  e.preventDefault(); // Prevent form submission
+                  const activeLink = items[activeSuggestionIndex].querySelector('a.suggestion-link');
+                  if (activeLink) {
+                      activeLink.click(); // Simulate click or navigate directly
+                      // window.location.href = activeLink.href; // Alternative navigation
+                  }
+              }
+              // Allow default form submission if Enter is pressed without an active suggestion?
+              // Currently form submission is prevented by onsubmit="return false;"
+          } else if (e.key === 'Escape') {
+              hideSuggestions();
+          }
+      });
+
+      function updateActiveSuggestion(items) {
+          items.forEach((item, index) => {
+              const link = item.querySelector('a.suggestion-link');
+              if (index === activeSuggestionIndex) {
+                  item.classList.add('bg-gray-100'); // Highlight active item
+                  link?.classList.add('text-dtu-red');
+                  searchTermInput.setAttribute('aria-activedescendant', item.id);
+                  item.scrollIntoView({ block: 'nearest' }); // Ensure visible
+              } else {
+                  item.classList.remove('bg-gray-100');
+                  link?.classList.remove('text-dtu-red');
+              }
+          });
+      }
+
+      // Optional: Hide suggestions if clicked outside the search input and suggestions list
+      document.addEventListener('click', function(event) {
+          const searchForm = searchTermInput.closest('form');
+          if (searchForm && !searchForm.contains(event.target)) {
+              // Check if the click was outside the form (input + suggestions div)
+              hideSuggestions();
+          }
+      });
 
     </script>
 {% endblock %} 
