@@ -114,20 +114,6 @@
             {% endif %}
 
         </div>
-    {% else %}
-         <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
-             <p class="text-gray-500 italic">
-                 {% if details.view_item_type == 'SourceDatabase' %}
-                     No genes found associated with this database.
-                 {% elif details.view_item_type == 'AntibioticClass' %}
-                     No genes found associated with this class.
-                 {% elif details.view_item_type == 'PredictedPhenotype' %}
-                      No genes found associated with this phenotype.
-                 {% else %}
-                      This item is not referenced by other items in the database via known relationships.
-                 {% endif %}
-             </p>
-         </div>
     {% endif %}
 
 {% endblock %}

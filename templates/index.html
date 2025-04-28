@@ -84,13 +84,11 @@
           }
 
           if (query.length < 2) {
-              suggestionsDiv.innerHTML = '';
               suggestionsDiv.classList.add('hidden');
               searchTermInput.removeAttribute('aria-activedescendant');
               return;
           }
 
-          suggestionsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500">Loading...</div>';
           suggestionsDiv.classList.remove('hidden');
 
           fetchController = new AbortController();
@@ -160,17 +158,16 @@
                       suggestionsDiv.appendChild(list);
                       suggestionsDiv.classList.remove('hidden');
                   } else {
-                      suggestionsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500">No results found.</div>';
-                      suggestionsDiv.classList.remove('hidden');
+                      suggestionsDiv.classList.add('hidden');
                       searchTermInput.removeAttribute('aria-activedescendant');
                   }
               })
               .catch(error => {
                   if (error.name === 'AbortError') {
                   } else {
-                      suggestionsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-red-600">Error loading suggestions.</div>';
-                      suggestionsDiv.classList.remove('hidden');
+                      suggestionsDiv.classList.add('hidden');
                       searchTermInput.removeAttribute('aria-activedescendant');
+                      console.error("Autocomplete error:", error);
                   }
               })
               .finally(() => {
