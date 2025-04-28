@@ -178,14 +178,18 @@
     {# Custom JS for Charts #}
     <script>
       document.addEventListener('DOMContentLoaded', () => {
+        console.log("DOM fully loaded and parsed"); // Log: Check if script starts
+
         const isErrorPage = document.querySelector('.bg-red-100[role="alert"]');
         if (isErrorPage) {
             console.log("Error page detected, skipping chart initialization.");
             return; // Skip chart and suggestion setup on error pages
         }
+        console.log("Not an error page, proceeding with chart setup."); // Log: Check if proceeding
 
         // Register the datalabels plugin globally
         if (typeof ChartDataLabels !== 'undefined') {
+            console.log("ChartDataLabels plugin found, registering."); // Log: Check plugin
             Chart.register(ChartDataLabels);
         } else {
             console.warn('ChartDataLabels plugin not found. Percentages on stacked bar chart will not be displayed.');
@@ -193,160 +197,184 @@
 
         // Get chart data container and parse data attributes
         const chartDataContainer = document.getElementById('chart-data-container');
-        let pieCfg = null;
-        let donutCfg = null; // Renamed from barCfg
-        let stackedCfg = null;
+        if (!chartDataContainer) {
+            console.error("Chart data container element not found!"); // Log: Check container
+            return;
+        }
+        console.log("Chart data container found."); // Log: Check container found
+
+        let antibioticCfg = null; // Renamed for clarity
+        let sourceDbCfg = null;   // Renamed for clarity
+        let phenotypeCfg = null;  // Renamed for clarity
 
         try {
-            if (chartDataContainer?.dataset.antibiotic) {
-                pieCfg = JSON.parse(chartDataContainer.dataset.antibiotic);
+            const antibioticData = chartDataContainer.dataset.antibiotic;
+            const sourceDbData = chartDataContainer.dataset.sourceDb;
+            const phenotypeData = chartDataContainer.dataset.phenotype;
+
+            console.log("Raw antibiotic data:", antibioticData); // Log: Raw data
+            console.log("Raw sourceDb data:", sourceDbData);     // Log: Raw data
+            console.log("Raw phenotype data:", phenotypeData);   // Log: Raw data
+
+            if (antibioticData && antibioticData !== 'null') {
+                antibioticCfg = JSON.parse(antibioticData);
+                console.log("Parsed antibiotic config:", antibioticCfg); // Log: Parsed data
+            } else {
+                 console.log("No antibiotic data found or data is null.");
             }
-            if (chartDataContainer?.dataset.sourceDb) { // Corrected attribute name to match HTML
-                donutCfg = JSON.parse(chartDataContainer.dataset.sourceDb); // Parse sourceDb data
+            if (sourceDbData && sourceDbData !== 'null') {
+                sourceDbCfg = JSON.parse(sourceDbData);
+                console.log("Parsed sourceDb config:", sourceDbCfg); // Log: Parsed data
+            } else {
+                 console.log("No sourceDb data found or data is null.");
             }
-            if (chartDataContainer?.dataset.phenotype) {
-                stackedCfg = JSON.parse(chartDataContainer.dataset.phenotype);
+            if (phenotypeData && phenotypeData !== 'null') {
+                phenotypeCfg = JSON.parse(phenotypeData);
+                console.log("Parsed phenotype config:", phenotypeCfg); // Log: Parsed data
+            } else {
+                 console.log("No phenotype data found or data is null.");
             }
         } catch (e) {
             console.error("Error parsing chart JSON data from data attributes:", e);
-            // Optionally display an error to the user or just skip chart rendering
             return; // Stop if JSON is invalid
         }
 
 
         /* Chart helper functions */
         // Combined function for Pie and Doughnut charts
-        const createPieDoughnut = (id, d, type = 'pie') => { // Default to pie, allow 'doughnut'
+        const createPieDoughnut = (id, d, type = 'pie') => {
+            console.log(`Attempting to create ${type} chart with id '${id}'`); // Log: Chart creation attempt
             const ctx = document.getElementById(id);
-            if (!ctx) { console.error(`Canvas element with id '${id}' not found for ${type} chart.`); return null; }
-            return new Chart(ctx, {
-                type: type, // Use the passed type ('pie' or 'doughnut')
-                data: {
-                    labels: d.labels,
-                    datasets:[{
-                        data:d.data,
-                        backgroundColor:d.colors // Use colors from Python
-                    }]
-                },
-                options:{
-                    responsive: true,
-                    maintainAspectRatio: false, // Allow canvas to fill container height/width
-                    plugins:{
-                        legend:{ display: false }, // Hide legend for both pie and doughnut for consistency
-                        datalabels: { // Disable datalabels for pie/doughnut charts
-                            display: false
-                        },
-                        tooltip: {
-                            callbacks: { // Optional: Format tooltip
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    if (label) {
-                                        label += ': ';
+            if (!ctx) {
+                console.error(`Canvas element with id '${id}' not found for ${type} chart.`);
+                return null;
+            }
+            console.log(`Canvas element '${id}' found.`); // Log: Canvas found
+            try {
+                return new Chart(ctx, {
+                    type: type,
+                    data: {
+                        labels: d.labels,
+                        datasets:[{
+                            data:d.data,
+                            backgroundColor:d.colors
+                        }]
+                    },
+                    options:{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins:{
+                            legend:{ display: false },
+                            datalabels: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) { label += ': '; }
+                                        if (context.parsed !== null) {
+                                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                            const value = context.raw;
+                                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                            label += `${value} (${percentage}%)`;
+                                        }
+                                        return label;
                                     }
-                                    if (context.parsed !== null) {
-                                        // Calculate percentage for tooltip
-                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const value = context.raw;
-                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                        label += `${value} (${percentage}%)`;
-                                    }
-                                    return label;
                                 }
                             }
                         }
                     }
-                }
-            });
-        };
-
-        // Function for Bar charts (currently unused on index, but kept for potential future use)
-        const createBar = (id, d) => {
-            const ctx = document.getElementById(id);
-            if (!ctx) { console.error(`Canvas element with id '${id}' not found for bar chart.`); return null; }
-            return new Chart(ctx, {
-                type:'bar',
-                data:{
-                    labels:d.segments.map(s=>s.name),
-                    datasets:[{
-                        data:d.segments.map(s=>s.count),
-                        backgroundColor:d.segments.map(s=>s.color) // Use colors from Python
-                    }]
-                },
-                options:{
-                    indexAxis:'y', // Keep for horizontal bar if used
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins:{ legend:{display:false} },
-                    scales:{
-                        y:{ position:'left', ticks: { autoSkip: false, padding: 5 } },
-                        x:{ beginAtZero:true }
-                    }
-                }
-            });
+                });
+            } catch (chartError) {
+                console.error(`Error creating chart '${id}':`, chartError); // Log: Chart.js specific error
+                return null;
+            }
         };
 
         // Function for Stacked Bar charts
         const createStackedBar = (id, d) => {
+             console.log(`Attempting to create stacked bar chart with id '${id}'`); // Log: Chart creation attempt
             const ctx = document.getElementById(id);
-            if (!ctx) { console.error(`Canvas element with id '${id}' not found for stacked bar chart.`); return null; }
-            return new Chart(ctx, {
-                type:'bar',
-                data:{
-                    labels:['Predicted Phenotypes'], // Single category label for the axis (not displayed)
-                    datasets: d.segments.map(s => ({
-                        label: s.name, // Used for tooltip
-                        data: [s.percentage], // Use percentage as the data value for the bar length
-                        backgroundColor: s.color, // Use color from Python
-                        count: s.count,
-                        percentage: s.percentage
-                    }))
-                },
-                options:{
-                    indexAxis:'y',
-                    responsive:true,
-                    maintainAspectRatio: false,
-                    scales:{
-                        x:{ stacked:true, display: true, max: 100, ticks: { callback: value => value + '%' } }, // Show X-axis with %
-                        y:{ stacked:true, display:false } // Hide Y-axis labels/ticks
+            if (!ctx) {
+                console.error(`Canvas element with id '${id}' not found for stacked bar chart.`);
+                return null;
+            }
+             console.log(`Canvas element '${id}' found.`); // Log: Canvas found
+            try {
+                return new Chart(ctx, {
+                    type:'bar',
+                    data:{
+                        labels:['Predicted Phenotypes'],
+                        datasets: d.segments.map(s => ({
+                            label: s.name,
+                            data: [s.percentage],
+                            backgroundColor: s.color,
+                            count: s.count,
+                            percentage: s.percentage
+                        }))
                     },
-                    plugins:{
-                        legend:{ display: false }, // Hide legend
-                        tooltip: {
-                            callbacks: { // Custom tooltip to show name and original count/percentage
-                                 label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    const count = context.dataset.count;
-                                    const percentage = context.dataset.percentage;
-                                    if (count !== undefined && percentage !== undefined) {
-                                        label += `${count} (${percentage.toFixed(1)}%)`;
-                                    } else {
-                                        label += context.formattedValue + '%';
-                                    }
-                                    return label;
-                                }
-                            }
+                    options:{
+                        indexAxis:'y',
+                        responsive:true,
+                        maintainAspectRatio: false,
+                        scales:{
+                            x:{ stacked:true, display: true, max: 100, ticks: { callback: value => value + '%' } },
+                            y:{ stacked:true, display:false }
                         },
-                        datalabels: {
-                            formatter: (value, context) => {
-                                return value > 5 ? value.toFixed(1) + '%' : '';
+                        plugins:{
+                            legend:{ display: false },
+                            tooltip: {
+                                callbacks: {
+                                     label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) { label += ': '; }
+                                        const count = context.dataset.count;
+                                        const percentage = context.dataset.percentage;
+                                        if (count !== undefined && percentage !== undefined) {
+                                            label += `${count} (${percentage.toFixed(1)}%)`;
+                                        } else {
+                                            label += context.formattedValue + '%';
+                                        }
+                                        return label;
+                                    }
+                                }
                             },
-                            color: '#ffffff',
-                            font: {
-                                weight: 'bold'
+                            datalabels: {
+                                formatter: (value, context) => {
+                                    return value > 5 ? value.toFixed(1) + '%' : '';
+                                },
+                                color: '#ffffff',
+                                font: { weight: 'bold' }
                             }
                         }
                     }
-                }
-            });
+                });
+            } catch (chartError) {
+                console.error(`Error creating chart '${id}':`, chartError); // Log: Chart.js specific error
+                return null;
+            }
         };
 
         // Initialize charts if data exists and canvas elements are found
-        if (pieCfg)       createPieDoughnut('antibiotic', pieCfg, 'pie'); // Explicitly 'pie'
-        if (donutCfg)     createPieDoughnut('sourceDb',  donutCfg, 'doughnut'); // Use 'doughnut' type
-        if (stackedCfg)   createStackedBar('phenotype', stackedCfg);
+        console.log("Initializing charts..."); // Log: Start initialization
+        if (antibioticCfg) {
+            createPieDoughnut('antibiotic', antibioticCfg, 'doughnut'); // <-- Changed type to 'doughnut'
+        } else {
+            console.log("Skipping antibiotic chart initialization (no data).");
+        }
+
+        if (sourceDbCfg) {
+            createPieDoughnut('sourceDb',  sourceDbCfg, 'doughnut');
+        } else {
+             console.log("Skipping sourceDb chart initialization (no data).");
+        }
+
+        if (phenotypeCfg) {
+            createStackedBar('phenotype', phenotypeCfg);
+        } else {
+             console.log("Skipping phenotype chart initialization (no data).");
+        }
+        console.log("Chart initialization finished."); // Log: End initialization
+
       }); // End DOMContentLoaded for charts
 
       // --- Autocomplete Suggestion Logic ---
