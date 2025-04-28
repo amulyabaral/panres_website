@@ -12,6 +12,9 @@
     {# Link to your consolidated custom CSS #}
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
+    {# Add Font Awesome for icons (like GitHub) #}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
     <link rel="icon" href="{{ url_for('static', filename='panres_logo.png') }}" type="image/png">
 
     {# Basic Tailwind Configuration - Define custom colors here #}
@@ -33,16 +36,18 @@
     {# --- Header --- #}
     <header class="dtu-pattern-bg sticky top-0 z-50 shadow-md space-x-4 space-y-1">
         <div class="container mx-auto px-6 py-3 flex justify-between items-center">
-            {# <div class="flex items-center space-x-1"> #}
-                 {# <a href="{{ url_for('index') }}">
-                    <img src="{{ url_for('static', filename='panres_logo.png') }}" alt="PanRes Logo" class="h-10">
-                 </a> #}
+            {# Wrap logo and title in a flex container for alignment #}
+            <div class="flex items-center space-x-4">
+                 {# Uncommented and updated logo link #}
+                 <a href="{{ url_for('index') }}">
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="h-10"> {# Updated filename to logo.png #}
+                 </a>
                  <div>
                     {# Use light text colors for contrast #}
                     <h1 class="text-xl font-semibold text-white">Center for Genomic Epidemiology</h1>
                  </div>
-            {# </div> #}
-            <div></div> {# Placeholder #}
+            </div>
+            <div></div> {# Placeholder for potential right-aligned content #}
         </div>
     </header>
 

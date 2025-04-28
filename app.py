@@ -643,6 +643,57 @@ def index():
                            antibiotic=chart_data.get('antibiotic'),
                            show_error=False)
 
+@app.route('/search')
+def search_results():
+    """Handles search requests."""
+    search_term = request.args.get('q', '').strip()
+    app.logger.info(f"Search requested for term: '{search_term}'")
+    results = []
+    # --- Placeholder for actual search logic ---
+    # You need to query the database based on the search_term
+    # Example: Search for labels or IDs matching the term
+    if search_term:
+        try:
+            # Basic example: Search subjects/objects with matching labels or IDs (case-insensitive)
+            # This is likely too broad and slow for a large DB - refine this query!
+            query = """
+                SELECT DISTINCT subject, object AS label
+                FROM triples t1
+                LEFT JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ?
+                WHERE t1.subject LIKE ? OR (t2.object IS NOT NULL AND t2.object LIKE ?)
+                LIMIT 50
+            """
+            # Use '%' for wildcard matching
+            term_like = f'%{search_term}%'
+            search_rows = query_db(query, (RDFS_LABEL, term_like, term_like))
+
+            if search_rows:
+                 # Avoid duplicates and format results
+                 found_subjects = set()
+                 for row in search_rows:
+                     if row['subject'] not in found_subjects:
+                         results.append({
+                             'id': row['subject'],
+                             'display_name': row['label'] if row['label'] else row['subject'], # Use label or fallback to ID
+                             'link': url_for('details', item_id=quote(row['subject']))
+                         })
+                         found_subjects.add(row['subject'])
+                 # Sort results for consistency
+                 results.sort(key=lambda x: x['display_name'])
+
+            app.logger.info(f"Found {len(results)} potential matches for '{search_term}'")
+
+        except Exception as e:
+            app.logger.error(f"Error during search for '{search_term}': {e}")
+            # Optionally, pass an error message to the template
+            pass # Continue with empty results
+
+    # --- End Placeholder ---
+
+    return render_template('search_results.html',
+                           search_term=search_term,
+                           results=results)
+
 @app.route('/list/<category_key>')
 @app.route('/list/related/<predicate>/<path:object_value>')
 def list_items(category_key=None, predicate=None, object_value=None):
