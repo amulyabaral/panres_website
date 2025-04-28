@@ -419,7 +419,8 @@ def get_items_for_category(category_key):
                 check_cur.execute("SELECT 1 FROM triples WHERE subject = ? LIMIT 1", (obj_id,))
                 is_resource = check_cur.fetchone() is not None
                 link = url_for('details', item_id=quote(obj_id)) if is_resource else None
-                items.append({'id': obj_id, 'link': link})
+                # Use the object ID itself as the display name for categories like databases/classes
+                items.append({'id': obj_id, 'display_name': obj_id, 'link': link})
             check_cur.close()
             total_count = len(items)
 
