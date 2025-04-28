@@ -149,6 +149,24 @@ app.config['SITE_NAME'] = SITE_NAME
 app.config['CITATION_TEXT'] = CITATION_TEXT
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'a_default_secret_key_for_development')
 
+# --- Initialize FTS Index Before Running App ---
+# This ensures the FTS table exists before any requests are handled.
+if os.path.exists(DATABASE):
+    logger.info("Database file found. Initializing FTS index...")
+    try:
+        create_and_populate_fts(DATABASE)
+        logger.info("FTS index setup completed successfully.")
+    except Exception as e:
+        # Make FTS initialization failure critical
+        logger.error(f"CRITICAL: Failed to initialize FTS index: {e}. Application cannot start.", exc_info=True)
+        # Re-raise the exception to stop the application
+        raise RuntimeError(f"Failed to initialize FTS index: {e}") from e
+else:
+    logger.error(f"CRITICAL: Database file '{DATABASE}' not found. Cannot initialize FTS index. Application cannot start.")
+    # Exit if the database is missing
+    raise FileNotFoundError(f"Database file '{DATABASE}' not found. Cannot initialize FTS index.")
+
+
 # --- Database Helper Functions ---
 def get_db():
     """Opens a new database connection if there is none yet for the current application context."""
@@ -177,48 +195,39 @@ def close_db(error):
 
 # Modified query_db to accept an optional connection (for use within autocomplete)
 def query_db(query, args=(), one=False, db_conn=None):
-    """Helper function to query the database. Can use a provided connection."""
-    # Use provided connection OR the one from Flask's 'g' OR create a temporary one
-    conn_to_use = None
-    created_conn = False
-    if db_conn:
-        conn_to_use = db_conn
-    elif 'db' in g:
-        conn_to_use = g.db
-    else:
-        # Fallback: create a temporary connection if not in request context and no conn provided
-        # This might happen if called outside a request (e.g., during startup if not careful)
-        # logger.warning("Query_db called outside request context or without provided connection. Creating temporary connection.")
-        try:
-            conn_to_use = sqlite3.connect(app.config['DATABASE'], detect_types=sqlite3.PARSE_DECLTYPES)
-            conn_to_use.row_factory = sqlite3.Row
-            created_conn = True
-        except sqlite3.Error as e:
-            logger.error(f"Failed to create temporary DB connection: {e}")
-            return None # Cannot proceed
+    """Helper function to query the database. Uses connection from 'g' or provided."""
+    conn_to_use = db_conn or g.get('db') # Prefer provided, fallback to g.db
 
     if not conn_to_use:
+        # This should ideally not happen within a request context after get_db()
         logger.error("No database connection available for query_db.")
-        return None
+        # Raise an exception or return None based on how you want to handle this edge case
+        # Raising an exception might be safer to surface the problem.
+        raise RuntimeError("Database connection not found in application context for query_db.")
+        # return None # Alternative: return None, but might hide issues
 
     cur = None # Initialize cur to None
     try:
         cur = conn_to_use.execute(query, args)
         rv = cur.fetchall()
-        cur.close() # Close the cursor immediately
+        # It's generally safer to close the cursor explicitly,
+        # although context managers often handle this.
+        # Closing it here ensures it's done even if the connection is reused.
+        cur.close()
         return (rv[0] if rv else None) if one else rv
     except sqlite3.Error as e:
-        logger.error(f"Database query error: {e}\nQuery: {query}\nArgs: {args}")
-        if cur: cur.close()
-        return None
+        logger.error(f"Database query error: {e}\nQuery: {query}\nArgs: {args}", exc_info=True) # Log traceback
+        if cur: cur.close() # Ensure cursor is closed on error
+        # Re-raise or return None depending on desired error handling
+        # Re-raising makes errors more visible during development/debugging
+        raise # Re-raise the exception
+        # return None # Alternative: return None
     except Exception as e: # Catch other potential errors
-        logger.error(f"Unexpected error during query: {e}\nQuery: {query}\nArgs: {args}")
+        logger.error(f"Unexpected error during query: {e}\nQuery: {query}\nArgs: {args}", exc_info=True) # Log traceback
         if cur: cur.close()
-        return None
-    finally:
-        # Close the connection ONLY if we created it temporarily within this function
-        if created_conn and conn_to_use:
-            conn_to_use.close()
+        raise # Re-raise the exception
+        # return None # Alternative: return None
+    # No finally block needed to close connection, as it's managed by app context or passed in
 
 
 # --- Data Fetching Logic ---
@@ -1087,29 +1096,18 @@ def get_autocomplete_suggestions_fts(term, limit=15):
 
 # --- Run the App ---
 if __name__ == '__main__':
-    # --- Initialize FTS Index Before Starting App ---
-    # Check if the database file exists before trying to index
-    if os.path.exists(DATABASE):
-        logger.info("Database file found. Proceeding with FTS index check/population.")
-        try:
-            create_and_populate_fts(DATABASE)
-            logger.info("FTS index setup check completed.")
-        except Exception as e:
-            # Log the error but allow the app to continue running if desired
-            # If FTS is critical, you might want to exit here instead.
-            logger.error(f"Failed to initialize FTS index: {e}. App will start without FTS.", exc_info=True)
-    else:
-        logger.error(f"Database file '{DATABASE}' not found. Cannot initialize FTS index. Please ensure the database exists.")
-        # Depending on requirements, you might want to exit:
-        # import sys
-        # sys.exit(f"Error: Database file '{DATABASE}' not found.")
+    # --- FTS Initialization is now done earlier in the script ---
+    # No need to call create_and_populate_fts here anymore
 
     # --- Start Flask Development Server ---
     port = int(os.environ.get('PORT', 5001))
     # Set debug=False for production/deployment, True for development
-    app.run(host='0.0.0.0', port=port, debug=False) # Changed debug to False as default for non-manual setup
+    # Use debug=True for local development to get auto-reloading and better error pages
+    # Use debug=False when deploying with Gunicorn
+    is_development = os.environ.get('FLASK_ENV') == 'development' or os.environ.get('DEBUG') == '1'
+    app.run(host='0.0.0.0', port=port, debug=is_development)
 
 # --- REMOVE Flask CLI command ---
-# @app.cli.command('init-fts')
+# @app.cli.command('init-fts') # Delete this command if it exists
 # def init_fts_command():
 #    ... (delete this function) ... 
