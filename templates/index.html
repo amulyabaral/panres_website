@@ -36,11 +36,8 @@
                 Browse the PanRes Ontology
             </h2>
             <p class="mt-4 max-w-3xl mx-auto text-lg text-gray-100">
-                Find detailed information about each PanRes gene: discover its source database(s),
-                see how it's named across different resources, explore its predicted antibiotic resistance phenotype(s),
-                and understand its relationship to antibiotic classes.
-                {# Note: Folding information is not currently part of the data model, but text included as requested #}
-                <!-- and see how they fold -->
+                Find detailed information about each PanRes gene: 
+                Explore predicted antibiotic resistance phenotype(s), ontology across different resources,
             </p>
             <div class="mt-10 flex justify-center items-center gap-x-6">
                  {# This button can link back to the index or a future dedicated search page #}
@@ -48,7 +45,6 @@
                 <a href="{{ url_for('index') }}#charts" class="rounded-md bg-white px-5 py-3 text-base font-semibold text-dtu-red shadow-sm hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition">
                     Start Browsing Below <span aria-hidden="true">&darr;</span>
                 </a>
-                {# Example secondary link (optional) - could link to documentation or download page if available #}
                 <!--
                 <a href="#" class="text-base font-semibold leading-6 text-gray-100 hover:text-white transition">
                     Learn more <span aria-hidden="true">&rarr;</span>
