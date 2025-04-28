@@ -55,11 +55,10 @@ PREDICATE_MAP = {
     'range': "Range",
 }
 
-# Define a nicer color palette
-# (Example using Tableau 10 colors - feel free to replace with your preferred palette)
+# Define a nicer color palette (using shades of red)
 COLOR_PALETTE = [
-    '#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
-    '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC'
+    '#660000', '#800000', '#990000', '#B30000', '#CC0000',
+    '#E60000', '#FF1A1A', '#FF4D4D', '#FF8080', '#FFB3B3'
 ]
 color_cycler = itertools.cycle(COLOR_PALETTE) # Create a cycler
 
@@ -503,11 +502,11 @@ def get_chart_data():
         'antibiotic': None,
     }
     db = get_db() # Use context-managed connection
-    # Reset color cycler for each request to ensure consistency if data changes slightly
+    # Reset color cycler for each request to ensure consistency
     global color_cycler
     color_cycler = itertools.cycle(COLOR_PALETTE)
 
-    # 1. Source Database Data (Bar Chart - based on OriginalGene sources)
+    # 1. Source Database Data (Donut Chart - based on OriginalGene sources)
     try:
         # Count OriginalGenes per database
         query = f"""
@@ -520,17 +519,15 @@ def get_chart_data():
         """
         results = query_db(query, (IS_FROM_DATABASE, RDF_TYPE), db_conn=db)
         if results:
-            total_genes = sum(row['gene_count'] for row in results)
+            labels = [get_label(row['database_name'], db_conn=db) for row in results] # Get labels
+            data_points = [row['gene_count'] for row in results]
+            colors = [next(color_cycler) for _ in labels] # Generate colors
+
             chart_data['source_db'] = {
-                'segments': [
-                    {
-                        'name': get_label(row['database_name'], db_conn=db), # Get label for display
-                        'count': row['gene_count'],
-                        'percentage': (row['gene_count'] / total_genes * 100) if total_genes else 0,
-                        'color': next(color_cycler)
-                    } for row in results
-                ],
-                'total_count': total_genes
+                'labels': labels,
+                'data': data_points,
+                'colors': colors, # Pass colors to template
+                'total_count': sum(data_points)
             }
     except Exception as e:
         logger.error(f"Error fetching source database chart data: {e}")
@@ -555,7 +552,7 @@ def get_chart_data():
                         'name': get_label(row['phenotype_name'], db_conn=db), # Get label for display
                         'count': row['gene_count'],
                         'percentage': (row['gene_count'] / total_genes * 100) if total_genes else 0,
-                        'color': next(color_cycler)
+                        'color': next(color_cycler) # Use new color palette
                     } for row in results
                 ],
                 'total_count': total_genes
@@ -564,7 +561,7 @@ def get_chart_data():
         logger.error(f"Error fetching phenotype chart data: {e}")
 
 
-    # 3. Antibiotic Class Data (Pie Chart - based on PanGene classes)
+    # 3. Antibiotic Class Data (Pie Chart - Top 7 + Others, based on PanGene classes)
     try:
         # Count PanGenes per class
         query = f"""
@@ -577,15 +574,33 @@ def get_chart_data():
         """
         results = query_db(query, (HAS_RESISTANCE_CLASS, RDF_TYPE), db_conn=db)
         if results:
-            labels = [get_label(row['class_name'], db_conn=db) for row in results] # Get labels
-            data_points = [row['gene_count'] for row in results]
-            colors = [next(color_cycler) for _ in labels] # Generate colors
+            top_n = 7
+            labels = []
+            data_points = []
+            total_count = sum(row['gene_count'] for row in results)
+
+            # Process top N
+            for i, row in enumerate(results):
+                if i < top_n:
+                    labels.append(get_label(row['class_name'], db_conn=db))
+                    data_points.append(row['gene_count'])
+                else:
+                    break # Stop after top N
+
+            # Calculate "Others"
+            if len(results) > top_n:
+                others_count = sum(row['gene_count'] for row in results[top_n:])
+                if others_count > 0:
+                    labels.append("Others")
+                    data_points.append(others_count)
+
+            colors = [next(color_cycler) for _ in labels] # Generate colors for final segments
 
             chart_data['antibiotic'] = {
                 'labels': labels,
                 'data': data_points,
                 'colors': colors, # Pass colors to template
-                'total_count': sum(data_points)
+                'total_count': total_count # Keep total count of all genes
             }
     except Exception as e:
         logger.error(f"Error fetching antibiotic class chart data: {e}")

@@ -74,7 +74,8 @@
     {# --- Charts Section (Combined Card) --- #}
     {# Add an id for the anchor link from the button above #}
     <section id="charts" class="mb-12">
-        <h3 class="text-2xl font-semibold text-gray-700 mb-6 text-center">PanRes 2.0 Overview</h3>
+        {# Updated Section Title #}
+        <h3 class="text-2xl font-semibold text-gray-700 mb-6 text-center">PanRes by the numbers</h3>
 
         {# Single Card Container for all charts #}
         {# Add data attributes to hold the JSON configuration #}
@@ -84,13 +85,13 @@
              data-phenotype="{{ phenotype | tojson | safe if phenotype else 'null' }}"
              class="bg-white p-4 md:p-6 rounded-lg shadow-md border border-gray-200">
 
-            {# Grid for top two charts (Pie and Bar) #}
+            {# Grid for top two charts (Pie and Donut) #}
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-6 lg:mb-8">
 
                 {# Antibiotic Classes Chart Card (Pie) #}
                 <div class="flex flex-col"> {# Removed card styling, just a container #}
-                    <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Genes by Antibiotic Class</h4>
-                    <p class="text-gray-600 text-sm mb-4 text-center">Distribution across resistance classes</p>
+                    <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Top Antibiotic Resistance Classes</h4>
+                    <p class="text-gray-600 text-sm mb-4 text-center">Distribution across top 7 classes + Others</p>
                     {# Check if the data attribute exists and is not 'null' before creating canvas #}
                     {% if antibiotic %}
                         <div class="relative h-64 md:h-80 mx-auto w-full max-w-sm mb-4">
@@ -108,13 +109,13 @@
                     {% endif %}
                 </div>
 
-                {# Source Databases Chart Card (Bar) #}
+                {# Source Databases Chart Card (Donut) #}
                 <div class="flex flex-col"> {# Removed card styling, just a container #}
                     <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Genes by Source Database</h4>
-                    <p class="text-gray-600 text-sm mb-4 text-center">Contributions from source databases</p>
+                    <p class="text-gray-600 text-sm mb-4 text-center">Relative contribution from source databases</p>
                     {# Check if the data attribute exists and is not 'null' before creating canvas #}
                     {% if source_db %}
-                        <div class="relative h-64 md:h-80 mx-auto w-full mb-4">
+                        <div class="relative h-64 md:h-80 mx-auto w-full max-w-sm mb-4"> {# Adjusted max-width like pie #}
                             <canvas id="sourceDb"></canvas> {# Canvas ID matches JS #}
                         </div>
                         {# Button #}
@@ -193,7 +194,7 @@
         // Get chart data container and parse data attributes
         const chartDataContainer = document.getElementById('chart-data-container');
         let pieCfg = null;
-        let barCfg = null;
+        let donutCfg = null; // Renamed from barCfg
         let stackedCfg = null;
 
         try {
@@ -201,7 +202,7 @@
                 pieCfg = JSON.parse(chartDataContainer.dataset.antibiotic);
             }
             if (chartDataContainer?.dataset.sourceDb) { // Corrected attribute name to match HTML
-                barCfg = JSON.parse(chartDataContainer.dataset.sourceDb);
+                donutCfg = JSON.parse(chartDataContainer.dataset.sourceDb); // Parse sourceDb data
             }
             if (chartDataContainer?.dataset.phenotype) {
                 stackedCfg = JSON.parse(chartDataContainer.dataset.phenotype);
@@ -213,12 +214,13 @@
         }
 
 
-        /* Chart helper functions (pie, bar, stacked) remain the same */
-        const pie = (id, d) => {
+        /* Chart helper functions */
+        // Combined function for Pie and Doughnut charts
+        const createPieDoughnut = (id, d, type = 'pie') => { // Default to pie, allow 'doughnut'
             const ctx = document.getElementById(id);
-            if (!ctx) { console.error(`Canvas element with id '${id}' not found for pie chart.`); return null; }
+            if (!ctx) { console.error(`Canvas element with id '${id}' not found for ${type} chart.`); return null; }
             return new Chart(ctx, {
-                type: 'pie',
+                type: type, // Use the passed type ('pie' or 'doughnut')
                 data: {
                     labels: d.labels,
                     datasets:[{
@@ -230,8 +232,8 @@
                     responsive: true,
                     maintainAspectRatio: false, // Allow canvas to fill container height/width
                     plugins:{
-                        legend:{ display: false }, // Hide legend for pie chart
-                        datalabels: { // Disable datalabels for the pie chart
+                        legend:{ display: false }, // Hide legend for both pie and doughnut for consistency
+                        datalabels: { // Disable datalabels for pie/doughnut charts
                             display: false
                         },
                         tooltip: {
@@ -257,7 +259,8 @@
             });
         };
 
-        const bar = (id, d) => {
+        // Function for Bar charts (currently unused on index, but kept for potential future use)
+        const createBar = (id, d) => {
             const ctx = document.getElementById(id);
             if (!ctx) { console.error(`Canvas element with id '${id}' not found for bar chart.`); return null; }
             return new Chart(ctx, {
@@ -270,32 +273,30 @@
                     }]
                 },
                 options:{
-                    indexAxis:'y',
+                    indexAxis:'y', // Keep for horizontal bar if used
                     responsive: true,
-                    maintainAspectRatio: false, // Allow canvas to fill container height/width
-                    plugins:{ legend:{display:false} }, // No legend for bar
+                    maintainAspectRatio: false,
+                    plugins:{ legend:{display:false} },
                     scales:{
-                        // Adjust padding/position if labels overlap
-                        y:{ position:'left', ticks: { autoSkip: false, padding: 5 } }, // Keep labels on left
+                        y:{ position:'left', ticks: { autoSkip: false, padding: 5 } },
                         x:{ beginAtZero:true }
                     }
                 }
             });
         };
 
-        const stacked = (id, d) => {
+        // Function for Stacked Bar charts
+        const createStackedBar = (id, d) => {
             const ctx = document.getElementById(id);
             if (!ctx) { console.error(`Canvas element with id '${id}' not found for stacked bar chart.`); return null; }
             return new Chart(ctx, {
                 type:'bar',
                 data:{
                     labels:['Predicted Phenotypes'], // Single category label for the axis (not displayed)
-                    // Map segments to datasets, including the percentage for the datalabels plugin
                     datasets: d.segments.map(s => ({
                         label: s.name, // Used for tooltip
                         data: [s.percentage], // Use percentage as the data value for the bar length
                         backgroundColor: s.color, // Use color from Python
-                        // Store count and raw percentage for potential use in tooltips/labels if needed
                         count: s.count,
                         percentage: s.percentage
                     }))
@@ -303,7 +304,7 @@
                 options:{
                     indexAxis:'y',
                     responsive:true,
-                    maintainAspectRatio: false, // Allow canvas to fill container height/width
+                    maintainAspectRatio: false,
                     scales:{
                         x:{ stacked:true, display: true, max: 100, ticks: { callback: value => value + '%' } }, // Show X-axis with %
                         y:{ stacked:true, display:false } // Hide Y-axis labels/ticks
@@ -317,28 +318,22 @@
                                     if (label) {
                                         label += ': ';
                                     }
-                                    // Access the original count and percentage stored in the dataset
                                     const count = context.dataset.count;
                                     const percentage = context.dataset.percentage;
                                     if (count !== undefined && percentage !== undefined) {
                                         label += `${count} (${percentage.toFixed(1)}%)`;
                                     } else {
-                                        // Fallback if data is missing
                                         label += context.formattedValue + '%';
                                     }
                                     return label;
                                 }
                             }
                         },
-                        // Configure datalabels plugin for stacked bar
                         datalabels: {
-                            // Display the percentage inside the bar segments
                             formatter: (value, context) => {
-                                // 'value' here is the percentage we put in data: [s.percentage]
-                                // Only show label if percentage is large enough to fit
                                 return value > 5 ? value.toFixed(1) + '%' : '';
                             },
-                            color: '#ffffff', // White text for contrast
+                            color: '#ffffff',
                             font: {
                                 weight: 'bold'
                             }
@@ -349,9 +344,9 @@
         };
 
         // Initialize charts if data exists and canvas elements are found
-        if (pieCfg)       pie('antibiotic', pieCfg);
-        if (barCfg)       bar('sourceDb',  barCfg); // Corrected ID
-        if (stackedCfg)   stacked('phenotype', stackedCfg);
+        if (pieCfg)       createPieDoughnut('antibiotic', pieCfg, 'pie'); // Explicitly 'pie'
+        if (donutCfg)     createPieDoughnut('sourceDb',  donutCfg, 'doughnut'); // Use 'doughnut' type
+        if (stackedCfg)   createStackedBar('phenotype', stackedCfg);
       }); // End DOMContentLoaded for charts
 
       // --- Autocomplete Suggestion Logic ---
