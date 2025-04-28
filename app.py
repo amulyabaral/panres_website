@@ -58,7 +58,8 @@ PREDICATE_MAP = {
 # Define a nicer color palette (using shades of red)
 COLOR_PALETTE = [
     '#660000', '#800000', '#990000', '#B30000', '#CC0000',
-    '#E60000', '#FF1A1A', '#FF4D4D', '#FF8080', '#FFB3B3'
+    '#E60000', '#FF1A1A', '#FF4D4D', '#FF8080', '#FFB3B3',
+    '#FFCCCC' # Added one more color just in case
 ]
 
 # --- Logging Setup ---
@@ -501,9 +502,9 @@ def get_category_counts():
 def get_chart_data():
     """
     Fetches data specifically formatted for the homepage donut charts.
-    - Source DB: Shows all.
-    - Antibiotic Class: Shows Top 7 + Others.
-    - Predicted Phenotype: Shows Top 7 + Others.
+    - Source DB: Shows Top 7 + Others (Counts PanGenes based on linked OriginalGene source).
+    - Antibiotic Class: Shows Top 7 + Others (Counts PanGenes).
+    - Predicted Phenotype: Shows Top 7 + Others (Counts PanGenes).
     """
     chart_data = {
         'source_db': None,
@@ -512,32 +513,39 @@ def get_chart_data():
     }
     db = get_db() # Use context-managed connection
 
-    # Create a new color cycler for each request to ensure consistent colors
-    color_cycler = itertools.cycle(COLOR_PALETTE)
+    # Use a consistent color cycle for each chart type
     top_n = 7 # Define Top N for reuse
 
     # Helper function to process results into chart format (handles Top N + Others)
-    def process_results_for_donut(results, show_all=False):
+    def process_results_for_donut(results, category_name, show_all=False):
         if not results:
-            return None
+            logger.warning(f"No results found for chart category: {category_name}")
+            return None # Return None if no DB results
+
+        # Assign colors consistently based on the full list before slicing
+        full_color_palette = itertools.cycle(COLOR_PALETTE)
+        colors_map = {row[f'{category_name}_name']: next(full_color_palette) for row in results}
+        # Add a default color for "Others"
+        others_color = next(full_color_palette) # Get the next color for Others
 
         labels = []
         data_points = []
+        colors = []
         total_count = sum(row['gene_count'] for row in results)
         processed_count = 0 # Keep track of count included in top N
 
+        logger.info(f"Processing {len(results)} results for {category_name} chart (Total Count: {total_count})")
+
         # Process top N (or all if show_all is True)
         for i, row in enumerate(results):
-            # Use the key from the query (class_name, phenotype_name, database_name)
-            item_key = next((k for k in row.keys() if k.endswith('_name')), None)
-            if item_key is None: continue # Should not happen with current queries
-
-            item_name = row[item_key]
+            item_name = row[f'{category_name}_name']
             item_count = row['gene_count']
+            item_label = get_label(item_name, db_conn=db) # Get display label
 
             if show_all or i < top_n:
-                labels.append(get_label(item_name, db_conn=db)) # Get display label
+                labels.append(item_label)
                 data_points.append(item_count)
+                colors.append(colors_map.get(item_name, '#CCCCCC')) # Use mapped color or fallback
                 processed_count += item_count
             elif not show_all:
                  # Stop processing if we are beyond top N and not showing all
@@ -549,35 +557,54 @@ def get_chart_data():
             if others_count > 0:
                 labels.append("Others")
                 data_points.append(others_count)
+                colors.append(others_color) # Use the reserved 'Others' color
 
-        # Generate colors only for the final segments being displayed
-        colors = [next(color_cycler) for _ in labels]
+        # Only return data if there are valid data points
+        if not data_points or sum(data_points) == 0:
+             logger.warning(f"Chart data for {category_name} resulted in empty/zero data points.")
+             return None
 
-        return {
+        chart_config = {
             'labels': labels,
             'data': data_points,
             'colors': colors,
             'total_count': total_count # Keep total count of all items
         }
+        logger.info(f"Generated chart config for {category_name}: {chart_config}")
+        return chart_config
 
-    # 1. Source Database Data (Donut Chart - All Sources)
+    # 1. Source Database Data (Counts PanGenes based on linked OriginalGene source) - Top 7 + Others
     try:
-        query = f"""
-            SELECT T1.object AS database_name, COUNT(DISTINCT T1.subject) AS gene_count
-            FROM triples T1
-            JOIN triples T2 ON T1.subject = T2.subject
-            WHERE T1.predicate = ? AND T2.predicate = ? AND T2.object = 'OriginalGene'
-            GROUP BY T1.object
-            ORDER BY gene_count DESC;
+        # This query links PanGene -> same_as -> OriginalGene -> is_from_database
+        query_source = f"""
+            SELECT
+                T3.object AS database_name, -- The database name
+                COUNT(DISTINCT T1.subject) AS gene_count -- Count distinct PanGenes
+            FROM
+                triples T1 -- Start with PanGenes
+            JOIN
+                triples T2 ON T1.subject = T2.subject AND T2.predicate = 'same_as' -- Link PanGene to its 'same_as' OriginalGene ID
+            JOIN
+                triples T3 ON T2.object = T3.subject AND T3.predicate = ? -- Link OriginalGene ID to its 'is_from_database'
+            JOIN
+                triples T4 ON T2.object = T4.subject AND T4.predicate = ? AND T4.object = 'OriginalGene' -- Ensure the intermediate (T2.object) is an OriginalGene type
+            WHERE
+                T1.predicate = ? AND T1.object = 'PanGene' -- T1 subject is a PanGene type
+            GROUP BY
+                T3.object -- Group by database name
+            ORDER BY
+                gene_count DESC;
         """
-        results = query_db(query, (IS_FROM_DATABASE, RDF_TYPE), db_conn=db)
-        chart_data['source_db'] = process_results_for_donut(results, show_all=True)
+        # Predicates needed: is_from_database, rdf:type, rdf:type
+        results_source = query_db(query_source, (IS_FROM_DATABASE, RDF_TYPE, RDF_TYPE), db_conn=db)
+        logger.info(f"Source DB Query Results (Raw): {results_source}") # Log raw results
+        chart_data['source_db'] = process_results_for_donut(results_source, 'database', show_all=False) # Show Top 7 + Others for consistency
     except Exception as e:
         logger.error(f"Error fetching source database chart data: {e}", exc_info=True)
 
-    # 2. Predicted Phenotype Data (Donut Chart - Top 7 + Others)
+    # 2. Predicted Phenotype Data (Counts PanGenes) - Top 7 + Others
     try:
-        query = f"""
+        query_pheno = f"""
             SELECT T1.object AS phenotype_name, COUNT(DISTINCT T1.subject) AS gene_count
             FROM triples T1
             JOIN triples T2 ON T1.subject = T2.subject
@@ -585,14 +612,15 @@ def get_chart_data():
             GROUP BY T1.object
             ORDER BY gene_count DESC;
         """
-        results = query_db(query, (HAS_PREDICTED_PHENOTYPE, RDF_TYPE), db_conn=db)
-        chart_data['phenotype'] = process_results_for_donut(results, show_all=False)
+        results_pheno = query_db(query_pheno, (HAS_PREDICTED_PHENOTYPE, RDF_TYPE), db_conn=db)
+        logger.info(f"Phenotype Query Results (Raw): {results_pheno}") # Log raw results
+        chart_data['phenotype'] = process_results_for_donut(results_pheno, 'phenotype', show_all=False)
     except Exception as e:
         logger.error(f"Error fetching phenotype chart data: {e}", exc_info=True)
 
-    # 3. Antibiotic Class Data (Donut Chart - Top 7 + Others)
+    # 3. Antibiotic Class Data (Counts PanGenes) - Top 7 + Others
     try:
-        query = f"""
+        query_class = f"""
             SELECT T1.object AS class_name, COUNT(DISTINCT T1.subject) AS gene_count
             FROM triples T1
             JOIN triples T2 ON T1.subject = T2.subject
@@ -600,11 +628,13 @@ def get_chart_data():
             GROUP BY T1.object
             ORDER BY gene_count DESC;
         """
-        results = query_db(query, (HAS_RESISTANCE_CLASS, RDF_TYPE), db_conn=db)
-        chart_data['antibiotic'] = process_results_for_donut(results, show_all=False)
+        results_class = query_db(query_class, (HAS_RESISTANCE_CLASS, RDF_TYPE), db_conn=db)
+        logger.info(f"Antibiotic Class Query Results (Raw): {results_class}") # Log raw results
+        chart_data['antibiotic'] = process_results_for_donut(results_class, 'class', show_all=False)
     except Exception as e:
         logger.error(f"Error fetching antibiotic class chart data: {e}", exc_info=True)
 
+    logger.info(f"Final chart_data dictionary: {chart_data}") # Log the final dict
     return chart_data
 
 def get_items_for_category(category_key):
@@ -816,10 +846,13 @@ def inject_global_vars():
 def index():
     """Render the homepage with category counts and charts."""
     category_counts = get_category_counts()
-    chart_data = get_chart_data()
+    chart_data = get_chart_data() # Fetch potentially updated chart data
+    # Log the data being passed to the template
+    logger.info(f"Data passed to index template - Antibiotic: {chart_data.get('antibiotic')}, SourceDB: {chart_data.get('source_db')}, Phenotype: {chart_data.get('phenotype')}")
     return render_template('index.html',
                            index_categories=INDEX_CATEGORIES,
                            category_counts=category_counts,
+                           # Pass the fetched data, which might be None if queries failed or returned no results
                            source_db=chart_data.get('source_db'),
                            phenotype=chart_data.get('phenotype'),
                            antibiotic=chart_data.get('antibiotic'),
