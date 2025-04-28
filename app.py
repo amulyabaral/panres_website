@@ -60,7 +60,6 @@ COLOR_PALETTE = [
     '#660000', '#800000', '#990000', '#B30000', '#CC0000',
     '#E60000', '#FF1A1A', '#FF4D4D', '#FF8080', '#FFB3B3'
 ]
-color_cycler = itertools.cycle(COLOR_PALETTE) # Create a cycler
 
 # --- Logging Setup ---
 logging.basicConfig(level=logging.INFO)
@@ -500,20 +499,69 @@ def get_category_counts():
     return counts
 
 def get_chart_data():
-    """Fetches data specifically formatted for the homepage charts."""
+    """
+    Fetches data specifically formatted for the homepage donut charts.
+    - Source DB: Shows all.
+    - Antibiotic Class: Shows Top 7 + Others.
+    - Predicted Phenotype: Shows Top 7 + Others.
+    """
     chart_data = {
         'source_db': None,
         'phenotype': None,
         'antibiotic': None,
     }
     db = get_db() # Use context-managed connection
-    # Reset color cycler for each request to ensure consistency
-    global color_cycler
-    color_cycler = itertools.cycle(COLOR_PALETTE)
 
-    # 1. Source Database Data (Donut Chart - based on OriginalGene sources)
+    # Create a new color cycler for each request to ensure consistent colors
+    color_cycler = itertools.cycle(COLOR_PALETTE)
+    top_n = 7 # Define Top N for reuse
+
+    # Helper function to process results into chart format (handles Top N + Others)
+    def process_results_for_donut(results, show_all=False):
+        if not results:
+            return None
+
+        labels = []
+        data_points = []
+        total_count = sum(row['gene_count'] for row in results)
+        processed_count = 0 # Keep track of count included in top N
+
+        # Process top N (or all if show_all is True)
+        for i, row in enumerate(results):
+            # Use the key from the query (class_name, phenotype_name, database_name)
+            item_key = next((k for k in row.keys() if k.endswith('_name')), None)
+            if item_key is None: continue # Should not happen with current queries
+
+            item_name = row[item_key]
+            item_count = row['gene_count']
+
+            if show_all or i < top_n:
+                labels.append(get_label(item_name, db_conn=db)) # Get display label
+                data_points.append(item_count)
+                processed_count += item_count
+            elif not show_all:
+                 # Stop processing if we are beyond top N and not showing all
+                 break
+
+        # Calculate "Others" if needed (and not showing all)
+        if not show_all and len(results) > top_n:
+            others_count = total_count - processed_count
+            if others_count > 0:
+                labels.append("Others")
+                data_points.append(others_count)
+
+        # Generate colors only for the final segments being displayed
+        colors = [next(color_cycler) for _ in labels]
+
+        return {
+            'labels': labels,
+            'data': data_points,
+            'colors': colors,
+            'total_count': total_count # Keep total count of all items
+        }
+
+    # 1. Source Database Data (Donut Chart - All Sources)
     try:
-        # Count OriginalGenes per database
         query = f"""
             SELECT T1.object AS database_name, COUNT(DISTINCT T1.subject) AS gene_count
             FROM triples T1
@@ -523,23 +571,12 @@ def get_chart_data():
             ORDER BY gene_count DESC;
         """
         results = query_db(query, (IS_FROM_DATABASE, RDF_TYPE), db_conn=db)
-        if results:
-            labels = [get_label(row['database_name'], db_conn=db) for row in results] # Get labels
-            data_points = [row['gene_count'] for row in results]
-            colors = [next(color_cycler) for _ in labels] # Generate colors
-
-            chart_data['source_db'] = {
-                'labels': labels,
-                'data': data_points,
-                'colors': colors, # Pass colors to template
-                'total_count': sum(data_points)
-            }
+        chart_data['source_db'] = process_results_for_donut(results, show_all=True)
     except Exception as e:
-        logger.error(f"Error fetching source database chart data: {e}")
+        logger.error(f"Error fetching source database chart data: {e}", exc_info=True)
 
-    # 2. Predicted Phenotype Data (Stacked Bar Chart - based on PanGene phenotypes)
+    # 2. Predicted Phenotype Data (Donut Chart - Top 7 + Others)
     try:
-        # Count PanGenes per phenotype
         query = f"""
             SELECT T1.object AS phenotype_name, COUNT(DISTINCT T1.subject) AS gene_count
             FROM triples T1
@@ -549,26 +586,12 @@ def get_chart_data():
             ORDER BY gene_count DESC;
         """
         results = query_db(query, (HAS_PREDICTED_PHENOTYPE, RDF_TYPE), db_conn=db)
-        if results:
-            total_genes = sum(row['gene_count'] for row in results)
-            chart_data['phenotype'] = {
-                'segments': [
-                    {
-                        'name': get_label(row['phenotype_name'], db_conn=db), # Get label for display
-                        'count': row['gene_count'],
-                        'percentage': (row['gene_count'] / total_genes * 100) if total_genes else 0,
-                        'color': next(color_cycler) # Use new color palette
-                    } for row in results
-                ],
-                'total_count': total_genes
-            }
+        chart_data['phenotype'] = process_results_for_donut(results, show_all=False)
     except Exception as e:
-        logger.error(f"Error fetching phenotype chart data: {e}")
+        logger.error(f"Error fetching phenotype chart data: {e}", exc_info=True)
 
-
-    # 3. Antibiotic Class Data (Pie Chart - Top 7 + Others, based on PanGene classes)
+    # 3. Antibiotic Class Data (Donut Chart - Top 7 + Others)
     try:
-        # Count PanGenes per class
         query = f"""
             SELECT T1.object AS class_name, COUNT(DISTINCT T1.subject) AS gene_count
             FROM triples T1
@@ -578,38 +601,9 @@ def get_chart_data():
             ORDER BY gene_count DESC;
         """
         results = query_db(query, (HAS_RESISTANCE_CLASS, RDF_TYPE), db_conn=db)
-        if results:
-            top_n = 7
-            labels = []
-            data_points = []
-            total_count = sum(row['gene_count'] for row in results)
-
-            # Process top N
-            for i, row in enumerate(results):
-                if i < top_n:
-                    labels.append(get_label(row['class_name'], db_conn=db))
-                    data_points.append(row['gene_count'])
-                else:
-                    break # Stop after top N
-
-            # Calculate "Others"
-            if len(results) > top_n:
-                others_count = sum(row['gene_count'] for row in results[top_n:])
-                if others_count > 0:
-                    labels.append("Others")
-                    data_points.append(others_count)
-
-            colors = [next(color_cycler) for _ in labels] # Generate colors for final segments
-
-            chart_data['antibiotic'] = {
-                'labels': labels,
-                'data': data_points,
-                'colors': colors, # Pass colors to template
-                'total_count': total_count # Keep total count of all genes
-            }
+        chart_data['antibiotic'] = process_results_for_donut(results, show_all=False)
     except Exception as e:
-        logger.error(f"Error fetching antibiotic class chart data: {e}")
-
+        logger.error(f"Error fetching antibiotic class chart data: {e}", exc_info=True)
 
     return chart_data
 

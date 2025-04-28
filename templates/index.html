@@ -18,7 +18,7 @@
     {% if not show_error %}
 
     {# --- Combined Intro, Search, and Browse Section --- #}
-    <section class="mb-12 bg-white p-6 rounded-lg shadow-md border border-gray-200">
+    <section class="mb-8 bg-white p-6 rounded-lg shadow-md border border-gray-200">
         <h2 class="text-3xl font-semibold text-gray-800 mb-3">{{ site_name }}</h2>
         <p class="text-gray-600 text-sm mb-4">
             PanRes (Pan Resistance) is a curated collection of genes conferring resistance to antibiotics, heavy metals, and biocides.
@@ -72,91 +72,78 @@
         </div>
     </section>
 
-    {# --- Charts Section (Combined Card) --- #}
-    {# Add an id for the anchor link from the button above #}
-    <section id="charts" class="mb-12">
-        {# Updated Section Title #}
-        <h3 class="text-2xl font-semibold text-gray-700 mb-6 text-center">PanRes by the numbers</h3>
+    {# --- Charts Section (3 Donut Charts Side-by-Side) --- #}
+    <section id="charts" class="mb-8">
+        <h3 class="text-2xl font-semibold text-gray-700 mb-4 text-center">PanRes by the numbers</h3>
 
-        {# Single Card Container for all charts #}
-        {# Add data attributes to hold the JSON configuration #}
+        {# Container to hold chart data attributes #}
         <div id="chart-data-container"
              data-antibiotic="{{ antibiotic | tojson | safe if antibiotic else 'null' }}"
              data-source-db="{{ source_db | tojson | safe if source_db else 'null' }}"
-             data-phenotype="{{ phenotype | tojson | safe if phenotype else 'null' }}"
-             class="bg-white p-4 md:p-6 rounded-lg shadow-md border border-gray-200">
+             data-phenotype="{{ phenotype | tojson | safe if phenotype else 'null' }}">
+        </div>
 
-            {# Grid for top two charts (Pie and Donut) #}
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-6 lg:mb-8">
+        {# Grid for 3 charts side-by-side #}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-                {# Antibiotic Classes Chart Card (Pie) #}
-                <div class="flex flex-col"> {# Removed card styling, just a container #}
-                    <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Top Antibiotic Resistance Classes</h4>
-                    <p class="text-gray-600 text-sm mb-4 text-center">Distribution across top 7 classes + Others</p>
-                    {# Check if the data attribute exists and is not 'null' before creating canvas #}
-                    {% if antibiotic %}
-                        <div class="relative h-64 md:h-80 mx-auto w-full max-w-sm mb-4">
-                            <canvas id="antibiotic"></canvas> {# Canvas ID matches JS #}
-                        </div>
-                        {# Button #}
-                        <div class="mt-auto text-center">
-                            <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}"
-                               class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
-                                Browse by Class
-                            </a>
-                        </div>
-                    {% else %}
-                        <p class="text-gray-500 italic text-center py-4">No data available for antibiotic classes chart.</p>
-                    {% endif %}
-                </div>
+            {# Card 1: Antibiotic Classes Chart (Donut) #}
+            <div class="bg-white p-3 rounded-lg shadow-md border border-gray-200 flex flex-col">
+                <h4 class="text-lg font-semibold text-gray-700 mb-1 text-center">Antibiotic Classes</h4>
+                <p class="text-gray-600 text-xs mb-2 text-center">Distribution across top 7 classes + Others</p>
+                {% if antibiotic %}
+                    <div class="relative h-48 md:h-56 mx-auto w-full max-w-xs mb-2">
+                        <canvas id="antibiotic"></canvas>
+                    </div>
+                    <div class="mt-auto text-center">
+                        <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}"
+                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-1 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
+                            Browse by Class
+                        </a>
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 italic text-center py-4 text-sm">No data available.</p>
+                {% endif %}
+            </div>
 
-                {# Source Databases Chart Card (Donut) #}
-                <div class="flex flex-col"> {# Removed card styling, just a container #}
-                    <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Genes by Source Database</h4>
-                    <p class="text-gray-600 text-sm mb-4 text-center">Relative contribution from source databases</p>
-                    {# Check if the data attribute exists and is not 'null' before creating canvas #}
-                    {% if source_db %}
-                        <div class="relative h-64 md:h-80 mx-auto w-full max-w-sm mb-4"> {# Adjusted max-width like pie #}
-                            <canvas id="sourceDb"></canvas> {# Canvas ID matches JS #}
-                        </div>
-                        {# Button #}
-                        <div class="mt-auto text-center">
-                            <a href="{{ url_for('list_items', category_key='Source Databases') }}"
-                               class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
-                                Browse by Source
-                            </a>
-                        </div>
-                    {% else %}
-                        <p class="text-gray-500 italic text-center py-4">No data available for source databases chart.</p>
-                    {% endif %}
-                </div>
-            </div> {# End of grid for top two charts #}
+            {# Card 2: Source Databases Chart (Donut) #}
+            <div class="bg-white p-3 rounded-lg shadow-md border border-gray-200 flex flex-col">
+                <h4 class="text-lg font-semibold text-gray-700 mb-1 text-center">Source Databases</h4>
+                <p class="text-gray-600 text-xs mb-2 text-center">Relative contribution from sources</p>
+                {% if source_db %}
+                    <div class="relative h-48 md:h-56 mx-auto w-full max-w-xs mb-2">
+                        <canvas id="sourceDb"></canvas>
+                    </div>
+                    <div class="mt-auto text-center">
+                        <a href="{{ url_for('list_items', category_key='Source Databases') }}"
+                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-1 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
+                            Browse by Source
+                        </a>
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 italic text-center py-4 text-sm">No data available.</p>
+                {% endif %}
+            </div>
 
-            {# Divider (Optional) #}
-            <hr class="my-4 md:my-6 border-gray-200">
+            {# Card 3: Predicted Phenotypes Chart (Donut) #}
+            <div class="bg-white p-3 rounded-lg shadow-md border border-gray-200 flex flex-col">
+                <h4 class="text-lg font-semibold text-gray-700 mb-1 text-center">Predicted Phenotypes</h4>
+                <p class="text-gray-600 text-xs mb-2 text-center">Distribution across top 7 phenotypes + Others</p>
+                {% if phenotype %}
+                    <div class="relative h-48 md:h-56 mx-auto w-full max-w-xs mb-2">
+                        <canvas id="phenotype"></canvas>
+                    </div>
+                    <div class="mt-auto text-center">
+                        <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}"
+                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-1 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
+                            Browse by Phenotype
+                        </a>
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 italic text-center py-4 text-sm">No data available.</p>
+                {% endif %}
+            </div>
 
-            {# Container for the bottom chart (Phenotype Stacked Bar) #}
-            <div class="flex flex-col"> {# Removed card styling, just a container #}
-                 <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Predicted Phenotype Proportions</h4>
-                 <p class="text-gray-600 text-sm mb-4 text-center">Relative distribution of phenotypes across PanGenes</p>
-                 {# Check if the data attribute exists and is not 'null' before creating canvas #}
-                 {% if phenotype %}
-                     <div class="relative h-20 md:h-24 w-full mx-auto mb-4">
-                         <canvas id="phenotype"></canvas> {# Canvas ID matches JS #}
-                     </div>
-                     {# Button #}
-                     <div class="mt-auto text-center">
-                         <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}"
-                            class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
-                                 Browse by Phenotype
-                             </a>
-                     </div>
-                 {% else %}
-                     <p class="text-gray-500 italic text-center py-4">No phenotype data available.</p>
-                 {% endif %}
-            </div> {# End of container for bottom chart #}
-
-        </div> {# End of Single Card Container #}
+        </div>
     </section>
     {# --- END Charts Section --- #}
 
@@ -179,102 +166,97 @@
     {# Custom JS for Charts #}
     <script>
       document.addEventListener('DOMContentLoaded', () => {
-        console.log("DOM fully loaded and parsed"); // Log: Check if script starts
+        console.log("DOM fully loaded and parsed");
 
         const isErrorPage = document.querySelector('.bg-red-100[role="alert"]');
         if (isErrorPage) {
             console.log("Error page detected, skipping chart initialization.");
-            return; // Skip chart and suggestion setup on error pages
-        }
-        console.log("Not an error page, proceeding with chart setup."); // Log: Check if proceeding
-
-        // Register the datalabels plugin globally
-        if (typeof ChartDataLabels !== 'undefined') {
-            console.log("ChartDataLabels plugin found, registering."); // Log: Check plugin
-            Chart.register(ChartDataLabels);
-        } else {
-            console.warn('ChartDataLabels plugin not found. Percentages on stacked bar chart will not be displayed.');
-        }
-
-        // Get chart data container and parse data attributes
-        const chartDataContainer = document.getElementById('chart-data-container');
-        if (!chartDataContainer) {
-            console.error("Chart data container element not found!"); // Log: Check container
             return;
         }
-        console.log("Chart data container found."); // Log: Check container found
+        console.log("Not an error page, proceeding with chart setup.");
 
-        let antibioticCfg = null; // Renamed for clarity
-        let sourceDbCfg = null;   // Renamed for clarity
-        let phenotypeCfg = null;  // Renamed for clarity
+        // Register the datalabels plugin globally (optional, only if needed for tooltips)
+        if (typeof ChartDataLabels !== 'undefined') {
+            // Chart.register(ChartDataLabels); // Not strictly needed if only using tooltips
+            console.log("ChartDataLabels plugin found.");
+        } else {
+            console.warn('ChartDataLabels plugin not found.');
+        }
+
+        const chartDataContainer = document.getElementById('chart-data-container');
+        if (!chartDataContainer) {
+            console.error("Chart data container element not found!");
+            return;
+        }
+        console.log("Chart data container found.");
+
+        let antibioticCfg = null;
+        let sourceDbCfg = null;
+        let phenotypeCfg = null;
 
         try {
             const antibioticData = chartDataContainer.dataset.antibiotic;
             const sourceDbData = chartDataContainer.dataset.sourceDb;
             const phenotypeData = chartDataContainer.dataset.phenotype;
 
-            console.log("Raw antibiotic data:", antibioticData); // Log: Raw data
-            console.log("Raw sourceDb data:", sourceDbData);     // Log: Raw data
-            console.log("Raw phenotype data:", phenotypeData);   // Log: Raw data
+            if (antibioticData && antibioticData !== 'null') antibioticCfg = JSON.parse(antibioticData);
+            if (sourceDbData && sourceDbData !== 'null') sourceDbCfg = JSON.parse(sourceDbData);
+            if (phenotypeData && phenotypeData !== 'null') phenotypeCfg = JSON.parse(phenotypeData);
 
-            if (antibioticData && antibioticData !== 'null') {
-                antibioticCfg = JSON.parse(antibioticData);
-                console.log("Parsed antibiotic config:", antibioticCfg); // Log: Parsed data
-            } else {
-                 console.log("No antibiotic data found or data is null.");
-            }
-            if (sourceDbData && sourceDbData !== 'null') {
-                sourceDbCfg = JSON.parse(sourceDbData);
-                console.log("Parsed sourceDb config:", sourceDbCfg); // Log: Parsed data
-            } else {
-                 console.log("No sourceDb data found or data is null.");
-            }
-            if (phenotypeData && phenotypeData !== 'null') {
-                phenotypeCfg = JSON.parse(phenotypeData);
-                console.log("Parsed phenotype config:", phenotypeCfg); // Log: Parsed data
-            } else {
-                 console.log("No phenotype data found or data is null.");
-            }
+            console.log("Parsed antibiotic config:", antibioticCfg);
+            console.log("Parsed sourceDb config:", sourceDbCfg);
+            console.log("Parsed phenotype config:", phenotypeCfg);
+
         } catch (e) {
             console.error("Error parsing chart JSON data from data attributes:", e);
-            return; // Stop if JSON is invalid
+            return;
         }
 
-
-        /* Chart helper functions */
-        // Combined function for Pie and Doughnut charts
-        const createPieDoughnut = (id, d, type = 'pie') => {
-            console.log(`Attempting to create ${type} chart with id '${id}'`); // Log: Chart creation attempt
+        /* Chart helper function for Donut charts */
+        const createPieDoughnut = (id, d) => { // Removed type parameter, always doughnut
+            console.log(`Attempting to create doughnut chart with id '${id}'`);
             const ctx = document.getElementById(id);
             if (!ctx) {
-                // This log should now be redundant because of the checks below, but kept as a fallback.
-                console.error(`Canvas element with id '${id}' not found for ${type} chart.`);
+                console.error(`Canvas element with id '${id}' not found for doughnut chart.`);
                 return null;
             }
-            console.log(`Canvas element '${id}' found.`); // Log: Canvas found
+            console.log(`Canvas element '${id}' found.`);
             try {
                 return new Chart(ctx, {
-                    type: type,
+                    type: 'doughnut', // Explicitly set to doughnut
                     data: {
                         labels: d.labels,
                         datasets:[{
-                            data:d.data,
-                            backgroundColor:d.colors
+                            data: d.data,
+                            backgroundColor: d.colors,
+                            borderWidth: 1 // Optional: add border between segments
                         }]
                     },
                     options:{
                         responsive: true,
                         maintainAspectRatio: false,
+                        cutout: '60%', // Adjust doughnut thickness
                         plugins:{
-                            legend:{ display: false },
-                            datalabels: { display: false },
-                            tooltip: {
+                            legend:{ display: false }, // Legend disabled
+                            // Datalabels plugin configuration (if needed, e.g., inside segments)
+                            // datalabels: {
+                            //     formatter: (value, ctx) => {
+                            //         let sum = 0;
+                            //         let dataArr = ctx.chart.data.datasets[0].data;
+                            //         dataArr.map(data => { sum += data; });
+                            //         let percentage = sum > 0 ? (value*100 / sum).toFixed(1)+"%" : '0%';
+                            //         return percentage; // Example: show percentage inside
+                            //     },
+                            //     color: '#fff', // Text color for labels inside
+                            // },
+                            tooltip: { // Tooltip configuration remains useful
                                 callbacks: {
                                     label: function(context) {
                                         let label = context.label || '';
                                         if (label) { label += ': '; }
                                         if (context.parsed !== null) {
-                                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                            // Calculate percentage based on the total count passed from backend
+                                            const total = d.total_count; // Use total_count from data
                                             const value = context.raw;
                                             const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
                                             label += `${value} (${percentage}%)`;
@@ -287,127 +269,35 @@
                     }
                 });
             } catch (chartError) {
-                console.error(`Error creating chart '${id}':`, chartError); // Log: Chart.js specific error
-                return null;
-            }
-        };
-
-        // Function for Stacked Bar charts
-        const createStackedBar = (id, d) => {
-             console.log(`Attempting to create stacked bar chart with id '${id}'`); // Log: Chart creation attempt
-            const ctx = document.getElementById(id);
-            if (!ctx) {
-                 // This log should now be redundant because of the checks below, but kept as a fallback.
-                console.error(`Canvas element with id '${id}' not found for stacked bar chart.`);
-                return null;
-            }
-             console.log(`Canvas element '${id}' found.`); // Log: Canvas found
-            try {
-                return new Chart(ctx, {
-                    type:'bar',
-                    data:{
-                        labels:['Predicted Phenotypes'],
-                        datasets: d.segments.map(s => ({
-                            label: s.name,
-                            data: [s.percentage],
-                            backgroundColor: s.color,
-                            count: s.count,
-                            percentage: s.percentage
-                        }))
-                    },
-                    options:{
-                        indexAxis:'y',
-                        responsive:true,
-                        maintainAspectRatio: false,
-                        scales:{
-                            x:{ stacked:true, display: true, max: 100, ticks: { callback: value => value + '%' } },
-                            y:{ stacked:true, display:false }
-                        },
-                        plugins:{
-                            legend:{ display: false },
-                            tooltip: {
-                                callbacks: {
-                                     label: function(context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) { label += ': '; }
-                                        const count = context.dataset.count;
-                                        const percentage = context.dataset.percentage;
-                                        if (count !== undefined && percentage !== undefined) {
-                                            label += `${count} (${percentage.toFixed(1)}%)`;
-                                        } else {
-                                            label += context.formattedValue + '%';
-                                        }
-                                        return label;
-                                    }
-                                }
-                            },
-                            datalabels: {
-                                formatter: (value, context) => {
-                                    return value > 5 ? value.toFixed(1) + '%' : '';
-                                },
-                                color: '#ffffff',
-                                font: { weight: 'bold' }
-                            }
-                        }
-                    }
-                });
-            } catch (chartError) {
-                console.error(`Error creating chart '${id}':`, chartError); // Log: Chart.js specific error
+                console.error(`Error creating chart '${id}':`, chartError);
                 return null;
             }
         };
 
         // Initialize charts if data exists AND canvas elements are found
-        console.log("Initializing charts..."); // Log: Start initialization
+        console.log("Initializing charts...");
 
-        if (antibioticCfg) {
-            // Explicitly check if the canvas element exists in the DOM
-            if (document.getElementById('antibiotic')) {
-                 console.log("Data found and canvas '#antibiotic' exists. Attempting to create chart.");
-                 createPieDoughnut('antibiotic', antibioticCfg, 'doughnut'); // Keep as doughnut
-            } else {
-                 /* This case means data was passed, but the JavaScript conditional didn't render the canvas
-                    (shouldn't happen if data is truthy) */
-                 console.warn("Antibiotic data found, but canvas element '#antibiotic' not found in DOM. Skipping chart creation.");
-            }
+        if (antibioticCfg && document.getElementById('antibiotic')) {
+             console.log("Data found and canvas '#antibiotic' exists. Creating chart.");
+             createPieDoughnut('antibiotic', antibioticCfg);
         } else {
-            /* This case means antibioticCfg was null/undefined after parsing,
-               likely because no data was passed from Flask or it was empty. */
-            console.log("Skipping antibiotic chart initialization (no data parsed or data was null/empty).");
+             console.log("Skipping antibiotic chart initialization (no data or canvas not found).");
         }
 
-        if (sourceDbCfg) {
-             // Explicitly check if the canvas element exists in the DOM
-            if (document.getElementById('sourceDb')) {
-                 console.log("Data found and canvas '#sourceDb' exists. Attempting to create chart.");
-                 createPieDoughnut('sourceDb',  sourceDbCfg, 'doughnut'); // Explicitly doughnut
-            } else {
-                 /* This case means data was passed, but the JavaScript conditional didn't render the canvas
-                    (shouldn't happen if data is truthy) */
-                 console.warn("Source DB data found, but canvas element '#sourceDb' not found in DOM. Skipping chart creation.");
-            }
+        if (sourceDbCfg && document.getElementById('sourceDb')) {
+             console.log("Data found and canvas '#sourceDb' exists. Creating chart.");
+             createPieDoughnut('sourceDb', sourceDbCfg);
         } else {
-             /* This case means sourceDbCfg was null/undefined after parsing,
-                likely because no data was passed from Flask or it was empty. */
-             console.log("Skipping sourceDb chart initialization (no data parsed or data was null/empty).");
+             console.log("Skipping sourceDb chart initialization (no data or canvas not found).");
         }
 
-        if (phenotypeCfg) {
-             // Explicitly check if the canvas element exists in the DOM
-            if (document.getElementById('phenotype')) {
-                 console.log("Data found and canvas '#phenotype' exists. Attempting to create chart.");
-                 createStackedBar('phenotype', phenotypeCfg);
-            } else {
-                 /* This case means data was passed, but the JavaScript conditional didn't render the canvas
-                    (shouldn't happen if data is truthy) */
-                 console.warn("Phenotype data found, but canvas element '#phenotype' not found in DOM. Skipping chart creation.");
-            }
+        if (phenotypeCfg && document.getElementById('phenotype')) {
+             console.log("Data found and canvas '#phenotype' exists. Creating chart.");
+             createPieDoughnut('phenotype', phenotypeCfg);
         } else {
-             /* This case means phenotypeCfg was null/undefined after parsing,
-                likely because no data was passed from Flask or it was empty. */
-             console.log("Skipping phenotype chart initialization (no data parsed or data was null/empty).");
+             console.log("Skipping phenotype chart initialization (no data or canvas not found).");
         }
-        console.log("Chart initialization finished."); // Log: End initialization
+        console.log("Chart initialization finished.");
 
       }); // End DOMContentLoaded for charts
 
