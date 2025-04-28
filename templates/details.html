@@ -3,8 +3,6 @@
 {% block title %}Details for {{ details.label }} - {{ site_name }}{% endblock %}
 
 {% block content %}
-    {# --- Page Header --- #}
-    {# Use details.label, fallback to item_id if label is same #}
     <h2 class="text-3xl font-semibold text-dtu-red mb-1">Details for
         {% if details.label and details.label != item_id %}
             {{ details.label }} <code class="text-2xl bg-gray-100 px-2 py-1 rounded">{{ item_id }}</code>
@@ -12,40 +10,33 @@
             <code class="text-2xl bg-gray-100 px-2 py-1 rounded">{{ item_id }}</code>
         {% endif %}
     </h2>
-    {# Display primary type if helpful and not redundant with title #}
     {% if details.primary_type_display and details.primary_type_display != details.label and details.primary_type_display != item_id %}
         <p class="text-xl text-gray-600 mb-4">({{ details.primary_type_display }})</p>
     {% endif %}
 
-    {# --- Back Links --- #}
     <div class="mb-6 flex flex-wrap gap-2">
         <a href="{{ url_for('index') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">Back to Home</a>
-        {# Link back to the primary category list if available #}
         {% if details.primary_type_category_key %}
              <a href="{{ url_for('list_items', category_key=details.primary_type_category_key) }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">Back to {{ details.primary_type_category_key }} List</a>
         {% endif %}
         <button onclick="window.history.back();" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">Back</button>
     </div>
 
-    {# --- Properties Card (Conditional Display) --- #}
-    {# Show properties only if NOT a category view OR if there's a description #}
     {% if details.properties and details.view_item_type not in ['SourceDatabase', 'AntibioticClass', 'PredictedPhenotype'] %}
         <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
             <h3 class="text-xl font-semibold text-dtu-red border-b border-gray-200 pb-2 mb-4">Properties</h3>
             <dl class="divide-y divide-gray-100">
-                {# details.properties is {'Predicate Display Name': [{'value': '...', 'display': '...', 'is_link': ..., 'list_link_info': ...}, ...]} #}
-                {% for pred_display, values in details.properties.items() | sort %} {# Sort by predicate display name #}
+                {% for pred_display, values in details.properties.items() | sort %}
                     <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
                         <dt class="text-sm font-medium leading-6 text-gray-900">{{ pred_display }}</dt>
                         <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                             <ul class="list-none space-y-1">
-                            {% for value_info in values %} {# Values are already sorted by display name #}
+                            {% for value_info in values %}
                                 <li>
                                     {% if value_info.is_link %}
                                         <a href="{{ url_for('details', item_id=value_info.value | urlencode ) }}" class="text-dtu-red hover:underline" title="View details for {{ value_info.value }}">
                                             {{ value_info.display }}
                                         </a>
-                                        {# Add link to list related items view #}
                                         {% if value_info.list_link_info %}
                                             <a href="{{ url_for('list_items', predicate=value_info.list_link_info.predicate_key, object_value=value_info.list_link_info.object_value_encoded) }}"
                                                class="ml-2 text-xs text-gray-500 hover:text-dtu-red hover:underline"
@@ -64,20 +55,18 @@
                 {% endfor %}
             </dl>
         </div>
-    {% elif details.properties.get('Description') %} {# Special case: Show only Description for category views if it exists #}
+    {% elif details.properties.get('Description') %}
          <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
              <h3 class="text-xl font-semibold text-dtu-red border-b border-gray-200 pb-2 mb-4">Description</h3>
-             <p class="text-gray-700">{{ details.properties['Description'][0].display }}</p> {# Assuming description is plain text #}
+             <p class="text-gray-700">{{ details.properties['Description'][0].display }}</p>
          </div>
     {% endif %}
 
 
-    {# --- Referencing Items Card (Incoming Links - Grouped or Flat) --- #}
     {% set has_referencing_items = details.referencing_items or details.grouped_referencing_items %}
     {% if has_referencing_items %}
         <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
-            {# --- Determine Heading based on View Type --- #}
-            {% set referencing_heading = "Related Items" %} {# Default heading #}
+            {% set referencing_heading = "Related Items" %}
             {% if details.view_item_type == 'SourceDatabase' %}
                 {% set referencing_heading = "Genes in this Database (Grouped by " + details.grouping_basis + ")" %}
             {% elif details.view_item_type == 'AntibioticClass' %}
@@ -85,28 +74,24 @@
             {% elif details.view_item_type == 'PredictedPhenotype' %}
                 {% set referencing_heading = "Genes with this Predicted Phenotype" %}
             {% elif details.view_item_type == 'PanGene' %}
-                 {% set referencing_heading = "Referenced By" %} {# Or keep "Related Items" #}
+                 {% set referencing_heading = "Referenced By" %}
             {% endif %}
             <h3 class="text-xl font-semibold text-dtu-red border-b border-gray-200 pb-2 mb-4">{{ referencing_heading }}</h3>
 
-            {# --- Display Grouped Items (Accordion for SourceDatabase view) --- #}
             {% if details.grouped_referencing_items %}
                 <div class="accordion space-y-1">
                     {% for group_name, items_in_group in details.grouped_referencing_items.items() %}
                         <div class="border border-gray-300 rounded overflow-hidden">
-                            {# Accordion Header #}
                             <button class="accordion-header">
                                 <span>{{ group_name }} ({{ items_in_group | length }} items)</span>
                                 <span class="accordion-icon text-lg font-mono">+</span>
                             </button>
-                            {# Accordion Content #}
-                            <div class="accordion-content hidden"> {# Start hidden #}
+                            <div class="accordion-content hidden">
                                 <ul class="list-disc list-inside space-y-1 pl-4">
-                                    {# items_in_group is a list of {'ref_id': '...', 'ref_label': '...'} dicts #}
                                     {% for ref_info in items_in_group %}
                                         <li>
                                             <a href="{{ url_for('details', item_id=ref_info.ref_id | urlencode) }}" class="py-1 px-2 text-sm text-dtu-red hover:underline hover:bg-gray-50 rounded" title="View details for {{ ref_info.ref_id }}">
-                                                {{ ref_info.ref_label }} {# Display gene label/ID #}
+                                                {{ ref_info.ref_label }}
                                             </a>
                                         </li>
                                     {% endfor %}
@@ -116,24 +101,20 @@
                     {% endfor %}
                 </div>
 
-            {# --- Display Flat List of Referencing Items (for Class, Phenotype, Gene views) --- #}
             {% elif details.referencing_items %}
-                 {# Use a simple list, not definition list #}
                  <ul class="list-disc list-inside space-y-1 pl-4">
-                     {# details.referencing_items is [{'ref_id': '...', 'ref_label': '...'}, ...] #}
-                    {% for ref_info in details.referencing_items %} {# Already sorted by label in app.py #}
+                    {% for ref_info in details.referencing_items %}
                          <li>
                              <a href="{{ url_for('details', item_id=ref_info.ref_id | urlencode) }}" class="py-1 px-2 text-sm text-dtu-red hover:underline hover:bg-gray-50 rounded" title="View details for {{ ref_info.ref_id }}">
-                                {{ ref_info.ref_label }} {# Display item label/ID #}
+                                {{ ref_info.ref_label }}
                              </a>
                         </li>
                     {% endfor %}
                 </ul>
-            {% endif %} {# End grouped vs flat check #}
+            {% endif %}
 
-        </div> {# End referencing items card #}
+        </div>
     {% else %}
-         {# Message if NO referencing items found for ANY view type #}
          <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
              <p class="text-gray-500 italic">
                  {% if details.view_item_type == 'SourceDatabase' %}
@@ -147,12 +128,11 @@
                  {% endif %}
              </p>
          </div>
-    {% endif %} {# End has_referencing_items check #}
+    {% endif %}
 
 {% endblock %}
 
 {% block scripts %}
-    {# Include Accordion Script only if grouped items might be displayed #}
     {% if details.grouped_referencing_items %}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -166,7 +146,7 @@
 
                     if (isHidden) {
                         content.classList.remove('hidden');
-                        if(icon) icon.textContent = '−'; // Use minus sign
+                        if(icon) icon.textContent = '−';
                     } else {
                         content.classList.add('hidden');
                          if(icon) icon.textContent = '+';
