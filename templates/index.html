@@ -21,43 +21,50 @@
     <section class="mb-12 bg-white p-6 rounded-lg shadow-md border border-gray-200">
         <h2 class="text-3xl font-semibold text-gray-800 mb-3">{{ site_name }}</h2>
         <p class="text-gray-600 text-sm mb-4">
-            PanRes (Pan Resistance) is a unified collection of genes conferring resistance to antibiotics, heavy metals, and biocides.
+            PanRes (Pan Resistance) is a curated collection of genes conferring resistance to antibiotics, heavy metals, and biocides.
             We have aggregated unique gene sequences from multiple databases like ResFinder, CARD, MegaRes, AMRFinderPlus, ARGANNOT, BacMet,
             and functionally verified genes and unified the ontology.
         </p>
-        <p class="text-gray-600 text-sm mb-6">
-            Find detailed information about each PanRes gene: browse antibiotic classes, predicted antibiotic resistance phenotype(s) and ontology across different resources.
-        </p>
 
-        {# Container for Search and Browse Actions #}
-        <div class="flex flex-col md:flex-row md:items-center gap-4 mb-6">
+        {# Container for Search #}
+        <div class="mb-4"> {# Added margin-bottom #}
             {# Search Form - Requires a '/search' route in app.py #}
-            <form action="{{ url_for('search_results') }}" method="get" class="flex-grow flex items-center gap-0"> {# Reduced gap for joined elements #}
+            {# Added relative positioning for suggestions dropdown #}
+            <form action="{{ url_for('search_results') }}" method="get" class="flex-grow flex items-center gap-0 relative">
                 <label for="search-term" class="sr-only">Search Term</label>
-                <input type="search" id="search-term" name="q" placeholder="Search genes, classes, phenotypes..." class="flex-grow px-4 py-2 border border-gray-300 rounded-l-md focus:ring-dtu-red focus:border-dtu-red focus:z-10" required>
+                {# Added autocomplete="off" and event listeners for suggestions #}
+                <input type="search" id="search-term" name="q" placeholder="Search genes, classes, phenotypes..."
+                       class="flex-grow px-4 py-2 border border-gray-300 rounded-l-md focus:ring-dtu-red focus:border-dtu-red focus:z-10"
+                       required autocomplete="off"
+                       oninput="getSuggestions(this.value)"
+                       onblur="hideSuggestionsDebounced()">
                 <button type="submit" class="inline-flex items-center bg-dtu-red hover:bg-opacity-80 text-white px-4 py-2 rounded-r-md text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-0 border border-dtu-red -ml-px"> {# Negative margin to join button #}
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"> <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /> </svg>
                     <span class="sr-only">Search</span>
                 </button>
+                {# Container for suggestions dropdown #}
+                <div id="suggestions" class="absolute left-0 right-0 top-full mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg z-20 hidden overflow-y-auto max-h-60">
+                    {/* Suggestions will be loaded here by JavaScript */}
+                </div>
             </form>
-
-            {# Browse Buttons and GitHub Link #}
-            <div class="flex flex-wrap justify-center md:justify-start items-center gap-2 flex-shrink-0"> {# Added flex-shrink-0 #}
-                <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Browse Class</a>
-                <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Browse Source</a>
-                <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Browse Phenotype</a>
-                <a href="https://github.com/genomicepidemiology/PanResOntology" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-gray-600 hover:text-dtu-red transition-colors duration-200 px-2 py-2" title="View on GitHub">
-                    <i class="fab fa-github fa-lg"></i>
-                    <span class="sr-only">GitHub Repo</span>
-                </a>
-            </div>
         </div>
 
-        <p class="mt-6 text-sm text-gray-500 text-center">
-            Or use the charts below to browse genes by Antibiotic Class, Source Database, or Predicted Phenotype.
+        {# MOVED descriptive paragraph here #}
+        <p class="text-gray-600 text-sm mb-6">
+            Find detailed information about each PanRes gene: browse antibiotic classes, predicted antibiotic resistance phenotype(s) and ontology across different resources.
         </p>
+
+        {# MOVED Browse Buttons and GitHub Link here #}
+        <div class="flex flex-wrap justify-center md:justify-start items-center gap-2 flex-shrink-0"> {# Added flex-shrink-0 #}
+            <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Browse Class</a>
+            <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Browse Source</a>
+            <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Browse Phenotype</a>
+            <a href="https://github.com/genomicepidemiology/PanResOntology" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-gray-600 hover:text-dtu-red transition-colors duration-200 px-2 py-2" title="View on GitHub">
+                <i class="fab fa-github fa-lg"></i>
+                <span class="sr-only">GitHub Repo</span>
+            </a>
+        </div>
     </section>
-    {# --- END Combined Section --- #}
 
     {# --- Charts Section (Combined Card) --- #}
     {# Add an id for the anchor link from the button above #}
@@ -72,7 +79,7 @@
 
                 {# Antibiotic Classes Chart Card (Pie) #}
                 <div class="flex flex-col"> {# Removed card styling, just a container #}
-                    <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Genes per Antibiotic Class</h4>
+                    <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Genes by Antibiotic Class</h4>
                     <p class="text-gray-600 text-sm mb-4 text-center">Distribution across resistance classes</p>
                     {% if antibiotic and antibiotic.data %}
                         {# Adjusted height, use relative for positioning #}
@@ -93,7 +100,7 @@
 
                 {# Source Databases Chart Card (Bar) #}
                 <div class="flex flex-col"> {# Removed card styling, just a container #}
-                    <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Genes per Source Database</h4>
+                    <h4 class="text-lg font-semibold text-gray-700 mb-2 text-center">Genes by Source Database</h4>
                     <p class="text-gray-600 text-sm mb-4 text-center">Contributions from source databases</p>
                     {% if source_db and source_db.segments %}
                         {# Adjusted height, use relative for positioning #}
@@ -196,6 +203,9 @@
               maintainAspectRatio: false, // Allow canvas to fill container height/width
               plugins:{
                   legend:{ display: false }, // Hide legend for pie chart
+                  datalabels: { // Disable datalabels for the pie chart
+                      display: false
+                  },
                   tooltip: {
                       callbacks: { // Optional: Format tooltip
                           label: function(context) {
@@ -284,7 +294,7 @@
                         }
                     }
                 },
-                // Configure datalabels plugin
+                // Configure datalabels plugin for stacked bar
                 datalabels: {
                     // Display the percentage inside the bar segments
                     formatter: (value, context) => {
@@ -293,9 +303,6 @@
                         return value > 5 ? value.toFixed(1) + '%' : '';
                     },
                     color: '#ffffff', // White text for contrast
-                    // Optional: Add stroke or background for better readability on similar colors
-                    // textStrokeColor: 'black',
-                    // textStrokeWidth: 1,
                     font: {
                         weight: 'bold'
                     }
@@ -309,5 +316,62 @@
         if (barCfg)       bar(document.getElementById('sourceDb'),  barCfg);
         if (stackedCfg)   stacked(document.getElementById('phenotype'), stackedCfg);
       });
+
+      // --- Autocomplete Suggestion Logic ---
+      let suggestionTimeout; // To debounce hiding suggestions
+
+      function getSuggestions(query) {
+          const suggestionsDiv = document.getElementById('suggestions');
+          if (query.length < 2) { // Minimum characters to trigger search
+              suggestionsDiv.innerHTML = '';
+              suggestionsDiv.classList.add('hidden');
+              return;
+          }
+
+          // Fetch suggestions from the backend
+          fetch(`/autocomplete?q=${encodeURIComponent(query)}`)
+              .then(response => response.json())
+              .then(data => {
+                  suggestionsDiv.innerHTML = ''; // Clear previous suggestions
+                  if (data && data.length > 0) {
+                      const list = document.createElement('ul');
+                      data.forEach(item => {
+                          const listItem = document.createElement('li');
+                          // Use 'mousedown' to register click before 'blur' hides the div
+                          listItem.innerHTML = `<a href="${item.link}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-dtu-red">${item.display_name} <span class="text-xs text-gray-500">(${item.id})</span></a>`;
+                          list.appendChild(listItem);
+                      });
+                      suggestionsDiv.appendChild(list);
+                      suggestionsDiv.classList.remove('hidden');
+                  } else {
+                      suggestionsDiv.classList.add('hidden');
+                  }
+              })
+              .catch(error => {
+                  console.error('Error fetching suggestions:', error);
+                  suggestionsDiv.classList.add('hidden');
+              });
+      }
+
+      function hideSuggestions() {
+          const suggestionsDiv = document.getElementById('suggestions');
+          suggestionsDiv.classList.add('hidden');
+          suggestionsDiv.innerHTML = ''; // Clear content when hiding
+      }
+
+      // Debounce hiding to allow clicking on suggestions
+      function hideSuggestionsDebounced() {
+          clearTimeout(suggestionTimeout);
+          suggestionTimeout = setTimeout(hideSuggestions, 150); // Delay in ms
+      }
+
+      // Optional: Hide suggestions if clicked outside
+      // document.addEventListener('click', function(event) {
+      //     const searchForm = document.querySelector('#search-term').closest('form');
+      //     if (!searchForm.contains(event.target)) {
+      //         hideSuggestions();
+      //     }
+      // });
+
     </script>
 {% endblock %} 

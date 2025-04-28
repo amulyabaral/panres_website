@@ -6,6 +6,7 @@ from urllib.parse import unquote, quote
 from collections import defaultdict
 import datetime
 import itertools
+import json
 
 # --- Configuration ---
 DATABASE = 'panres_ontology.db'
@@ -645,50 +646,111 @@ def index():
 
 @app.route('/search')
 def search_results():
-    """Handles search requests."""
+    """Handles search requests with improved logic."""
     search_term = request.args.get('q', '').strip()
     app.logger.info(f"Search requested for term: '{search_term}'")
     results = []
-    # --- Placeholder for actual search logic ---
-    # You need to query the database based on the search_term
-    # Example: Search for labels or IDs matching the term
+    limit = 100 # Limit the number of search results
+
     if search_term:
         try:
-            # Basic example: Search subjects/objects with matching labels or IDs (case-insensitive)
-            # This is likely too broad and slow for a large DB - refine this query!
-            query = """
-                SELECT DISTINCT subject, object AS label
-                FROM triples t1
-                LEFT JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ?
-                WHERE t1.subject LIKE ? OR (t2.object IS NOT NULL AND t2.object LIKE ?)
-                LIMIT 50
-            """
-            # Use '%' for wildcard matching
+            # Improved query using UNION and searching across related fields
             term_like = f'%{search_term}%'
-            search_rows = query_db(query, (RDFS_LABEL, term_like, term_like))
+            query = """
+                SELECT subject, label, relevance
+                FROM (
+                    -- Exact ID match
+                    SELECT
+                        t1.subject,
+                        COALESCE(t2.object, t1.subject) AS label,
+                        1 AS relevance
+                    FROM triples t1
+                    LEFT JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ? -- rdfs:label
+                    WHERE t1.subject = ?
+
+                    UNION
+
+                    -- Label matches (contains)
+                    SELECT
+                        t1.subject,
+                        t1.object AS label,
+                        2 AS relevance
+                    FROM triples t1
+                    WHERE t1.predicate = ? AND t1.object LIKE ? -- rdfs:label
+
+                    UNION
+
+                    -- ID matches (contains, exclude exact)
+                    SELECT
+                        t1.subject,
+                        COALESCE(t2.object, t1.subject) AS label,
+                        3 AS relevance
+                    FROM triples t1
+                    LEFT JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ? -- rdfs:label
+                    WHERE t1.subject LIKE ? AND t1.subject != ?
+
+                    UNION
+
+                    -- Subject has Class/Phenotype/DB where the *Object* (name) matches
+                    SELECT DISTINCT
+                        t_link.subject,
+                        COALESCE(t_label.object, t_link.subject) AS label,
+                        4 AS relevance
+                    FROM triples t_link
+                    LEFT JOIN triples t_label ON t_link.subject = t_label.subject AND t_label.predicate = ? -- rdfs:label
+                    WHERE t_link.predicate IN (?, ?, ?) -- has_resistance_class, has_predicted_phenotype, is_from_database
+                      AND t_link.object LIKE ? -- Match the name of the class/pheno/db
+
+                    UNION
+
+                    -- Subject *is* a Class/Phenotype/DB whose name matches
+                    SELECT DISTINCT
+                        t_link.subject,
+                        COALESCE(t_label.object, t_link.subject) AS label,
+                        5 AS relevance
+                    FROM triples t_link
+                    LEFT JOIN triples t_label ON t_link.subject = t_label.subject AND t_label.predicate = ? -- rdfs:label
+                    WHERE t_link.subject LIKE ?
+                      AND EXISTS (SELECT 1 FROM triples t_check WHERE t_check.object = t_link.subject AND t_check.predicate IN (?, ?, ?)) -- Ensure it's used as an object for these predicates
+
+                ) AS combined_results
+                ORDER BY relevance, label -- Order by relevance score, then alphabetically
+                LIMIT ?
+            """
+            params = (
+                RDFS_LABEL, search_term,                                # Exact ID
+                RDFS_LABEL, term_like,                                  # Label contains
+                RDFS_LABEL, term_like, search_term,                     # ID contains
+                RDFS_LABEL, HAS_RESISTANCE_CLASS, HAS_PREDICTED_PHENOTYPE, IS_FROM_DATABASE, term_like, # Linked item name matches
+                RDFS_LABEL, term_like, HAS_RESISTANCE_CLASS, HAS_PREDICTED_PHENOTYPE, IS_FROM_DATABASE, # Item itself matches and is used as class/pheno/db
+                limit
+            )
+
+            search_rows = query_db(query, params)
 
             if search_rows:
-                 # Avoid duplicates and format results
-                 found_subjects = set()
+                 # Use a dictionary to ensure unique subjects, keeping the one with the best relevance (lowest number)
+                 found_subjects = {}
                  for row in search_rows:
-                     if row['subject'] not in found_subjects:
-                         results.append({
-                             'id': row['subject'],
-                             'display_name': row['label'] if row['label'] else row['subject'], # Use label or fallback to ID
-                             'link': url_for('details', item_id=quote(row['subject']))
-                         })
-                         found_subjects.add(row['subject'])
-                 # Sort results for consistency
-                 results.sort(key=lambda x: x['display_name'])
+                     subject_id = row['subject']
+                     if subject_id not in found_subjects or row['relevance'] < found_subjects[subject_id]['relevance']:
+                         found_subjects[subject_id] = {
+                             'id': subject_id,
+                             'display_name': row['label'] if row['label'] else subject_id,
+                             'link': url_for('details', item_id=quote(subject_id)),
+                             'relevance': row['relevance'] # Keep relevance for sorting
+                         }
 
-            app.logger.info(f"Found {len(results)} potential matches for '{search_term}'")
+                 # Convert back to list and sort by relevance, then display name
+                 results = sorted(found_subjects.values(), key=lambda x: (x['relevance'], x['display_name']))
 
-        except Exception as e:
-            app.logger.error(f"Error during search for '{search_term}': {e}")
+            app.logger.info(f"Found {len(results)} unique results for '{search_term}'")
+
+        except sqlite3.Error as e:
+            app.logger.error(f"Database error during search for '{search_term}': {e}")
             # Optionally, pass an error message to the template
-            pass # Continue with empty results
-
-    # --- End Placeholder ---
+        except Exception as e:
+            app.logger.error(f"Unexpected error during search for '{search_term}': {e}")
 
     return render_template('search_results.html',
                            search_term=search_term,
@@ -839,6 +901,112 @@ def test_db_connection():
         app.logger.error(f"Error in /testdb: {e}")
         return f"An error occurred: {e}", 500
 
+# --- NEW: Autocomplete Route ---
+@app.route('/autocomplete')
+def autocomplete():
+    """Endpoint for search suggestions."""
+    search_term = request.args.get('q', '').strip()
+    app.logger.debug(f"Autocomplete request for: '{search_term}'")
+    suggestions = get_autocomplete_suggestions(search_term)
+    return jsonify(suggestions)
+
+# --- NEW: Autocomplete Function ---
+def get_autocomplete_suggestions(term, limit=10):
+    """Fetches suggestions for autocomplete based on labels and IDs."""
+    suggestions = []
+    if not term or len(term) < 2:
+        return suggestions
+
+    db = get_db()
+    term_like = f'%{term}%'
+    # Prioritize label matches, then ID matches
+    # Search across different types of entities (Genes, Classes, Phenotypes, DBs)
+    # Use UNION to combine results and apply limit at the end
+    query = """
+        SELECT subject, label, type, relevance
+        FROM (
+            -- Exact ID match (highest relevance)
+            SELECT
+                t1.subject,
+                COALESCE(t2.object, t1.subject) AS label,
+                t3.object AS type,
+                1 AS relevance
+            FROM triples t1
+            LEFT JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ? -- rdfs:label
+            LEFT JOIN triples t3 ON t1.subject = t3.subject AND t3.predicate = ? -- rdf:type
+            WHERE t1.subject = ?
+
+            UNION
+
+            -- Label starts with term (high relevance)
+            SELECT
+                t1.subject,
+                t1.object AS label,
+                t2.object AS type,
+                2 AS relevance
+            FROM triples t1
+            JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ? -- rdf:type
+            WHERE t1.predicate = ? AND t1.object LIKE ? -- rdfs:label, term%
+
+            UNION
+
+            -- Label contains term (medium relevance)
+            SELECT
+                t1.subject,
+                t1.object AS label,
+                t2.object AS type,
+                3 AS relevance
+            FROM triples t1
+            JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ? -- rdf:type
+            WHERE t1.predicate = ? AND t1.object LIKE ? AND t1.object NOT LIKE ? -- rdfs:label, %term%, NOT term%
+
+            UNION
+
+            -- ID contains term (lower relevance, exclude exact match)
+            SELECT
+                t1.subject,
+                COALESCE(t2.object, t1.subject) AS label,
+                t3.object AS type,
+                4 AS relevance
+            FROM triples t1
+            LEFT JOIN triples t2 ON t1.subject = t2.subject AND t2.predicate = ? -- rdfs:label
+            LEFT JOIN triples t3 ON t1.subject = t3.subject AND t3.predicate = ? -- rdf:type
+            WHERE t1.subject LIKE ? AND t1.subject != ?
+        )
+        -- Filter for relevant types if needed, e.g., WHERE type IN ('PanGene', 'AntibioticClass', ...)
+        ORDER BY relevance, label -- Order by relevance, then alphabetically
+        LIMIT ?
+    """
+    try:
+        # Parameters for the query
+        params = (
+            RDFS_LABEL, RDF_TYPE, term,                                     # Exact ID match
+            RDF_TYPE, RDFS_LABEL, f'{term}%',                               # Label starts with
+            RDF_TYPE, RDFS_LABEL, term_like, f'{term}%',                    # Label contains
+            RDFS_LABEL, RDF_TYPE, term_like, term,                          # ID contains
+            limit
+        )
+        results = query_db(query, params)
+
+        if results:
+            seen_subjects = set()
+            for row in results:
+                # Avoid duplicates if UNION somehow returns the same subject via different paths
+                if row['subject'] not in seen_subjects:
+                    suggestions.append({
+                        'id': row['subject'],
+                        'display_name': row['label'],
+                        'link': url_for('details', item_id=quote(row['subject']))
+                        # Optionally add 'type': row['type'] if needed in frontend
+                    })
+                    seen_subjects.add(row['subject'])
+
+    except sqlite3.Error as e:
+        app.logger.error(f"Autocomplete query error for '{term}': {e}")
+    except Exception as e:
+         app.logger.error(f"Unexpected error during autocomplete for '{term}': {e}")
+
+    return suggestions
 
 # --- Run the App ---
 if __name__ == '__main__':
