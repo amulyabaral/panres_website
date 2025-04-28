@@ -38,11 +38,6 @@
     .accordion-icon {
         @apply text-lg font-mono;
     }
-
-    /* Chart legend styling (no longer used by default, but keep if needed elsewhere) */
-    .chart-legend {
-        @apply mt-4 text-sm text-gray-600 text-center;
-    }
 }
 
 

@@ -4,7 +4,6 @@
 
 {% block content %}
 
-    {# *** START ERROR DISPLAY BLOCK *** #}
     {% if show_error %}
     <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-md shadow-md" role="alert">
         <p class="font-bold">Error {{ error_code }}</p>
@@ -12,12 +11,9 @@
         <p class="mt-2 text-sm">You can try returning to the <a href="{{ url_for('index') }}" class="font-medium hover:underline">Homepage</a>.</p>
     </div>
     {% endif %}
-    {# *** END ERROR DISPLAY BLOCK *** #}
 
-    {# --- Show content only if NOT showing an error --- #}
     {% if not show_error %}
 
-    {# --- Combined Intro, Search, and Browse Section --- #}
     <section class="mb-8 bg-white p-6 rounded-lg shadow-md border border-gray-200">
         <h2 class="text-3xl font-semibold text-gray-800 mb-3">{{ site_name }}</h2>
         <p class="text-gray-600 text-sm mb-4">
@@ -26,42 +22,31 @@
             and functionally verified genes and unified the ontology.
         </p>
 
-        {# Container for Search #}
-        <div class="mb-4"> {# Added margin-bottom #}
-            {# Search Form - Autocomplete handled by JS, no action needed #}
-            {# Added relative positioning for suggestions dropdown #}
-            {# Added onsubmit="return false;" to prevent default submission #}
+        <div class="mb-4">
             <form method="get" class="flex-grow flex items-center gap-0 relative" onsubmit="return false;">
                 <label for="search-term" class="sr-only">Search Term</label>
-                {# Added autocomplete="off" and event listeners for suggestions #}
                 <input type="search" id="search-term" name="q" placeholder="Search genes, classes, phenotypes..."
                        class="flex-grow px-4 py-2 border border-gray-300 rounded-l-md focus:ring-dtu-red focus:border-dtu-red focus:z-10"
                        required autocomplete="off"
                        oninput="getSuggestions(this.value)"
                        onblur="hideSuggestionsDebounced()"
-                       aria-haspopup="listbox" {# Accessibility improvement #}
+                       aria-haspopup="listbox"
                        aria-controls="suggestions">
-                {# Search button can be kept for visual cue or removed if desired #}
-                <button type="button" class="inline-flex items-center bg-dtu-red text-white px-4 py-2 rounded-r-md text-sm font-medium border border-dtu-red -ml-px cursor-default"> {# Changed type to button, removed hover effect #}
+                <button type="button" class="inline-flex items-center bg-dtu-red text-white px-4 py-2 rounded-r-md text-sm font-medium border border-dtu-red -ml-px cursor-default">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"> <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /> </svg>
                     <span class="sr-only">Search</span>
                 </button>
-                {# Container for suggestions dropdown #}
-                {# Added role="listbox" for accessibility #}
                 <div id="suggestions" role="listbox"
                      class="absolute left-0 right-0 top-full mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg z-20 hidden overflow-y-auto max-h-60">
-                    <!-- Suggestions will be loaded here by JavaScript -->
                 </div>
             </form>
         </div>
 
-        {# MOVED descriptive paragraph here #}
         <p class="text-gray-600 text-sm mb-6">
             Find detailed information about each PanRes gene: browse antibiotic classes, predicted antibiotic resistance phenotype(s) and ontology across different resources.
         </p>
 
-        {# MOVED Browse Buttons and GitHub Link here #}
-        <div class="flex flex-wrap justify-center md:justify-start items-center gap-2 flex-shrink-0"> {# Added flex-shrink-0 #}
+        <div class="flex flex-wrap justify-center md:justify-start items-center gap-2 flex-shrink-0">
             <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Browse Class</a>
             <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Browse Source</a>
             <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Browse Phenotype</a>
@@ -72,106 +57,6 @@
         </div>
     </section>
 
-    {# --- Charts Section (3 Donut Charts Side-by-Side) --- #}
-    <section id="charts" class="mb-8">
-        <h3 class="text-2xl font-semibold text-gray-700 mb-4 text-center">PanRes by the numbers</h3>
-
-        {# Container to hold chart data attributes #}
-        <div id="chart-data-container"
-             data-antibiotic="{{ antibiotic | tojson | safe if antibiotic else 'null' }}"
-             data-source-db="{{ source_db | tojson | safe if source_db else 'null' }}"
-             data-phenotype="{{ phenotype | tojson | safe if phenotype else 'null' }}">
-        </div>
-
-        {# Grid for 3 charts side-by-side #}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-            {# Card 1: Antibiotic Classes Chart (Donut) #}
-            <div class="bg-white p-3 rounded-lg shadow-md border border-gray-200 flex flex-col">
-                <h4 class="text-lg font-semibold text-gray-700 mb-1 text-center">Antibiotic Classes</h4>
-                <p class="text-gray-600 text-xs mb-2 text-center">Distribution across top 7 classes + Others</p>
-                {% if antibiotic %}
-                    <div class="relative h-48 md:h-56 mx-auto w-full max-w-xs mb-2">
-                        <canvas id="antibiotic"></canvas>
-                    </div>
-                    <div class="mt-auto text-center">
-                        <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}"
-                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-1 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
-                            Browse by Class
-                        </a>
-                    </div>
-                {% else %}
-                    <div class="relative h-48 md:h-56 mx-auto w-full max-w-xs mb-2 flex items-center justify-center">
-                         <p class="text-gray-500 italic text-center text-sm">No data available.</p>
-                    </div>
-                    <div class="mt-auto text-center">
-                        <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}"
-                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-1 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
-                            Browse by Class
-                        </a>
-                    </div>
-                {% endif %}
-            </div>
-
-            {# Card 2: Source Databases Chart (Donut) #}
-            <div class="bg-white p-3 rounded-lg shadow-md border border-gray-200 flex flex-col">
-                <h4 class="text-lg font-semibold text-gray-700 mb-1 text-center">Source Databases</h4>
-                <p class="text-gray-600 text-xs mb-2 text-center">Contribution from sources (Top 7 + Others)</p>
-                {% if source_db %}
-                    <div class="relative h-48 md:h-56 mx-auto w-full max-w-xs mb-2">
-                        <canvas id="sourceDb"></canvas>
-                    </div>
-                    <div class="mt-auto text-center">
-                        <a href="{{ url_for('list_items', category_key='Source Databases') }}"
-                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-1 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
-                            Browse by Source
-                        </a>
-                    </div>
-                {% else %}
-                    <div class="relative h-48 md:h-56 mx-auto w-full max-w-xs mb-2 flex items-center justify-center">
-                         <p class="text-gray-500 italic text-center text-sm">No data available.</p>
-                    </div>
-                    <div class="mt-auto text-center">
-                        <a href="{{ url_for('list_items', category_key='Source Databases') }}"
-                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-1 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
-                            Browse by Source
-                        </a>
-                    </div>
-                {% endif %}
-            </div>
-
-            {# Card 3: Predicted Phenotypes Chart (Donut) #}
-            <div class="bg-white p-3 rounded-lg shadow-md border border-gray-200 flex flex-col">
-                <h4 class="text-lg font-semibold text-gray-700 mb-1 text-center">Predicted Phenotypes</h4>
-                <p class="text-gray-600 text-xs mb-2 text-center">Distribution across top 7 phenotypes + Others</p>
-                {% if phenotype %}
-                    <div class="relative h-48 md:h-56 mx-auto w-full max-w-xs mb-2">
-                        <canvas id="phenotype"></canvas>
-                    </div>
-                    <div class="mt-auto text-center">
-                        <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}"
-                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-1 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
-                            Browse by Phenotype
-                        </a>
-                    </div>
-                {% else %}
-                    <div class="relative h-48 md:h-56 mx-auto w-full max-w-xs mb-2 flex items-center justify-center">
-                         <p class="text-gray-500 italic text-center text-sm">No data available.</p>
-                    </div>
-                    <div class="mt-auto text-center">
-                        <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}"
-                           class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-1 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2">
-                            Browse by Phenotype
-                        </a>
-                    </div>
-                {% endif %}
-            </div>
-
-        </div>
-    </section>
-    {# --- END Charts Section --- #}
-
-    {# --- Citation Section (Only show if NOT showing an error) --- #}
     <section class="bg-gray-100 p-6 rounded-lg border border-gray-200 shadow-sm">
         <h3 class="text-xl font-semibold text-gray-700 mb-3">Citation</h3>
         <p class="text-gray-600 text-sm">
@@ -181,209 +66,36 @@
             {{ citation_text | safe }}
         </blockquote>
     </section>
-    {% endif %} {# End of "if not show_error" block #}
+    {% endif %}
 
 {% endblock %}
 
 {% block scripts %}
-    {# Chart.js Core and Datalabels Plugin are included in base.html #}
     <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        // --- Chart Initialization ---
-
-        // 1. Check if we are on an error page; if so, do nothing.
-        const isErrorPage = document.querySelector('.bg-red-100[role="alert"]');
-        if (isErrorPage) {
-            console.log("Error page detected, skipping chart initialization.");
-            return;
-        }
-
-        // 2. Find the container holding the chart data attributes.
-        const chartDataContainer = document.getElementById('chart-data-container');
-        if (!chartDataContainer) {
-            console.error("Chart data container element (#chart-data-container) not found!");
-            // Display error within the charts section if container is missing
-            const chartsSection = document.getElementById('charts');
-            if(chartsSection) {
-                // Clear existing grid and show error
-                const grid = chartsSection.querySelector('.grid');
-                if (grid) grid.remove();
-                chartsSection.insertAdjacentHTML('beforeend', '<p class="text-center text-red-600 p-4">Error: Could not load chart data container.</p>');
-            }
-            return;
-        }
-
-        // 3. Safely parse chart data from data attributes.
-        let antibioticConfig = null;
-        let sourceDbConfig = null;
-        let phenotypeConfig = null;
-
-        try {
-            const antibioticData = chartDataContainer.dataset.antibiotic;
-            const sourceDbData = chartDataContainer.dataset.sourceDb;
-            const phenotypeData = chartDataContainer.dataset.phenotype;
-
-            console.log("Raw chart data attributes:", { antibiotic: antibioticData, sourceDb: sourceDbData, phenotype: phenotypeData });
-
-            if (antibioticData && antibioticData !== 'null') {
-                antibioticConfig = JSON.parse(antibioticData);
-                console.log("Parsed antibiotic config:", antibioticConfig);
-            } else {
-                 console.log("No valid antibiotic data found in attribute.");
-            }
-
-            if (sourceDbData && sourceDbData !== 'null') {
-                sourceDbConfig = JSON.parse(sourceDbData);
-                 console.log("Parsed sourceDb config:", sourceDbConfig);
-            } else {
-                 console.log("No valid sourceDb data found in attribute.");
-            }
-
-            if (phenotypeData && phenotypeData !== 'null') {
-                phenotypeConfig = JSON.parse(phenotypeData);
-                 console.log("Parsed phenotype config:", phenotypeConfig);
-            } else {
-                 console.log("No valid phenotype data found in attribute.");
-            }
-        } catch (e) {
-            console.error("Error parsing chart data attributes:", e);
-            // Display detailed error message to help debugging
-            const chartsSection = document.getElementById('charts');
-            if(chartsSection) {
-                 const grid = chartsSection.querySelector('.grid');
-                 if (grid) grid.remove(); // Remove potentially broken chart layout
-                 chartsSection.insertAdjacentHTML('beforeend', `<div class="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-                    <p class="font-bold">Error: Could not parse chart data.</p>
-                    <p class="text-sm mt-2">Error details: ${e.message}</p>
-                    <p class="text-sm">Check browser console and server logs for more information.</p>
-                </div>`);
-            }
-            return; // Stop if parsing fails
-        }
-
-        // 4. Helper function to create a Donut Chart
-        const createDonutChart = (canvasId, config) => {
-            const canvasElement = document.getElementById(canvasId);
-
-            // If canvas doesn't exist (because Python passed no data), simply return.
-            // The template already shows "No data available."
-            if (!canvasElement) {
-                console.log(`Canvas element '${canvasId}' not found, likely no data passed from backend.`);
-                return null;
-            }
-
-            const chartContainer = canvasElement.closest('div.relative'); // Find the parent container
-
-            // Data validation: Check if config is valid (was parsed successfully)
-            // and has necessary parts. If not, display message inside the container.
-            if (!config || !config.labels || !config.data || !config.colors || typeof config.total_count === 'undefined' ||
-                config.labels.length !== config.data.length || config.labels.length !== config.colors.length || config.data.length === 0 || config.total_count === 0) {
-                console.warn(`Invalid, empty, or zero-count chart config for canvas id '${canvasId}'. Config:`, config);
-                if (chartContainer) {
-                    // Replace canvas with message if config is bad
-                    chartContainer.innerHTML = `<div class="flex items-center justify-center h-full">
-                                                    <p class="text-center text-gray-500 text-sm p-4 italic">${canvasId.charAt(0).toUpperCase() + canvasId.slice(1)} data unavailable or empty.</p>
-                                                </div>`;
-                }
-                return null; // Cannot create chart with invalid data
-            }
-
-            // Get canvas context
-            const ctx = canvasElement.getContext('2d');
-            if (!ctx) {
-                 console.error(`Failed to get 2D context for canvas id '${canvasId}'.`);
-                 if (chartContainer) {
-                    chartContainer.innerHTML = `<div class="flex items-center justify-center h-full"><p class="text-center text-red-500 text-sm p-4">Error initializing ${canvasId} chart context.</p></div>`;
-                 }
-                 return null;
-            }
-
-            // Create the chart
-            try {
-                console.log(`Creating chart for ${canvasId} with config:`, config);
-                return new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: config.labels,
-                        datasets: [{
-                            label: 'Count',
-                            data: config.data,
-                            backgroundColor: config.colors,
-                            borderColor: '#ffffff',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: '60%',
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        let label = context.label || '';
-                                        if (label) label += ': ';
-                                        const value = context.raw;
-                                        const total = config.total_count; // Use total_count from config
-                                        // Handle total being zero to avoid NaN
-                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                        label += `${value} (${percentage}%)`;
-                                        return label;
-                                    }
-                                }
-                            },
-                            datalabels: { display: false }
-                        }
-                    }
-                });
-            } catch (chartError) {
-                console.error(`Error creating chart '${canvasId}':`, chartError);
-                 if (chartContainer) {
-                    chartContainer.innerHTML = `<div class="flex items-center justify-center h-full"><p class="text-center text-red-600 text-sm p-4">Error rendering ${canvasId} chart.</p></div>`;
-                 }
-                return null;
-            }
-        };
-
-        // 5. Initialize each chart only if its config data is valid (was parsed)
-        // The createDonutChart function now handles the case where the canvas might not exist
-        // or the config is invalid/null.
-        createDonutChart('antibiotic', antibioticConfig);
-        createDonutChart('sourceDb', sourceDbConfig);
-        createDonutChart('phenotype', phenotypeConfig);
-
-      }); // End DOMContentLoaded for charts
-
-      // --- Autocomplete Suggestion Logic ---
-      let suggestionTimeout; // To debounce hiding suggestions
-      let fetchController; // To abort previous fetch requests
+      let suggestionTimeout;
+      let fetchController;
 
       function getSuggestions(query) {
           const suggestionsDiv = document.getElementById('suggestions');
           const searchTermInput = document.getElementById('search-term');
 
-          // Abort any ongoing fetch request
           if (fetchController) {
               fetchController.abort();
           }
 
-          if (query.length < 2) { // Minimum characters to trigger search
+          if (query.length < 2) {
               suggestionsDiv.innerHTML = '';
               suggestionsDiv.classList.add('hidden');
-              searchTermInput.removeAttribute('aria-activedescendant'); // Accessibility
+              searchTermInput.removeAttribute('aria-activedescendant');
               return;
           }
 
-          // Show loading indicator (optional)
           suggestionsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500">Loading...</div>';
           suggestionsDiv.classList.remove('hidden');
 
-          // Create a new AbortController for this request
           fetchController = new AbortController();
           const signal = fetchController.signal;
 
-          // Fetch suggestions from the backend
           fetch(`/autocomplete?q=${encodeURIComponent(query)}`, { signal })
               .then(response => {
                   if (!response.ok) {
@@ -392,19 +104,18 @@
                   return response.json();
                })
               .then(data => {
-                  suggestionsDiv.innerHTML = ''; // Clear previous suggestions/loading
+                  suggestionsDiv.innerHTML = '';
                   if (data && data.length > 0) {
                       const list = document.createElement('ul');
-                      list.id = 'suggestion-list'; // ID for aria-controls
+                      list.id = 'suggestion-list';
                       data.forEach((item, index) => {
                           const listItem = document.createElement('li');
-                          listItem.id = `suggestion-${index}`; // Unique ID for each item
+                          listItem.id = `suggestion-${index}`;
                           listItem.setAttribute('role', 'option');
 
-                          // --- Create Indicator ---
-                          let indicatorIcon = 'fa-question-circle'; // Default icon
+                          let indicatorIcon = 'fa-question-circle';
                           let indicatorColor = 'text-gray-400';
-                          let indicatorTitle = item.type_indicator || 'Other'; // Use title from backend
+                          let indicatorTitle = item.type_indicator || 'Other';
 
                           switch(item.type_indicator) {
                               case 'Gene':
@@ -433,18 +144,13 @@
                                   break;
                           }
                           const indicatorHtml = `<i class="fas ${indicatorIcon} ${indicatorColor} mr-2 fa-fw" title="${indicatorTitle}"></i>`;
-                          // --- End Indicator ---
 
-                          // Use 'mousedown' to register click before 'blur' hides the div
-                          // Use an inner link for navigation
                           listItem.innerHTML = `<a href="${item.link}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-dtu-red flex items-center suggestion-link">
                                                     ${indicatorHtml}
                                                     <span class="flex-grow">${item.display_name}</span>
                                                     <span class="text-xs text-gray-500 ml-2">(${item.id})</span>
                                                 </a>`;
-                          // Prevent blur when clicking suggestion link
                           listItem.addEventListener('mousedown', (e) => {
-                              // Allow middle-click/ctrl-click to open in new tab
                               if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
                                   window.location.href = item.link;
                               }
@@ -454,24 +160,20 @@
                       suggestionsDiv.appendChild(list);
                       suggestionsDiv.classList.remove('hidden');
                   } else {
-                      // Show "No results" message
                       suggestionsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500">No results found.</div>';
-                      suggestionsDiv.classList.remove('hidden'); // Keep div visible to show message
+                      suggestionsDiv.classList.remove('hidden');
                       searchTermInput.removeAttribute('aria-activedescendant');
                   }
               })
               .catch(error => {
                   if (error.name === 'AbortError') {
-                      // console.log('Fetch aborted'); // Ignore abort errors silently
                   } else {
-                      console.error('Error fetching suggestions:', error); // Keep critical error log
                       suggestionsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-red-600">Error loading suggestions.</div>';
-                      suggestionsDiv.classList.remove('hidden'); // Show error
+                      suggestionsDiv.classList.remove('hidden');
                       searchTermInput.removeAttribute('aria-activedescendant');
                   }
               })
               .finally(() => {
-                  // Clear the controller when fetch is done or aborted
                   fetchController = null;
               });
       }
@@ -480,17 +182,15 @@
           const suggestionsDiv = document.getElementById('suggestions');
           const searchTermInput = document.getElementById('search-term');
           suggestionsDiv.classList.add('hidden');
-          suggestionsDiv.innerHTML = ''; // Clear content when hiding
+          suggestionsDiv.innerHTML = '';
           searchTermInput.removeAttribute('aria-activedescendant');
       }
 
-      // Debounce hiding to allow clicking on suggestions
       function hideSuggestionsDebounced() {
           clearTimeout(suggestionTimeout);
-          suggestionTimeout = setTimeout(hideSuggestions, 200); // Delay allows click
+          suggestionTimeout = setTimeout(hideSuggestions, 200);
       }
 
-      // --- Keyboard Navigation for Suggestions ---
       const searchTermInput = document.getElementById('search-term');
       const suggestionsDiv = document.getElementById('suggestions');
       let activeSuggestionIndex = -1;
@@ -506,30 +206,26 @@
           if (!items.length) return;
 
           if (e.key === 'ArrowDown') {
-              e.preventDefault(); // Prevent cursor move in input
+              e.preventDefault();
               activeSuggestionIndex++;
               if (activeSuggestionIndex >= items.length) activeSuggestionIndex = 0;
               updateActiveSuggestion(items);
           } else if (e.key === 'ArrowUp') {
-              e.preventDefault(); // Prevent cursor move in input
+              e.preventDefault();
               activeSuggestionIndex--;
               if (activeSuggestionIndex < 0) activeSuggestionIndex = items.length - 1;
               updateActiveSuggestion(items);
           } else if (e.key === 'Enter') {
               if (activeSuggestionIndex >= 0 && activeSuggestionIndex < items.length) {
-                  e.preventDefault(); // Prevent form submission
+                  e.preventDefault();
                   const activeLink = items[activeSuggestionIndex].querySelector('a.suggestion-link');
                   if (activeLink) {
-                      // Navigate using the link's href
                       window.location.href = activeLink.href;
                   }
               }
-              // Allow default form submission if Enter is pressed without an active suggestion?
-              // Currently form submission is prevented by onsubmit="return false;"
           } else if (e.key === 'Escape') {
               hideSuggestions();
           } else {
-              // Reset index if user types other keys
               activeSuggestionIndex = -1;
           }
       });
@@ -538,10 +234,10 @@
           items.forEach((item, index) => {
               const link = item.querySelector('a.suggestion-link');
               if (index === activeSuggestionIndex) {
-                  item.classList.add('bg-gray-100'); // Highlight active item
+                  item.classList.add('bg-gray-100');
                   link?.classList.add('text-dtu-red');
                   searchTermInput.setAttribute('aria-activedescendant', item.id);
-                  item.scrollIntoView({ block: 'nearest' }); // Ensure visible
+                  item.scrollIntoView({ block: 'nearest' });
               } else {
                   item.classList.remove('bg-gray-100');
                   link?.classList.remove('text-dtu-red');
@@ -549,11 +245,9 @@
           });
       }
 
-      // Optional: Hide suggestions if clicked outside the search input and suggestions list
       document.addEventListener('click', function(event) {
           const searchForm = searchTermInput.closest('form');
           if (searchForm && !searchForm.contains(event.target)) {
-              // Check if the click was outside the form (input + suggestions div)
               hideSuggestions();
           }
       });
