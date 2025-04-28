@@ -186,35 +186,86 @@
             return;
         }
 
-        // 3. Safely parse chart data from data attributes.
+        // 3. Safely parse chart data from data attributes with improved error handling.
         let antibioticConfig = null;
         let sourceDbConfig = null;
         let phenotypeConfig = null;
 
         try {
+            // Get the raw data attribute values
             const antibioticData = chartDataContainer.dataset.antibiotic;
             const sourceDbData = chartDataContainer.dataset.sourceDb;
             const phenotypeData = chartDataContainer.dataset.phenotype;
+            
+            console.log("Raw chart data:", {
+                antibiotic: antibioticData,
+                sourceDb: sourceDbData,
+                phenotype: phenotypeData
+            });
 
             // Parse only if the data attribute exists and is not the string 'null'
             if (antibioticData && antibioticData !== 'null') {
-                antibioticConfig = JSON.parse(antibioticData);
+                try {
+                    antibioticConfig = JSON.parse(antibioticData);
+                    console.log("Parsed antibiotic config:", antibioticConfig);
+                } catch (parseError) {
+                    console.error("Failed to parse antibiotic data:", parseError);
+                    console.log("Raw antibiotic data:", antibioticData);
+                }
             }
+            
             if (sourceDbData && sourceDbData !== 'null') {
-                sourceDbConfig = JSON.parse(sourceDbData);
+                try {
+                    sourceDbConfig = JSON.parse(sourceDbData);
+                    console.log("Parsed sourceDb config:", sourceDbConfig);
+                } catch (parseError) {
+                    console.error("Failed to parse sourceDb data:", parseError);
+                    console.log("Raw sourceDb data:", sourceDbData);
+                }
             }
+            
             if (phenotypeData && phenotypeData !== 'null') {
-                phenotypeConfig = JSON.parse(phenotypeData);
+                try {
+                    phenotypeConfig = JSON.parse(phenotypeData);
+                    console.log("Parsed phenotype config:", phenotypeConfig);
+                } catch (parseError) {
+                    console.error("Failed to parse phenotype data:", parseError);
+                    console.log("Raw phenotype data:", phenotypeData);
+                }
             }
         } catch (e) {
-            console.error("Error parsing chart JSON data from data attributes:", e);
-            // Display a general error message within the charts section
+            console.error("Error processing chart data attributes:", e);
+            // Display detailed error message to help debugging
             const chartsSection = document.getElementById('charts');
             if(chartsSection) {
-                 chartsSection.innerHTML = '<p class="text-center text-red-600 p-4">Error: Could not parse chart data.</p>';
+                chartsSection.innerHTML = `<div class="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                    <p class="font-bold">Error: Could not parse chart data.</p>
+                    <p class="text-sm mt-2">Error details: ${e.message}</p>
+                    <p class="text-sm">Check browser console for more information.</p>
+                </div>`;
             }
             return; // Stop if parsing fails
         }
+
+        // Fallback to empty configurations if parsing failed
+        antibioticConfig = antibioticConfig || {
+            labels: ["No Data"], 
+            data: [100], 
+            colors: ["#cccccc"],
+            total_count: 100
+        };
+        sourceDbConfig = sourceDbConfig || {
+            labels: ["No Data"], 
+            data: [100], 
+            colors: ["#cccccc"],
+            total_count: 100
+        };
+        phenotypeConfig = phenotypeConfig || {
+            labels: ["No Data"], 
+            data: [100], 
+            colors: ["#cccccc"],
+            total_count: 100
+        };
 
         // 4. Helper function to create a Donut Chart
         const createDonutChart = (canvasId, config) => {
