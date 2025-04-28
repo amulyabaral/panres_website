@@ -71,6 +71,9 @@ def create_and_populate_fts(db_path):
     """
     Creates and populates the FTS5 table for autocomplete.
     Connects directly to the database path provided.
+    NOTE: This runs at application startup. If the main database file
+          is updated while the application is running, the FTS index
+          will become stale until the application is restarted.
     """
     logger.info(f"Connecting to {db_path} for FTS setup...")
     db = None
@@ -289,7 +292,9 @@ def get_item_details(item_id):
             pred_display = predicate_map.get(predicate, predicate)
             processed_values = []
             for obj_val in objects:
-                # Check if the object exists as a subject (heuristic for being a resource/link)
+                # Potential N+1 Query: This check runs for every object value.
+                # If performance becomes an issue for items with many properties,
+                # consider fetching all subjects once and checking against that set.
                 check_cur.execute("SELECT 1 FROM triples WHERE subject = ? LIMIT 1", (obj_val,))
                 is_link = check_cur.fetchone() is not None
                 # Get label if it's a link, pass connection
@@ -649,7 +654,8 @@ def get_items_for_category(category_key):
                 check_cur = db.cursor()
                 for row in results:
                     obj_id = row['object']
-                    # Check if this object appears as a subject in any triple
+                    # Potential N+1 Query: This check runs for every distinct object.
+                    # Consider optimizing if listing categories with many distinct objects becomes slow.
                     check_cur.execute("SELECT 1 FROM triples WHERE subject = ? LIMIT 1", (obj_id,))
                     is_resource = check_cur.fetchone() is not None
                     link = url_for('details', item_id=quote(obj_id)) if is_resource else None
