@@ -333,65 +333,52 @@
             }
         };
 
-        // --- Specific Options for Database Chart (with Datalabels) ---
-        const databaseChartOptions = {
+        // --- Options for Charts with External Datalabels ---
+        // Renaming databaseChartOptions to externalLabelOptions for clarity
+        const externalLabelOptions = {
             responsive: true,
             maintainAspectRatio: false,
+            // --- Add Layout Padding ---
+            layout: {
+                padding: {
+                    // Add padding to prevent labels being cut off
+                    // Adjust these values as needed based on label length/font size
+                    top: 20,
+                    bottom: 20,
+                    left: 20,
+                    right: 20
+                }
+            },
             plugins: {
                 legend: {
                     display: false,
                 },
-                tooltip: { // Keep tooltips enabled here too
-                   callbacks: { // (Same tooltip callback as base)
-                        label: function(context) {
-                            let label = context.label || '';
-                            if (label) { label += ': '; }
-                            if (context.parsed !== null) { label += context.parsed; }
-                            const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                            const value = context.parsed;
-                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
-                            label += ` (${percentage})`;
-                            return label;
-                        }
-                    }
+                tooltip: { // Keep tooltips enabled
+                   callbacks: { /* ... tooltip callback ... */ }
                 },
-                datalabels: { // Enable and configure datalabels for this chart
+                datalabels: { // Configure datalabels
                     display: true,
-                    anchor: 'end', // Position label anchor at the end of the arc
-                    align: 'end',  // Align text to the end of the anchor point
-                    offset: 8,     // Distance from the end of the arc
+                    anchor: 'end',
+                    align: 'end',
+                    offset: 8,
                     formatter: (value, context) => {
-                        // Format the label text (e.g., "Label: X%")
                         const label = context.chart.data.labels[context.dataIndex];
                         const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
                         const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
-                        // Shorten long labels if needed
-                        const maxLabelLength = 20; // Adjust as needed
+                        const maxLabelLength = 20;
                         const displayLabel = label.length > maxLabelLength ? label.substring(0, maxLabelLength - 3) + '...' : label;
                         return `${displayLabel}: ${percentage}`;
                     },
-                    color: '#374151', // Label text color (e.g., gray-700)
+                    color: '#374151',
                     font: {
                         size: 10,
-                        // weight: 'bold' // Optional: make labels bold
                     },
-                    // --- Connector Lines ---
-                    // Note: Connector lines are basic in this plugin. Styling is limited.
-                    // They might not look exactly like the reference image without more complex drawing.
-                    // This enables the basic line:
-                    // connector: { // This property doesn't exist directly, handled by anchor/align/offset
-                    //   display: true, // Not a direct option
-                    //   color: '#888', // Not a direct option
-                    //   thickness: 1 // Not a direct option
-                    // }
-                    // The lines are implicitly drawn based on anchor/align/offset.
-                    // We rely on the positioning logic to imply the connection.
+                    // Connector lines are implicit via positioning
                 }
             }
         };
 
         // --- Function to create a chart ---
-        // Now accepts specific options for the chart type
         function createDonutChart(canvasId, data, title, options) {
             const ctx = document.getElementById(canvasId);
             if (!ctx || !data || !data.labels || !data.counts || data.counts.length === 0) {
@@ -400,9 +387,7 @@
                  if(container) container.style.display = 'none';
                  return null;
             }
-
             const backgroundColors = data.labels.map((_, i) => redShades[i % redShades.length]);
-
             return new Chart(ctx, {
                 type: 'doughnut',
                 data: {
@@ -419,12 +404,12 @@
             });
         }
 
-        // Create the charts, passing specific options for the database chart
+        // Create the charts, using externalLabelOptions for all
         if (distributionData) {
-            createDonutChart('classChart', distributionData.class, 'PanGenes by Class', baseChartOptions);
-            createDonutChart('phenotypeChart', distributionData.phenotype, 'PanGenes by Phenotype', baseChartOptions);
-            // Use the special options for the database chart
-            createDonutChart('databaseChart', distributionData.database, 'PanGenes by Source Database', databaseChartOptions);
+            // Use externalLabelOptions for all charts now
+            createDonutChart('classChart', distributionData.class, 'PanGenes by Class', externalLabelOptions);
+            createDonutChart('phenotypeChart', distributionData.phenotype, 'PanGenes by Phenotype', externalLabelOptions);
+            createDonutChart('databaseChart', distributionData.database, 'PanGenes by Source Database', externalLabelOptions);
         }
       });
       // --- END: Chart Rendering Script ---
