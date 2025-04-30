@@ -5,6 +5,7 @@ from urllib.parse import unquote, quote
 from collections import defaultdict
 import datetime
 import json
+import math # Add math import for ceil
 
 DATABASE = 'panres_ontology.db'
 CITATION_TEXT = "Hannah-Marie Martiny, Nikiforos Pyrounakis, Thomas N Petersen, Oksana Lukjančenko, Frank M Aarestrup, Philip T L C Clausen, Patrick Munk, ARGprofiler—a pipeline for large-scale analysis of antimicrobial resistance genes and their flanking regions in metagenomic datasets, <i>Bioinformatics</i>, Volume 40, Issue 3, March 2024, btae086, <a href=\"https://doi.org/10.1093/bioinformatics/btae086\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"text-dtu-red hover:underline\">https://doi.org/10.1093/bioinformatics/btae086</a>"
@@ -515,12 +516,147 @@ def inject_global_vars():
         'citation_text': CITATION_TEXT
     }
 
+def get_pangen_distribution_data(limit=8):
+    """
+    Calculates the distribution of PanGenes by Antibiotic Class,
+    Predicted Phenotype, and Source Database. Returns top N + Others.
+    """
+    db = get_db()
+    distributions = {
+        'class': {'labels': [], 'counts': []},
+        'phenotype': {'labels': [], 'counts': []},
+        'database': {'labels': [], 'counts': []}
+    }
+
+    # --- Get all PanGene IDs ---
+    pangen_ids_result = query_db(
+        "SELECT DISTINCT subject FROM triples WHERE predicate = ? AND object = 'PanGene'",
+        (RDF_TYPE,), db_conn=db
+    )
+    if not pangen_ids_result:
+        return distributions # Return empty if no PanGenes found
+
+    pangen_ids = [row['subject'] for row in pangen_ids_result]
+    placeholders = ','.join('?' * len(pangen_ids))
+
+    # --- Distribution by Antibiotic Class ---
+    class_counts = defaultdict(int)
+    class_query = f"""
+        SELECT object FROM triples
+        WHERE predicate = ? AND subject IN ({placeholders})
+    """
+    class_results = query_db(class_query, (HAS_RESISTANCE_CLASS, *pangen_ids), db_conn=db)
+    if class_results:
+        for row in class_results:
+            class_counts[row['object']] += 1
+    distributions['class'] = process_distribution_counts(db, class_counts, limit)
+
+    # --- Distribution by Predicted Phenotype ---
+    phenotype_counts = defaultdict(int)
+    phenotype_query = f"""
+        SELECT object FROM triples
+        WHERE predicate = ? AND subject IN ({placeholders})
+    """
+    phenotype_results = query_db(phenotype_query, (HAS_PREDICTED_PHENOTYPE, *pangen_ids), db_conn=db)
+    if phenotype_results:
+        for row in phenotype_results:
+            phenotype_counts[row['object']] += 1
+    distributions['phenotype'] = process_distribution_counts(db, phenotype_counts, limit)
+
+    # --- Distribution by Source Database (via OriginalGene and same_as) ---
+    # 1. Find OriginalGenes linked to our PanGenes
+    original_gene_map = defaultdict(list) # {original_gene_id: [pangen_id, ...]}
+    same_as_query = f"""
+        SELECT subject, object FROM triples
+        WHERE predicate = 'same_as' AND subject IN ({placeholders})
+    """
+    same_as_results = query_db(same_as_query, (*pangen_ids,), db_conn=db)
+    original_gene_ids = set()
+    pangen_to_original = defaultdict(set) # {pangen_id: {original_gene_id, ...}}
+    if same_as_results:
+        for row in same_as_results:
+            pangen_id = row['subject']
+            original_gene_id = row['object']
+            original_gene_ids.add(original_gene_id)
+            pangen_to_original[pangen_id].add(original_gene_id)
+
+    # 2. Find Databases for these OriginalGenes
+    db_counts = defaultdict(int)
+    if original_gene_ids:
+        og_placeholders = ','.join('?' * len(original_gene_ids))
+        db_query = f"""
+            SELECT T1.subject as original_gene, T1.object as database_id
+            FROM triples T1
+            JOIN triples T2 ON T1.subject = T2.subject
+            WHERE T1.predicate = ?
+              AND T1.subject IN ({og_placeholders})
+              AND T2.predicate = ? AND T2.object = 'OriginalGene'
+        """
+        db_results = query_db(db_query, (IS_FROM_DATABASE, *list(original_gene_ids), RDF_TYPE), db_conn=db)
+
+        # 3. Count unique PanGenes per Database
+        database_pangenes = defaultdict(set) # {database_id: {pangen_id, ...}}
+        if db_results:
+            original_to_db = {row['original_gene']: row['database_id'] for row in db_results}
+            for pangen_id, linked_original_ids in pangen_to_original.items():
+                for og_id in linked_original_ids:
+                    database_id = original_to_db.get(og_id)
+                    if database_id:
+                        database_pangenes[database_id].add(pangen_id)
+
+        for db_id, unique_pangenes in database_pangenes.items():
+            db_counts[db_id] = len(unique_pangenes)
+
+    distributions['database'] = process_distribution_counts(db, db_counts, limit)
+
+    return distributions
+
+
+def process_distribution_counts(db, counts_dict, limit):
+    """Helper to sort, limit, group 'Others', and get labels."""
+    if not counts_dict:
+        return {'labels': [], 'counts': []}
+
+    sorted_items = sorted(counts_dict.items(), key=lambda item: item[1], reverse=True)
+
+    top_items = sorted_items[:limit]
+    other_items = sorted_items[limit:]
+
+    final_labels = []
+    final_counts = []
+
+    # Get labels for top items
+    top_ids = [item[0] for item in top_items]
+    labels = {}
+    if top_ids:
+        placeholders = ','.join('?' * len(top_ids))
+        label_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
+        label_results = query_db(label_query, (RDFS_LABEL, *top_ids), db_conn=db)
+        if label_results:
+            labels = {row['subject']: row['object'] for row in label_results}
+
+    for item_id, count in top_items:
+        final_labels.append(labels.get(item_id, item_id))
+        final_counts.append(count)
+
+    # Add 'Others' if necessary
+    if other_items:
+        other_count = sum(item[1] for item in other_items)
+        if other_count > 0:
+            final_labels.append("Others")
+            final_counts.append(other_count)
+
+    return {'labels': final_labels, 'counts': final_counts}
+
 @app.route('/')
 def index():
     category_counts = get_category_counts()
+    # Fetch distribution data for charts
+    distribution_data = get_pangen_distribution_data()
     return render_template('index.html',
                            index_categories=INDEX_CATEGORIES,
                            category_counts=category_counts,
+                           distribution_data=distribution_data, # Pass data to template
                            show_error=False)
 
 @app.route('/list/<category_key>')
