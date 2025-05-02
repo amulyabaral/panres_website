@@ -29,19 +29,15 @@
 
     {# Display grouped items (e.g., PanGenes by Class) #}
     {% if grouped_items %}
-        {# NEW: Outer container styled as a single card #}
         <div class="bg-white border border-gray-200 rounded-md shadow-sm overflow-hidden">
-            {# Apply dividers between accordion items, remove vertical spacing #}
             <div class="accordion divide-y divide-gray-200">
                 {% for group_name, items_in_group in grouped_items.items() %}
-                    {# REMOVED: Individual card styling from this div #}
                     <div>
-                        {# Header button remains the same #}
+                        {# Rearrange spans: icon first, then text. Add class to text span. #}
                         <button class="accordion-header">
-                            <span>{{ group_name }} ({{ items_in_group | length }} items)</span>
-                            <span class="accordion-icon text-lg font-mono">+</span>
+                            <span class="accordion-icon">+</span> {# Icon first #}
+                            <span class="group-name flex-grow">{{ group_name }} ({{ items_in_group | length }} items)</span> {# Text second, add class, allow growth #}
                         </button>
-                        {# Content div remains the same #}
                         <div class="accordion-content hidden">
                             <ul class="list-disc list-inside space-y-1 pl-8">
                                 {% for item_info in items_in_group %}
@@ -99,14 +95,12 @@
 
                     if (isHidden) {
                         content.classList.remove('hidden');
-                        if(icon) icon.textContent = '−';
-                        // Optional: Add active state styling to header
-                        // this.classList.add('bg-gray-200');
+                        this.classList.add('active'); // Add active class to header
+                        if(icon) icon.textContent = '−'; // Use minus symbol
                     } else {
                         content.classList.add('hidden');
-                         if(icon) icon.textContent = '+';
-                         // Optional: Remove active state styling
-                         // this.classList.remove('bg-gray-200');
+                        this.classList.remove('active'); // Remove active class from header
+                         if(icon) icon.textContent = '+'; // Use plus symbol
                     }
                 });
             });

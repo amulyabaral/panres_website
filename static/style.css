@@ -30,15 +30,26 @@
     }
 
     .accordion-header {
-         /* Keep padding, hover; REMOVE rounding */
-         @apply w-full text-left px-6 py-4 hover:bg-gray-50 font-semibold text-gray-700 flex justify-between items-center transition-colors duration-150 cursor-pointer;
+         /* Adjusted padding, removed font-weight/hover, align items center */
+         @apply w-full text-left px-6 py-3 text-gray-700 flex items-center transition-colors duration-150 cursor-pointer;
+         /* No background hover */
     }
     .accordion-content {
-         /* Keep padding, border-top; REMOVE rounding */
-         @apply border-t border-gray-200 px-6 py-4 bg-white;
+         /* Adjusted padding */
+         @apply border-t border-gray-200 px-6 py-4 bg-white; /* Keep py-4 for content */
     }
     .accordion-icon {
-        @apply text-lg font-mono;
+        /* Simple text, add margin to the right */
+        @apply mr-4 text-gray-600; /* Adjust color if needed */
+        /* Remove previous icon styles */
+    }
+
+    /* Style for the active/expanded state */
+    .accordion-header.active .group-name {
+        @apply text-dtu-red; /* Change text color of the group name span */
+    }
+    .accordion-header.active .accordion-icon {
+        @apply text-dtu-red; /* Optionally change icon color too */
     }
 }
 
