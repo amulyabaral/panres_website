@@ -30,16 +30,12 @@
     }
 
     .accordion-header {
-         /* Increased padding, removed background, subtle hover, consistent rounding */
+         /* Keep padding, hover; REMOVE rounding */
          @apply w-full text-left px-6 py-4 hover:bg-gray-50 font-semibold text-gray-700 flex justify-between items-center transition-colors duration-150 cursor-pointer;
-         /* Ensure top corners are rounded when collapsed */
-         @apply rounded-t-md; /* Changed from rounded-t-lg */
     }
     .accordion-content {
-         /* Increased padding, consistent rounding */
-         @apply border-t border-gray-200 px-6 py-4 bg-white; /* Changed border color slightly */
-         /* Ensure bottom corners are rounded when expanded */
-         @apply rounded-b-md; /* Changed from rounded-b-lg */
+         /* Keep padding, border-top; REMOVE rounding */
+         @apply border-t border-gray-200 px-6 py-4 bg-white;
     }
     .accordion-icon {
         @apply text-lg font-mono;
