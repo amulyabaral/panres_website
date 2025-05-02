@@ -29,32 +29,35 @@
 
     {# Display grouped items (e.g., PanGenes by Class) #}
     {% if grouped_items %}
-        {# Apply grid layout and gap to the container of the loop items #}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {% for group_name, items_in_group in grouped_items.items() %}
-                {# ADD individual card styling back to each item in the loop #}
-                <div class="bg-white border border-gray-200 rounded-md shadow-sm overflow-hidden accordion-item">
-                    <button class="accordion-header">
-                        <span class="accordion-icon">+</span>
-                        <span class="group-name flex-grow">{{ group_name }} ({{ items_in_group | length }} items)</span>
-                    </button>
-                    <div class="accordion-content hidden">
-                        {# REVERT inner list to single column with original styling #}
-                        <ul class="list-disc list-inside space-y-1 pl-8">
-                            {% for item_info in items_in_group %}
-                                <li> {# Remove pl-2 from li #}
-                                    <a href="{{ url_for('details', item_id=item_info.id | urlencode) }}" class="py-1 px-2 text-sm text-dtu-red hover:underline hover:bg-gray-50 rounded">
-                                        {{ item_info.label }}
-                                    </a>
-                                    {% if item_info.original_info %}
-                                        <span class="text-xs text-gray-500 ml-1">({{ item_info.original_info }})</span>
-                                    {% endif %}
-                                </li>
-                            {% endfor %}
-                        </ul>
+        {# ADD back the single outer card container #}
+        <div class="bg-white border border-gray-200 rounded-md shadow-sm overflow-hidden">
+            {# REMOVE grid layout, ADD divide-y back #}
+            <div class="accordion divide-y divide-gray-200">
+                {% for group_name, items_in_group in grouped_items.items() %}
+                    {# REMOVE individual card styling from this div #}
+                    <div>
+                        <button class="accordion-header">
+                            <span class="accordion-icon">+</span>
+                            <span class="group-name flex-grow">{{ group_name }} ({{ items_in_group | length }} items)</span>
+                        </button>
+                        <div class="accordion-content hidden">
+                            {# Keep inner list as single column #}
+                            <ul class="list-disc list-inside space-y-1 pl-8">
+                                {% for item_info in items_in_group %}
+                                    <li>
+                                        <a href="{{ url_for('details', item_id=item_info.id | urlencode) }}" class="py-1 px-2 text-sm text-dtu-red hover:underline hover:bg-gray-50 rounded">
+                                            {{ item_info.label }}
+                                        </a>
+                                        {% if item_info.original_info %}
+                                            <span class="text-xs text-gray-500 ml-1">({{ item_info.original_info }})</span>
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
                     </div>
-                </div>
-            {% endfor %}
+                {% endfor %}
+            </div>
         </div>
 
     {# Display flat list of items #}

@@ -30,12 +30,12 @@
     }
 
     .accordion-header {
-         /* Keep hover effect, add top rounding back */
-         @apply w-full text-left px-6 py-3 text-gray-700 flex items-center transition-colors duration-150 cursor-pointer hover:bg-gray-50 rounded-t-md;
+         /* Keep hover effect, REMOVE top rounding */
+         @apply w-full text-left px-6 py-3 text-gray-700 flex items-center transition-colors duration-150 cursor-pointer hover:bg-gray-50;
     }
     .accordion-content {
-         /* Keep padding, add bottom rounding back */
-         @apply border-t border-gray-200 px-6 py-4 bg-white rounded-b-md;
+         /* Keep padding, REMOVE bottom rounding */
+         @apply border-t border-gray-200 px-6 py-4 bg-white;
     }
     .accordion-icon {
         /* Simple text, add margin to the right */
