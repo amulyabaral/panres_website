@@ -42,13 +42,18 @@
                     {# Accordion Content #}
                     <div class="accordion-content hidden"> {# Start hidden #}
                         <ul class="list-disc list-inside space-y-1">
-                            {# items_in_group is a list of (item_id, display_name) tuples #}
-                            {% for item_id, display_name in items_in_group %}
+                            {# items_in_group is now a list of dictionaries #}
+                            {# Change loop variable from (item_id, display_name) to item_info #}
+                            {% for item_info in items_in_group %}
                                 <li>
-                                    {# Gene/Item Link #}
-                                    <a href="{{ url_for('details', item_id=item_id | urlencode) }}" class="py-1 px-2 text-sm text-dtu-red hover:underline hover:bg-gray-50 rounded">
-                                        {{ display_name }}
+                                    {# Gene/Item Link - Use item_info.id and item_info.label #}
+                                    <a href="{{ url_for('details', item_id=item_info.id | urlencode) }}" class="py-1 px-2 text-sm text-dtu-red hover:underline hover:bg-gray-50 rounded">
+                                        {{ item_info.label }}
                                     </a>
+                                    {# Display original info if available #}
+                                    {% if item_info.original_info %}
+                                        <span class="text-xs text-gray-500 ml-1">({{ item_info.original_info }})</span>
+                                    {% endif %}
                                 </li>
                             {% endfor %}
                         </ul>

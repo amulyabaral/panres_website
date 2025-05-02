@@ -1152,6 +1152,7 @@ def get_subjects_grouped_by_objects(object_ids, predicate, subject_type_filter=N
     """
     Fetches subjects linked to a list of object IDs via a specific predicate,
     optionally filtering subjects by type, and groups them by object label.
+    Includes original gene/database info for subjects if they are PanGenes.
 
     Args:
         object_ids (list): A list of object IDs (e.g., class IDs, phenotype IDs).
@@ -1160,7 +1161,7 @@ def get_subjects_grouped_by_objects(object_ids, predicate, subject_type_filter=N
 
     Returns:
         tuple: A tuple containing:
-            - grouped_data (dict): {object_label: [(subject_id, subject_label), ...]}
+            - grouped_data (dict): {object_label: [{'id': subject_id, 'label': subject_label, 'original_info': 'also called...'}, ...]}
             - total_object_count (int): The number of unique object groups found.
     """
     db = get_db()
@@ -1168,26 +1169,17 @@ def get_subjects_grouped_by_objects(object_ids, predicate, subject_type_filter=N
     if not object_ids:
         return {}, 0
 
-    # Ensure object_ids are unique
     unique_object_ids = list(set(object_ids))
-    total_object_count = len(unique_object_ids)
+    # Get labels for all object IDs first
+    object_labels = get_labels_in_batches(db, unique_object_ids)
 
-
-    # 1. Get labels for all object IDs
-    object_labels = {}
-    placeholders_obj = ','.join('?' * len(unique_object_ids))
-    label_query_obj = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders_obj})"
-    label_results_obj = query_db(label_query_obj, (RDFS_LABEL, *unique_object_ids), db_conn=db)
-    if label_results_obj:
-        object_labels = {row['subject']: row['object'] for row in label_results_obj}
-
-    # 2. Find all subjects linked to these objects via the predicate
+    # Find all subjects linked to these objects via the predicate, potentially filtered by type
     subject_links_query = f"""
         SELECT T1.subject, T1.object
         FROM triples T1
         { "JOIN triples T2 ON T1.subject = T2.subject" if subject_type_filter else "" }
         WHERE T1.predicate = ?
-          AND T1.object IN ({placeholders_obj})
+          AND T1.object IN ({','.join('?' * len(unique_object_ids))})
         { "AND T2.predicate = ? AND T2.object = ?" if subject_type_filter else "" }
     """
     query_params = [predicate, *unique_object_ids]
@@ -1205,40 +1197,87 @@ def get_subjects_grouped_by_objects(object_ids, predicate, subject_type_filter=N
             subjects_found.add(subject_id)
             object_to_subjects[object_id].append(subject_id)
 
-    # 3. Get labels for all found subjects
-    subject_labels = {}
-    if subjects_found:
-        subject_list = list(subjects_found)
-        # Batch label fetching if needed (similar to FTS population)
-        label_batch_size = 900
-        for i in range(0, len(subject_list), label_batch_size):
-            batch_subj_ids = subject_list[i:i+label_batch_size]
-            placeholders_subj = ','.join('?' * len(batch_subj_ids))
-            label_query_subj = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders_subj})"
-            label_results_subj = query_db(label_query_subj, (RDFS_LABEL, *batch_subj_ids), db_conn=db)
-            if label_results_subj:
-                for row in label_results_subj:
-                    subject_labels[row['subject']] = row['object']
+    # Get labels for all found subjects
+    subject_labels = get_labels_in_batches(db, list(subjects_found))
+
+    # --- Fetch Original Gene Info (Only if subject_type_filter is 'PanGene') ---
+    pangen_original_info = defaultdict(str) # {pangen_id: "also called X in Y, ..."}
+    if subject_type_filter == 'PanGene' and subjects_found:
+        pangen_list = list(subjects_found)
+        placeholders_subj = ','.join('?' * len(pangen_list))
+
+        # 1. Find OriginalGene IDs linked via 'same_as'
+        same_as_query = f"SELECT subject, object FROM triples WHERE predicate = 'same_as' AND subject IN ({placeholders_subj})"
+        same_as_results = query_db(same_as_query, tuple(pangen_list), db_conn=db)
+        pangen_to_original_ids = defaultdict(list)
+        all_original_ids = set()
+        if same_as_results:
+            for row in same_as_results:
+                pangen_id = row['subject']
+                original_id = row['object']
+                pangen_to_original_ids[pangen_id].append(original_id)
+                all_original_ids.add(original_id)
+
+        if all_original_ids:
+            original_list = list(all_original_ids)
+            placeholders_orig = ','.join('?' * len(original_list))
+
+            # 2. Get Labels for OriginalGenes
+            original_labels = get_labels_in_batches(db, original_list)
+
+            # 3. Get Database IDs for OriginalGenes
+            db_query = f"""
+                SELECT subject, object FROM triples
+                WHERE predicate = ? AND subject IN ({placeholders_orig})
+            """
+            db_results = query_db(db_query, (IS_FROM_DATABASE, *original_list), db_conn=db)
+            original_to_db_id = {}
+            all_db_ids = set()
+            if db_results:
+                for row in db_results:
+                    original_id = row['subject']
+                    db_id = row['object']
+                    original_to_db_id[original_id] = db_id
+                    all_db_ids.add(db_id)
+
+            # 4. Get Labels for Databases
+            db_labels = get_labels_in_batches(db, list(all_db_ids))
+
+            # 5. Construct the info string for each PanGene
+            for pangen_id, original_ids in pangen_to_original_ids.items():
+                info_parts = []
+                for original_id in sorted(original_ids): # Sort for consistency
+                    original_label = original_labels.get(original_id, original_id)
+                    db_id = original_to_db_id.get(original_id)
+                    db_label = db_labels.get(db_id, db_id) if db_id else "Unknown DB"
+                    info_parts.append(f"{original_label} in {db_label}")
+
+                if info_parts:
+                    pangen_original_info[pangen_id] = "also called " + ", ".join(info_parts)
+    # --- End Fetch Original Gene Info ---
 
 
-    # 4. Build the final grouped dictionary
+    # Build the final grouped dictionary using the fetched info
     for object_id in unique_object_ids:
         object_label = object_labels.get(object_id, object_id)
-        subject_ids_for_object = list(set(object_to_subjects.get(object_id, []))) # Ensure unique subjects per group
-        subject_tuples = []
+        subject_ids_for_object = list(set(object_to_subjects.get(object_id, []))) # Unique subjects per group
+        subject_details_list = []
         for subject_id in subject_ids_for_object:
             subject_label = subject_labels.get(subject_id, subject_id)
-            subject_tuples.append((subject_id, subject_label))
+            original_info_str = pangen_original_info.get(subject_id, "") # Get the pre-formatted string
+            subject_details_list.append({
+                'id': subject_id,
+                'label': subject_label,
+                'original_info': original_info_str
+            })
 
         # Sort subjects within the group by label
-        subject_tuples.sort(key=lambda x: x[1])
-        if subject_tuples: # Only add group if it has subjects
-             grouped_data[object_label] = subject_tuples
+        subject_details_list.sort(key=lambda x: x['label'])
+        if subject_details_list: # Only add group if it has subjects
+             grouped_data[object_label] = subject_details_list
 
     # Sort groups by object label (group name)
-    # Handle potential 'No X Assigned' groups to appear last if needed (similar to get_grouped_pangen_data)
     sorted_grouped_data = dict(sorted(grouped_data.items(), key=lambda item: (item[0].startswith("No "), item[0])))
-
 
     # Recalculate total_object_count based on groups actually having data
     final_group_count = len(sorted_grouped_data)
