@@ -793,8 +793,8 @@ def index():
 def list_items(category_key=None, predicate=None, object_value=None):
     db = get_db()
     predicate_map = PREDICATE_MAP
-    items = []
-    grouped_items = None
+    items = None # Default to None, populate if using flat list
+    grouped_items = None # Default to None, populate if using grouped list
     total_item_count = 0
     page_title = "Item List"
     item_type = ""
@@ -803,47 +803,120 @@ def list_items(category_key=None, predicate=None, object_value=None):
     parent_category_key = None
 
     if predicate and object_value:
+        # --- Logic for listing items related via a predicate ---
         decoded_object_value = unquote(object_value)
+        # Use get_related_subjects which already returns items with display_name and link
         items, total_item_count = get_related_subjects(predicate, decoded_object_value)
         predicate_display = predicate_map.get(predicate, predicate)
         object_label = get_label(decoded_object_value, db_conn=db)
 
         page_title = f"Items where {predicate_display} is {object_label}"
-        item_type = "Related Item"
+        item_type = "Related Item" # Generic type for related items
         grouping_predicate_display = predicate_display
         grouping_value_display = object_label
 
+        # Try to find a parent category link for the object itself
         details_for_object = get_item_details(decoded_object_value)
         if details_for_object and details_for_object.get('primary_type_category_key'):
             parent_category_key = details_for_object['primary_type_category_key']
+        # Ensure items is populated, grouped_items is None
+        grouped_items = None
 
     elif category_key and category_key in INDEX_CATEGORIES:
+        # --- Logic for listing items based on index categories ---
         category_info = INDEX_CATEGORIES[category_key]
-        page_title = category_key
-        item_type = category_info.get('value', category_key)
+        page_title = category_key # Default page title
+        item_type = category_info.get('value', category_key) # Default item type
 
         if category_key == "PanRes Genes":
-            grouped_by_class, _, total_item_count = get_grouped_pangen_data()
+            # Group PanGenes by Class (existing logic)
+            grouped_by_class, _, total_item_count = get_grouped_pangen_data() # Total count here is total PanGenes
             grouped_items = grouped_by_class
             grouping_predicate_display = predicate_map.get(HAS_RESISTANCE_CLASS)
-            item_type = "PanGene"
+            item_type = "PanGene" # Item type is the gene itself
             page_title = "PanRes Genes grouped by Antibiotic Class"
-        else:
-            items, total_item_count = get_items_for_category(category_key)
-            for item in items:
-                if 'display_name' not in item:
-                    item['display_name'] = get_label(item['id'], db_conn=db)
+            items = None # Ensure items is None
+
+        elif category_key == "Antibiotic Classes":
+            # List Classes, group associated PanGenes under each class
+            class_items_raw, _ = get_items_for_category(category_key) # Get list of {'id': class_id}
+            class_ids = [item['id'] for item in class_items_raw]
+
+            # Use the helper function to get PanGenes grouped by Class
+            # total_item_count here will be the number of classes with associated PanGenes
+            grouped_items, total_item_count = get_subjects_grouped_by_objects(
+                object_ids=class_ids,
+                predicate=HAS_RESISTANCE_CLASS,
+                subject_type_filter='PanGene' # Ensure we only group PanGenes
+            )
+
+            page_title = "Antibiotic Classes (with associated PanGenes)"
+            item_type = "Antibiotic Class" # The primary item being listed is the class
+            grouping_predicate_display = "Associated PanGenes" # Description of the grouping
+            items = None # Ensure items is None
+
+        elif category_key == "Predicted Phenotypes":
+            # List Phenotypes, group associated PanGenes under each phenotype
+            phenotype_items_raw, _ = get_items_for_category(category_key)
+            phenotype_ids = [item['id'] for item in phenotype_items_raw]
+
+            # Use the helper function to get PanGenes grouped by Phenotype
+            # total_item_count here will be the number of phenotypes with associated PanGenes
+            grouped_items, total_item_count = get_subjects_grouped_by_objects(
+                object_ids=phenotype_ids,
+                predicate=HAS_PREDICTED_PHENOTYPE,
+                subject_type_filter='PanGene'
+            )
+
+            page_title = "Predicted Phenotypes (with associated PanGenes)"
+            item_type = "Predicted Phenotype" # Primary item is the phenotype
+            grouping_predicate_display = "Associated PanGenes"
+            items = None # Ensure items is None
+
+        # Keep Source Databases as a flat list for now, but ensure links work
+        elif category_key == "Source Databases":
+            items_raw, total_item_count = get_items_for_category(category_key)
+            items = []
+            for item_raw in items_raw:
+                item_id = item_raw['id']
+                items.append({
+                    'id': item_id,
+                    'display_name': get_label(item_id, db_conn=db),
+                    'link': url_for('details', item_id=quote(item_id)) # Link to DB details page
+                })
             items.sort(key=lambda x: x['display_name'])
+            grouped_items = None # Ensure grouped_items is None
+            page_title = "Source Databases" # Adjust title if needed
+            item_type = "Source Database"
+
+        else:
+            # Default flat list logic for any other category
+            items_raw, total_item_count = get_items_for_category(category_key)
+            items = []
+            for item_raw in items_raw:
+                 item_id = item_raw['id']
+                 items.append({
+                     'id': item_id,
+                     'display_name': get_label(item_id, db_conn=db),
+                     # Link to the item's detail page
+                     'link': url_for('details', item_id=quote(item_id))
+                 })
+            items.sort(key=lambda x: x['display_name'])
+            grouped_items = None # Ensure grouped_items is None
+            # page_title and item_type are already set from category_info
 
     else:
-        abort(404, description=f"Category or relationship '{category_key or object_value}' not recognized.")
+        # Handle unrecognized category or relationship if not caught above
+        if not items and not grouped_items: # Check if neither list type was populated
+             abort(404, description=f"Category or relationship '{category_key or object_value}' not recognized or resulted in no data.")
 
+    # Render template - uses items OR grouped_items
     return render_template('list.html',
                            page_title=page_title,
                            item_type=item_type,
-                           items=items,
-                           grouped_items=grouped_items,
-                           total_items=total_item_count,
+                           items=items, # Will be None if grouped_items is used
+                           grouped_items=grouped_items, # Will be None if items is used
+                           total_items=total_item_count, # Count of groups or flat items
                            grouping_predicate_display=grouping_predicate_display,
                            grouping_value_display=grouping_value_display,
                            parent_category_key=parent_category_key,
@@ -1074,6 +1147,103 @@ def get_autocomplete_suggestions_direct(term, limit=500):
     except Exception as e:
         logging.error(f"Autocomplete General Error: {e}", exc_info=True) # Log traceback
         return []
+
+def get_subjects_grouped_by_objects(object_ids, predicate, subject_type_filter=None):
+    """
+    Fetches subjects linked to a list of object IDs via a specific predicate,
+    optionally filtering subjects by type, and groups them by object label.
+
+    Args:
+        object_ids (list): A list of object IDs (e.g., class IDs, phenotype IDs).
+        predicate (str): The predicate linking subjects to these objects (e.g., HAS_RESISTANCE_CLASS).
+        subject_type_filter (str, optional): An RDF type to filter the subjects (e.g., 'PanGene'). Defaults to None.
+
+    Returns:
+        tuple: A tuple containing:
+            - grouped_data (dict): {object_label: [(subject_id, subject_label), ...]}
+            - total_object_count (int): The number of unique object groups found.
+    """
+    db = get_db()
+    grouped_data = defaultdict(list)
+    if not object_ids:
+        return {}, 0
+
+    # Ensure object_ids are unique
+    unique_object_ids = list(set(object_ids))
+    total_object_count = len(unique_object_ids)
+
+
+    # 1. Get labels for all object IDs
+    object_labels = {}
+    placeholders_obj = ','.join('?' * len(unique_object_ids))
+    label_query_obj = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders_obj})"
+    label_results_obj = query_db(label_query_obj, (RDFS_LABEL, *unique_object_ids), db_conn=db)
+    if label_results_obj:
+        object_labels = {row['subject']: row['object'] for row in label_results_obj}
+
+    # 2. Find all subjects linked to these objects via the predicate
+    subject_links_query = f"""
+        SELECT T1.subject, T1.object
+        FROM triples T1
+        { "JOIN triples T2 ON T1.subject = T2.subject" if subject_type_filter else "" }
+        WHERE T1.predicate = ?
+          AND T1.object IN ({placeholders_obj})
+        { "AND T2.predicate = ? AND T2.object = ?" if subject_type_filter else "" }
+    """
+    query_params = [predicate, *unique_object_ids]
+    if subject_type_filter:
+        query_params.extend([RDF_TYPE, subject_type_filter])
+
+    subject_link_results = query_db(subject_links_query, tuple(query_params), db_conn=db)
+
+    subjects_found = set()
+    object_to_subjects = defaultdict(list) # {object_id: [subject_id, ...]}
+    if subject_link_results:
+        for row in subject_link_results:
+            subject_id = row['subject']
+            object_id = row['object']
+            subjects_found.add(subject_id)
+            object_to_subjects[object_id].append(subject_id)
+
+    # 3. Get labels for all found subjects
+    subject_labels = {}
+    if subjects_found:
+        subject_list = list(subjects_found)
+        # Batch label fetching if needed (similar to FTS population)
+        label_batch_size = 900
+        for i in range(0, len(subject_list), label_batch_size):
+            batch_subj_ids = subject_list[i:i+label_batch_size]
+            placeholders_subj = ','.join('?' * len(batch_subj_ids))
+            label_query_subj = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders_subj})"
+            label_results_subj = query_db(label_query_subj, (RDFS_LABEL, *batch_subj_ids), db_conn=db)
+            if label_results_subj:
+                for row in label_results_subj:
+                    subject_labels[row['subject']] = row['object']
+
+
+    # 4. Build the final grouped dictionary
+    for object_id in unique_object_ids:
+        object_label = object_labels.get(object_id, object_id)
+        subject_ids_for_object = list(set(object_to_subjects.get(object_id, []))) # Ensure unique subjects per group
+        subject_tuples = []
+        for subject_id in subject_ids_for_object:
+            subject_label = subject_labels.get(subject_id, subject_id)
+            subject_tuples.append((subject_id, subject_label))
+
+        # Sort subjects within the group by label
+        subject_tuples.sort(key=lambda x: x[1])
+        if subject_tuples: # Only add group if it has subjects
+             grouped_data[object_label] = subject_tuples
+
+    # Sort groups by object label (group name)
+    # Handle potential 'No X Assigned' groups to appear last if needed (similar to get_grouped_pangen_data)
+    sorted_grouped_data = dict(sorted(grouped_data.items(), key=lambda item: (item[0].startswith("No "), item[0])))
+
+
+    # Recalculate total_object_count based on groups actually having data
+    final_group_count = len(sorted_grouped_data)
+
+    return sorted_grouped_data, final_group_count
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
