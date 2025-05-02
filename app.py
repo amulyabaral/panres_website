@@ -61,6 +61,7 @@ def create_and_populate_fts(db_path):
     print("Starting FTS table creation and population...")
     try:
         db = sqlite3.connect(db_path)
+        db.row_factory = sqlite3.Row
         # Use WAL mode for potentially better write performance during population
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
@@ -83,7 +84,7 @@ def create_and_populate_fts(db_path):
         # Find all subjects that are explicitly typed as owl:NamedIndividual
         cur.execute(f"SELECT DISTINCT subject FROM triples WHERE predicate = ? AND object = ?", (RDF_TYPE, OWL_NAMED_INDIVIDUAL))
         named_individual_rows = cur.fetchall()
-        named_individual_ids = {row[0] for row in named_individual_rows}
+        named_individual_ids = {row['subject'] for row in named_individual_rows}
         print(f"    Found {len(named_individual_ids)} named individuals.")
 
         if not named_individual_ids:
@@ -101,7 +102,8 @@ def create_and_populate_fts(db_path):
         all_ids_to_label = set(individual_list)
         # Also need labels for potential object URIs, fetch all potential links
         cur.execute("SELECT DISTINCT object FROM triples WHERE object_is_literal = 0")
-        potential_object_uris = {row[0] for row in cur.fetchall()}
+        potential_object_uris_rows = cur.fetchall()
+        potential_object_uris = {row['object'] for row in potential_object_uris_rows}
         all_ids_to_label.update(potential_object_uris)
 
         labels = {}
@@ -110,7 +112,7 @@ def create_and_populate_fts(db_path):
             label_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({label_placeholders})"
             cur.execute(label_query, (RDFS_LABEL, *list(all_ids_to_label)))
             label_results = cur.fetchall()
-            labels = {row[0]: row[1] for row in label_results}
+            labels = {row['subject']: row['object'] for row in label_results}
         print(f"    Fetched {len(labels)} labels.")
 
 
