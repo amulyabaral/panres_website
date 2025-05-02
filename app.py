@@ -8,6 +8,7 @@ import json
 import math # Add math import for ceil
 import time # Add time for benchmarking population
 import re # Import regex for sorting
+import logging # Add logging import for logging
 
 DATABASE = 'panres_ontology.db'
 CITATION_TEXT = "Hannah-Marie Martiny, Nikiforos Pyrounakis, Thomas N Petersen, Oksana Lukjančenko, Frank M Aarestrup, Philip T L C Clausen, Patrick Munk, ARGprofiler—a pipeline for large-scale analysis of antimicrobial resistance genes and their flanking regions in metagenomic datasets, <i>Bioinformatics</i>, Volume 40, Issue 3, March 2024, btae086, <a href=\"https://doi.org/10.1093/bioinformatics/btae086\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"text-dtu-red hover:underline\">https://doi.org/10.1093/bioinformatics/btae086</a>"
@@ -51,6 +52,9 @@ PREDICATE_MAP = {
 
 # Define OWL namespace constant
 OWL_NAMED_INDIVIDUAL = 'owl:NamedIndividual'
+
+# Configure basic logging (adjust level and format as needed)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
 
 def create_and_populate_fts(db_path):
     """
@@ -899,142 +903,176 @@ def test_db_connection():
 @app.route('/autocomplete')
 def autocomplete():
     search_term = request.args.get('q', '').strip()
-    # Call the direct query function with updated sorting/grouping
+    # Call the direct query function with updated logic
     suggestions = get_autocomplete_suggestions_direct(search_term)
     return jsonify(suggestions)
 
-# Autocomplete function using direct queries with explicit case-sensitive grouping
-def get_autocomplete_suggestions_direct(term, limit=500): # Increase limit slightly
+# Autocomplete function using direct queries with explicit case-sensitive grouping and robust type checking
+def get_autocomplete_suggestions_direct(term, limit=500): # Keep the higher limit for now
     """
     Performs autocomplete search directly on triples table.
     Prioritizes case-sensitive prefix matches (GLOB) over case-insensitive ones (LIKE).
-    Standardizes gene type display.
+    Standardizes gene type display based on all item types. Includes logging.
     """
+    logging.info(f"Autocomplete search for term: '{term}'") # Use INFO level for general flow
     if not term or len(term) < 1:
         return []
 
     db = get_db()
     glob_pattern = f"{term}*"
     like_pattern = f"{term}%"
-    # Fetch limit per query type - adjust if needed
-    candidate_limit_per_query = limit * 3 # Fetch more candidates for each type
+    # Fetch limit per query type
+    candidate_limit_per_query = limit * 2 # Fetch a reasonable amount for each query type
 
     try:
         # --- 1. Find Case-Sensitive Matches (GLOB) ---
         query_glob_id = "SELECT DISTINCT subject FROM triples WHERE subject GLOB ? LIMIT ?"
         glob_id_res = query_db(query_glob_id, (glob_pattern, candidate_limit_per_query), db_conn=db)
         glob_matched_ids = {row['subject'] for row in glob_id_res} if glob_id_res else set()
+        logging.debug(f"GLOB ID matches: {len(glob_matched_ids)}") # DEBUG for details
 
         query_glob_label = "SELECT DISTINCT subject FROM triples WHERE predicate = ? AND object GLOB ? LIMIT ?"
         glob_label_res = query_db(query_glob_label, (RDFS_LABEL, glob_pattern, candidate_limit_per_query), db_conn=db)
         if glob_label_res:
             glob_matched_ids.update(row['subject'] for row in glob_label_res)
+        logging.debug(f"Total GLOB matches: {len(glob_matched_ids)}")
+        # Log if pan_1 is found here (example)
+        if 'pan_1' in glob_matched_ids: logging.info("'pan_1' found in GLOB matches.")
+
 
         # --- 2. Find Case-Insensitive Matches (LIKE) ---
         query_like_id = "SELECT DISTINCT subject FROM triples WHERE subject LIKE ? LIMIT ?"
         like_id_res = query_db(query_like_id, (like_pattern, candidate_limit_per_query), db_conn=db)
         like_matched_ids = {row['subject'] for row in like_id_res} if like_id_res else set()
+        logging.debug(f"LIKE ID matches: {len(like_matched_ids)}")
 
         query_like_label = "SELECT DISTINCT subject FROM triples WHERE predicate = ? AND object LIKE ? LIMIT ?"
         like_label_res = query_db(query_like_label, (RDFS_LABEL, like_pattern, candidate_limit_per_query), db_conn=db)
         if like_label_res:
             like_matched_ids.update(row['subject'] for row in like_label_res)
+        logging.debug(f"Total LIKE matches: {len(like_matched_ids)}")
+        if 'pan_1' in like_matched_ids and 'pan_1' not in glob_matched_ids: logging.info("'pan_1' found in LIKE matches (but not GLOB).")
+
 
         # --- 3. Separate Purely Case-Insensitive Matches ---
-        # IDs found by LIKE but not by GLOB
         purely_insensitive_ids = like_matched_ids - glob_matched_ids
+        logging.debug(f"Purely Insensitive matches: {len(purely_insensitive_ids)}")
+        if 'pan_1' in purely_insensitive_ids: logging.info("'pan_1' is purely insensitive match.")
+
 
         # --- 4. Combine IDs, prioritizing GLOB matches ---
-        # Order matters here: GLOB results first, then the rest
-        ordered_ids = list(glob_matched_ids) + list(purely_insensitive_ids)
+        # Sort alphabetically within each group before combining for consistent ordering
+        glob_list_sorted = sorted(list(glob_matched_ids))
+        insensitive_list_sorted = sorted(list(purely_insensitive_ids))
+        ordered_ids = glob_list_sorted + insensitive_list_sorted
+        logging.info(f"Combined ordered IDs: {len(ordered_ids)}")
+        if 'pan_1' in ordered_ids: logging.info(f"'pan_1' is in ordered_ids at index {ordered_ids.index('pan_1')}")
+
 
         if not ordered_ids:
+            logging.info("No matching IDs found.")
             return []
 
-        # Limit total IDs before fetching details if combined list is huge
-        if len(ordered_ids) > candidate_limit_per_query * 2: # Adjust overall limit if needed
-             ordered_ids = ordered_ids[:candidate_limit_per_query * 2]
+        # Limit total IDs *before* fetching details
+        # Use a limit slightly larger than the final desired limit to allow sorting later if needed
+        detail_fetch_limit = limit + 50 # Fetch details for slightly more than needed
+        if len(ordered_ids) > detail_fetch_limit:
+             logging.info(f"Truncating ordered_ids from {len(ordered_ids)} to {detail_fetch_limit}")
+             ordered_ids = ordered_ids[:detail_fetch_limit]
 
-        item_ids = ordered_ids # Use this ordered list
+        item_ids = ordered_ids # Use this potentially truncated ordered list
         actual_ids_count = len(item_ids)
         if actual_ids_count == 0: return []
 
         placeholders = ','.join('?' * actual_ids_count)
 
-        # --- 5. Fetch details (Labels, Types) ---
+        # --- 5. Fetch details (Labels, ALL Types) ---
+        logging.info(f"Fetching details for {actual_ids_count} IDs...")
         labels = {}
         label_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
         label_results = query_db(label_query, (RDFS_LABEL, *item_ids), db_conn=db)
         if label_results: labels = {row['subject']: row['object'] for row in label_results}
 
-        types = {}
+        # Fetch *all* types for each subject
+        all_types_map = defaultdict(list)
         type_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
         type_results = query_db(type_query, (RDF_TYPE, *item_ids), db_conn=db)
         if type_results:
-            temp_types = defaultdict(list)
-            for row in type_results: temp_types[row['subject']].append(row['object'])
-            for subj, type_list in temp_types.items():
-                 preferred_type = next((t for t in type_list if t != OWL_NAMED_INDIVIDUAL), None)
-                 types[subj] = preferred_type if preferred_type else (type_list[0] if type_list else None)
+            for row in type_results: all_types_map[row['subject']].append(row['object'])
+        logging.info(f"Fetched types for {len(all_types_map)} items.")
+        if 'pan_1' in all_types_map: logging.info(f"Types for 'pan_1': {all_types_map['pan_1']}")
+
 
         # --- 6. Check for Class/Phenotype/Database roles ---
         class_ids, phenotype_ids, database_ids = set(), set(), set()
         check_query = f"SELECT DISTINCT object FROM triples WHERE predicate = ? AND object IN ({placeholders})"
-        class_res = query_db(check_query, (HAS_RESISTANCE_CLASS, *item_ids), db_conn=db)
-        if class_res: class_ids = {row['object'] for row in class_res}
-        pheno_res = query_db(check_query, (HAS_PREDICTED_PHENOTYPE, *item_ids), db_conn=db)
-        if pheno_res: phenotype_ids = {row['object'] for row in pheno_res}
-        db_res = query_db(check_query, (IS_FROM_DATABASE, *item_ids), db_conn=db)
-        if db_res: database_ids = {row['object'] for row in db_res}
+        # Run these checks only if the corresponding predicates exist in your PREDICATE_MAP or constants
+        if HAS_RESISTANCE_CLASS:
+            class_res = query_db(check_query, (HAS_RESISTANCE_CLASS, *item_ids), db_conn=db)
+            if class_res: class_ids = {row['object'] for row in class_res}
+        if HAS_PREDICTED_PHENOTYPE:
+            pheno_res = query_db(check_query, (HAS_PREDICTED_PHENOTYPE, *item_ids), db_conn=db)
+            if pheno_res: phenotype_ids = {row['object'] for row in pheno_res}
+        if IS_FROM_DATABASE:
+            db_res = query_db(check_query, (IS_FROM_DATABASE, *item_ids), db_conn=db)
+            if db_res: database_ids = {row['object'] for row in db_res}
+        logging.debug(f"Checked roles: Classes({len(class_ids)}), Phenotypes({len(phenotype_ids)}), Databases({len(database_ids)})")
+
 
         # --- 7. Build suggestion list, respecting the order from step 4 ---
-        # Define known PanGene subclasses for standardization
         PANGENE_TYPES = {'PanGene', 'AntimicrobialResistanceGene', 'BiocideResistanceGene', 'MetalResistanceGene'}
+        final_suggestions = []
+        processed_ids = set() # Ensure no duplicates
 
-        suggestions_map = {} # Use map to preserve order and add details
+        logging.info(f"Building final suggestions from {len(item_ids)} ordered IDs...")
         for item_id in item_ids:
-            display_name = labels.get(item_id, item_id)
-            primary_rdf_type = types.get(item_id)
+            if item_id in processed_ids: continue
 
-            # Determine standardized type indicator
+            display_name = labels.get(item_id, item_id)
+            item_all_types = all_types_map.get(item_id, []) # Get all types
+
+            # Determine standardized type indicator based on all types
             type_indicator = "Other" # Default
+            # Check specific roles first
             if item_id in class_ids: type_indicator = "Resistance Class"
             elif item_id in phenotype_ids: type_indicator = "Predicted Phenotype"
             elif item_id in database_ids: type_indicator = "Source Database"
-            elif primary_rdf_type in PANGENE_TYPES: # Check against PanGene and its known subclasses
-                 type_indicator = "PanGene"
-            elif primary_rdf_type == 'OriginalGene':
+            # Then check gene types using *all* types associated with the item
+            elif any(t in PANGENE_TYPES for t in item_all_types):
+                 type_indicator = "PanGene" # Standardize to PanGene if any relevant type exists
+            elif 'OriginalGene' in item_all_types:
                  type_indicator = "OriginalGene"
-            elif primary_rdf_type:
-                 type_indicator = get_label(primary_rdf_type, db_conn=db) # Fallback to type label
+            else:
+                 # Fallback: find a preferred type label (non-OWL, non-NamedIndividual)
+                 preferred_type = next((t for t in item_all_types if t != OWL_NAMED_INDIVIDUAL and not t.startswith('owl:')), None)
+                 if preferred_type:
+                     type_indicator = get_label(preferred_type, db_conn=db)
+                 elif item_all_types: # If only OWL/NamedIndividual types, use the first one's label
+                     type_indicator = get_label(item_all_types[0], db_conn=db)
 
-            suggestions_map[item_id] = {
+            final_suggestions.append({
                 'id': item_id,
                 'display_name': display_name,
                 'link': url_for('details', item_id=quote(item_id)),
                 'type_indicator': type_indicator
-            }
+            })
+            processed_ids.add(item_id)
 
-        # --- 8. Create final list respecting initial order and apply limit ---
-        # Sort each group (glob matches, pure like matches) alphabetically before combining? Optional.
-        # For now, just take the combined ordered list.
-        final_suggestions = [suggestions_map[item_id] for item_id in item_ids if item_id in suggestions_map][:limit]
+            # Stop if we have enough for the final limit
+            if len(final_suggestions) >= limit:
+                logging.info(f"Reached limit ({limit}) during final list construction.")
+                break
 
-        # Optional refinement: Sort within the final list alphabetically if desired,
-        # but this would mix case-sensitive/insensitive results again based on name.
-        # Keeping the GLOB results strictly first might be better.
-        # If you want alphabetical sort *within* the final limited list:
-        # final_suggestions.sort(key=lambda x: x['display_name'])
-
+        logging.info(f"Returning {len(final_suggestions)} suggestions.")
+        # The list is already ordered (GLOB first, then LIKE, sorted alphabetically within groups)
+        # and truncated to the limit.
         return final_suggestions
 
     except sqlite3.Error as e:
-        log_func = current_app.logger.error if current_app else print
-        log_func(f"Autocomplete DB Error: {e}")
+        logging.error(f"Autocomplete DB Error: {e}", exc_info=True) # Log traceback
         return []
     except Exception as e:
-        log_func = current_app.logger.error if current_app else print
-        log_func(f"Autocomplete General Error: {e}")
+        logging.error(f"Autocomplete General Error: {e}", exc_info=True) # Log traceback
         return []
 
 if __name__ == '__main__':
