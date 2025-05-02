@@ -43,13 +43,13 @@
         </div>
 
         <p class="text-gray-600 text-sm mb-6">
-            Find detailed information about each PanRes gene: browse antibiotic classes, predicted antibiotic resistance phenotype(s) and ontology across different resources.
+            Click any button below to browse the Panres 2 ontology by antibiotic classes, predicted antibiotic resistance phenotype(s) and by source database.
         </p>
 
         <div class="flex flex-wrap justify-center md:justify-start items-center gap-2 flex-shrink-0">
-            <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Browse Class</a>
-            <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Browse Source</a>
-            <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Browse Phenotype</a>
+            <a href="{{ url_for('list_items', category_key='Antibiotic Classes') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Antibiotic Classes</a>
+            <a href="{{ url_for('list_items', category_key='Source Databases') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Source Databases</a>
+            <a href="{{ url_for('list_items', category_key='Predicted Phenotypes') }}" class="inline-block bg-dtu-red hover:bg-opacity-80 text-white px-3 py-2 rounded text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-dtu-red focus:ring-offset-2 whitespace-nowrap">Resistance Phenotypes</a>
             <a href="https://github.com/genomicepidemiology/PanResOntology" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-gray-600 hover:text-dtu-red transition-colors duration-200 px-2 py-2" title="View on GitHub">
                 <i class="fab fa-github fa-lg"></i>
                 <span class="sr-only">GitHub Repo</span>
