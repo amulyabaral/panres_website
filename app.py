@@ -940,23 +940,27 @@ def details(item_id):
 def handle_not_found(e):
     path = request.path if request else "Unknown path"
     error_message = e.description or f"The requested page '{path}' could not be found."
+    # Ensure all variables expected by index.html are passed, even if empty/None
     return render_template('index.html',
                            show_error=True,
                            error_code=404,
                            error_message=error_message,
-                           index_categories=INDEX_CATEGORIES,
-                           category_counts={},
+                           index_categories=INDEX_CATEGORIES, # Keep existing
+                           category_counts={}, # Keep existing
+                           distribution_data=None # Add this default value
                            ), 404
 
 @app.errorhandler(500)
 def internal_server_error(e):
     error_message = getattr(e, 'original_exception', None) or getattr(e, 'description', "An internal server error occurred. Please try again later.")
+    # Ensure all variables expected by index.html are passed, even if empty/None
     return render_template('index.html',
                            show_error=True,
                            error_code=500,
                            error_message=str(error_message),
-                           index_categories=INDEX_CATEGORIES,
-                           category_counts={},
+                           index_categories=INDEX_CATEGORIES, # Keep existing
+                           category_counts={}, # Keep existing
+                           distribution_data=None # Add this default value
                            ), 500
 
 @app.route('/testdb')
@@ -1148,6 +1152,23 @@ def get_autocomplete_suggestions_direct(term, limit=500):
         logging.error(f"Autocomplete General Error: {e}", exc_info=True) # Log traceback
         return []
 
+# Helper function to fetch labels in batches (can be reused)
+def get_labels_in_batches(db_conn, item_ids):
+    labels = {}
+    if not item_ids:
+        return labels
+    item_list = list(set(item_ids)) # Ensure unique IDs
+    batch_size = 900 # SQLite variable limit is often 999
+    for i in range(0, len(item_list), batch_size):
+        batch_ids = item_list[i:i+batch_size]
+        placeholders = ','.join('?' * len(batch_ids))
+        label_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
+        label_results = query_db(label_query, (RDFS_LABEL, *batch_ids), db_conn=db_conn)
+        if label_results:
+            for row in label_results:
+                labels[row['subject']] = row['object']
+    return labels
+
 def get_subjects_grouped_by_objects(object_ids, predicate, subject_type_filter=None):
     """
     Fetches subjects linked to a list of object IDs via a specific predicate,
@@ -1180,7 +1201,7 @@ def get_subjects_grouped_by_objects(object_ids, predicate, subject_type_filter=N
         { "JOIN triples T2 ON T1.subject = T2.subject" if subject_type_filter else "" }
         WHERE T1.predicate = ?
           AND T1.object IN ({','.join('?' * len(unique_object_ids))})
-        { "AND T2.predicate = ? AND T2.object = ?" if subject_type_filter else "" }
+        { "AND T2.predicate = ? AND T2.object =?" if subject_type_filter else "" }
     """
     query_params = [predicate, *unique_object_ids]
     if subject_type_filter:
