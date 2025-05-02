@@ -130,11 +130,12 @@
               return;
           }
 
-          suggestionsDiv.classList.remove('hidden');
+          suggestionsDiv.classList.remove('hidden'); // Show loading state potentially
 
           fetchController = new AbortController();
           const signal = fetchController.signal;
 
+          // Fetch from the same endpoint, backend logic is changed
           fetch(`/autocomplete?q=${encodeURIComponent(query)}`, { signal })
               .then(response => {
                   if (!response.ok) {
@@ -143,7 +144,7 @@
                   return response.json();
                })
               .then(data => {
-                  suggestionsDiv.innerHTML = '';
+                  suggestionsDiv.innerHTML = ''; // Clear previous suggestions
                   if (data && data.length > 0) {
                       const list = document.createElement('ul');
                       list.id = 'suggestion-list';
@@ -152,44 +153,18 @@
                           listItem.id = `suggestion-${index}`;
                           listItem.setAttribute('role', 'option');
 
-                          let indicatorIcon = 'fa-question-circle';
-                          let indicatorColor = 'text-gray-400';
-                          let indicatorTitle = item.type_indicator || 'Other';
+                          // Simpler display: Name [Type]
+                          // The 'type_indicator' field now holds the display type from the backend
+                          const typeText = item.type_indicator ? `[${item.type_indicator}]` : '';
 
-                          switch(item.type_indicator) {
-                              case 'Gene':
-                                  indicatorIcon = 'fa-dna';
-                                  indicatorColor = 'text-blue-500';
-                                  break;
-                              case 'Class':
-                                  indicatorIcon = 'fa-layer-group';
-                                  indicatorColor = 'text-green-500';
-                                  break;
-                              case 'Phenotype':
-                                  indicatorIcon = 'fa-tags';
-                                  indicatorColor = 'text-purple-500';
-                                  break;
-                              case 'Database':
-                                  indicatorIcon = 'fa-database';
-                                  indicatorColor = 'text-orange-500';
-                                  break;
-                              case 'Ontology Class':
-                                  indicatorIcon = 'fa-sitemap';
-                                  indicatorColor = 'text-indigo-500';
-                                  break;
-                               case 'Resource':
-                                  indicatorIcon = 'fa-link';
-                                  indicatorColor = 'text-teal-500';
-                                  break;
-                          }
-                          const indicatorHtml = `<i class="fas ${indicatorIcon} ${indicatorColor} mr-2 fa-fw" title="${indicatorTitle}"></i>`;
-
-                          listItem.innerHTML = `<a href="${item.link}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-dtu-red flex items-center suggestion-link">
-                                                    ${indicatorHtml}
-                                                    <span class="flex-grow">${item.display_name}</span>
-                                                    <span class="text-xs text-gray-500 ml-2">(${item.id})</span>
+                          listItem.innerHTML = `<a href="${item.link}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-dtu-red flex items-center justify-between suggestion-link">
+                                                    <span class="flex-grow mr-2">${item.display_name}</span>
+                                                    <span class="text-xs text-gray-500 whitespace-nowrap">${typeText}</span>
                                                 </a>`;
+
+                          // Keep mousedown listener for navigation
                           listItem.addEventListener('mousedown', (e) => {
+                              // Allow middle-click/ctrl-click for new tab
                               if (e.button === 0 && !e.ctrlKey && !e.metaKey) {
                                   window.location.href = item.link;
                               }
@@ -199,14 +174,20 @@
                       suggestionsDiv.appendChild(list);
                       suggestionsDiv.classList.remove('hidden');
                   } else {
-                      suggestionsDiv.classList.add('hidden');
+                      // No results found
+                      suggestionsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500">No matching individuals found.</div>';
+                      suggestionsDiv.classList.remove('hidden');
+                      // Keep suggestions box open to show the message, but remove active descendant
                       searchTermInput.removeAttribute('aria-activedescendant');
                   }
               })
               .catch(error => {
                   if (error.name === 'AbortError') {
+                      // Request was cancelled, do nothing
                   } else {
-                      suggestionsDiv.classList.add('hidden');
+                      // Handle other errors (e.g., network issue)
+                      suggestionsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-red-500">Error fetching suggestions.</div>';
+                      suggestionsDiv.classList.remove('hidden');
                       searchTermInput.removeAttribute('aria-activedescendant');
                       console.error("Autocomplete error:", error);
                   }
@@ -219,14 +200,22 @@
       function hideSuggestions() {
           const suggestionsDiv = document.getElementById('suggestions');
           const searchTermInput = document.getElementById('search-term');
-          suggestionsDiv.classList.add('hidden');
-          suggestionsDiv.innerHTML = '';
+          // Only hide if it doesn't contain error/no results message
+          if (suggestionsDiv.querySelector('#suggestion-list')) {
+             suggestionsDiv.classList.add('hidden');
+             suggestionsDiv.innerHTML = ''; // Clear content when hiding normally
+          } else {
+             // If showing a message, maybe hide after a delay or on next input
+             // For now, let's hide it immediately too
+             suggestionsDiv.classList.add('hidden');
+             suggestionsDiv.innerHTML = '';
+          }
           searchTermInput.removeAttribute('aria-activedescendant');
       }
 
       function hideSuggestionsDebounced() {
           clearTimeout(suggestionTimeout);
-          suggestionTimeout = setTimeout(hideSuggestions, 200);
+          suggestionTimeout = setTimeout(hideSuggestions, 250); // Slightly longer delay
       }
 
       const searchTermInput = document.getElementById('search-term');
@@ -235,11 +224,11 @@
 
       searchTermInput.addEventListener('keydown', (e) => {
           const suggestionList = suggestionsDiv.querySelector('#suggestion-list');
-          if (!suggestionList || suggestionsDiv.classList.contains('hidden')) {
+          // Adjust logic slightly: if suggestionsDiv is visible but has no list, don't process keys
+          if (suggestionsDiv.classList.contains('hidden') || !suggestionList) {
               activeSuggestionIndex = -1;
               return;
           }
-
           const items = suggestionList.querySelectorAll('li[role="option"]');
           if (!items.length) return;
 
@@ -258,12 +247,17 @@
                   e.preventDefault();
                   const activeLink = items[activeSuggestionIndex].querySelector('a.suggestion-link');
                   if (activeLink) {
+                      // Navigate like a normal click
                       window.location.href = activeLink.href;
                   }
+              } else {
+                  // Optional: Submit the form or perform default search if Enter is pressed with no selection
               }
           } else if (e.key === 'Escape') {
+              e.preventDefault(); // Prevent potential form clearing
               hideSuggestions();
           } else {
+              // Reset index on other keys, as list content will change
               activeSuggestionIndex = -1;
           }
       });
@@ -272,10 +266,11 @@
           items.forEach((item, index) => {
               const link = item.querySelector('a.suggestion-link');
               if (index === activeSuggestionIndex) {
-                  item.classList.add('bg-gray-100');
-                  link?.classList.add('text-dtu-red');
+                  item.classList.add('bg-gray-100'); // Highlight background
+                  link?.classList.add('text-dtu-red'); // Highlight text
                   searchTermInput.setAttribute('aria-activedescendant', item.id);
-                  item.scrollIntoView({ block: 'nearest' });
+                  // Ensure the highlighted item is visible within the scrollable suggestions div
+                  item.scrollIntoView({ block: 'nearest', inline: 'nearest' });
               } else {
                   item.classList.remove('bg-gray-100');
                   link?.classList.remove('text-dtu-red');
@@ -284,8 +279,9 @@
       }
 
       document.addEventListener('click', function(event) {
-          const searchForm = searchTermInput.closest('form');
-          if (searchForm && !searchForm.contains(event.target)) {
+          const searchContainer = searchTermInput.closest('.relative'); // Find the container holding input and suggestions
+          if (searchContainer && !searchContainer.contains(event.target)) {
+              // Clicked outside the search input and suggestions box
               hideSuggestions();
           }
       });
