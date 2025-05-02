@@ -899,58 +899,72 @@ def test_db_connection():
 @app.route('/autocomplete')
 def autocomplete():
     search_term = request.args.get('q', '').strip()
-    suggestions = get_autocomplete_suggestions_fts(search_term)
+    # Call the new direct query function
+    suggestions = get_autocomplete_suggestions_direct(search_term)
     return jsonify(suggestions)
 
-# Modified Autocomplete function
-def get_autocomplete_suggestions_fts(term, limit=15):
+# NEW Autocomplete function using direct LIKE queries
+def get_autocomplete_suggestions_direct(term, limit=25): # Increase limit slightly for direct prefix
     """
-    Performs autocomplete search against the FTS table, returning matching
-    items with their label and type, with improved relevance ranking.
+    Performs autocomplete search directly on triples table using LIKE for prefix matching
+    on item IDs (subjects) and labels (rdfs:label objects).
     Identifies Classes, Phenotypes, and Databases explicitly.
     """
-    if not term or len(term) < 2:
+    if not term or len(term) < 1: # Allow searching from 1 character
         return []
 
     db = get_db()
-    # Use lower case for case-insensitive comparisons later
-    term_lower = term.lower()
-    # FTS query term - still use prefix search for initial candidates
-    fts_query_term = f'"{term}"*'
-    # Fetch more candidates initially to allow for better Python-side ranking
-    initial_fetch_limit = limit * 4
+    # Prepare the LIKE pattern for prefix matching
+    like_pattern = f"{term}%"
+    # Fetch a larger pool initially since we sort alphabetically at the end
+    candidate_limit = limit * 5 # Fetch more candidates to sort from
 
     try:
-        # 1. Find distinct matching item IDs from FTS
-        query_fts = """
-            SELECT DISTINCT item_id
-            FROM item_search_fts
-            WHERE search_term MATCH ?
-            ORDER BY rank -- Use FTS rank for initial ordering
+        # 1. Find items where the ID (subject) starts with the term
+        query_id_match = """
+            SELECT DISTINCT subject
+            FROM triples
+            WHERE subject LIKE ?
             LIMIT ?
         """
-        initial_results = query_db(query_fts, (fts_query_term, initial_fetch_limit), db_conn=db)
+        id_match_results = query_db(query_id_match, (like_pattern, candidate_limit), db_conn=db)
+        matched_ids = {row['subject'] for row in id_match_results} if id_match_results else set()
 
-        if not initial_results:
+        # 2. Find items where the label starts with the term
+        query_label_match = """
+            SELECT DISTINCT subject
+            FROM triples
+            WHERE predicate = ? AND object LIKE ?
+            LIMIT ?
+        """
+        label_match_results = query_db(query_label_match, (RDFS_LABEL, like_pattern, candidate_limit), db_conn=db)
+        if label_match_results:
+            matched_ids.update(row['subject'] for row in label_match_results) # Add subjects found via label match
+
+        if not matched_ids:
             return []
 
-        item_ids = list({row['item_id'] for row in initial_results})
-        if not item_ids: return []
+        # Limit the number of IDs before fetching details if too many were found
+        item_ids = list(matched_ids)
+        if len(item_ids) > candidate_limit:
+             # This sort isn't strictly necessary but might help grab more relevant items
+             # if we have to truncate the list before fetching details.
+             item_ids.sort()
+             item_ids = item_ids[:candidate_limit]
 
-        # We might have fewer unique IDs than initial_fetch_limit
         actual_ids_count = len(item_ids)
         if actual_ids_count == 0: return []
 
         placeholders = ','.join('?' * actual_ids_count)
 
-        # 2. Fetch labels for these items
+        # 3. Fetch labels for all candidate items
         labels = {}
         label_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
         label_results = query_db(label_query, (RDFS_LABEL, *item_ids), db_conn=db)
         if label_results:
             labels = {row['subject']: row['object'] for row in label_results}
 
-        # 3. Fetch primary rdf:type for these items (as a fallback/general type)
+        # 4. Fetch primary rdf:type for these items
         types = {}
         type_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
         type_results = query_db(type_query, (RDF_TYPE, *item_ids), db_conn=db)
@@ -959,83 +973,61 @@ def get_autocomplete_suggestions_fts(term, limit=15):
             for row in type_results:
                  temp_types[row['subject']].append(row['object'])
             for subj, type_list in temp_types.items():
-                 # Prioritize non-NamedIndividual types if multiple exist
                  preferred_type = next((t for t in type_list if t != OWL_NAMED_INDIVIDUAL), None)
                  types[subj] = preferred_type if preferred_type else (type_list[0] if type_list else None)
 
-
-        # 4. Explicitly check if items are used as Class, Phenotype, or Database objects
+        # 5. Explicitly check if items are used as Class, Phenotype, or Database objects
         class_ids = set()
         phenotype_ids = set()
         database_ids = set()
 
         check_query = f"SELECT DISTINCT object FROM triples WHERE predicate = ? AND object IN ({placeholders})"
-
         class_res = query_db(check_query, (HAS_RESISTANCE_CLASS, *item_ids), db_conn=db)
         if class_res: class_ids = {row['object'] for row in class_res}
-
         pheno_res = query_db(check_query, (HAS_PREDICTED_PHENOTYPE, *item_ids), db_conn=db)
         if pheno_res: phenotype_ids = {row['object'] for row in pheno_res}
-
         db_res = query_db(check_query, (IS_FROM_DATABASE, *item_ids), db_conn=db)
         if db_res: database_ids = {row['object'] for row in db_res}
 
-        # 5. Build suggestion list with detailed type info and prepare for sorting
+        # 6. Build suggestion list
         intermediate_suggestions = []
         for item_id in item_ids:
             display_name = labels.get(item_id, item_id)
-            primary_rdf_type = types.get(item_id) # Raw rdf:type
+            primary_rdf_type = types.get(item_id)
 
-            # Determine the best type indicator
-            type_indicator = "Other" # Default
-            if item_id in class_ids:
-                type_indicator = "Resistance Class"
-            elif item_id in phenotype_ids:
-                type_indicator = "Predicted Phenotype"
-            elif item_id in database_ids:
-                type_indicator = "Source Database"
-            elif primary_rdf_type == 'PanGene':
-                 type_indicator = "PanGene"
-            elif primary_rdf_type == 'OriginalGene':
-                 type_indicator = "OriginalGene"
-            elif primary_rdf_type:
-                 # Use label of the rdf:type if available, otherwise the raw type
-                 type_indicator = get_label(primary_rdf_type, db_conn=db)
-
-
-            # Calculate relevance score for sorting
-            score = 0
-            display_name_lower = display_name.lower()
-            item_id_lower = item_id.lower()
-
-            if term_lower == item_id_lower or term_lower == display_name_lower:
-                score = 3 # Exact match
-            elif display_name_lower.startswith(term_lower) or item_id_lower.startswith(term_lower):
-                score = 2 # Prefix match
-            else:
-                score = 1 # Other FTS match
+            # Determine the best type indicator (same logic as before)
+            type_indicator = "Other"
+            if item_id in class_ids: type_indicator = "Resistance Class"
+            elif item_id in phenotype_ids: type_indicator = "Predicted Phenotype"
+            elif item_id in database_ids: type_indicator = "Source Database"
+            elif primary_rdf_type == 'PanGene': type_indicator = "PanGene"
+            elif primary_rdf_type == 'OriginalGene': type_indicator = "OriginalGene"
+            elif primary_rdf_type: type_indicator = get_label(primary_rdf_type, db_conn=db)
 
             intermediate_suggestions.append({
                 'id': item_id,
                 'display_name': display_name,
                 'link': url_for('details', item_id=quote(item_id)),
                 'type_indicator': type_indicator,
-                'score': score
+                # No score needed now, sorting is alphabetical
             })
 
-        # 6. Sort suggestions: Higher score first, then alphabetically by display name
-        intermediate_suggestions.sort(key=lambda x: (-x['score'], x['display_name']))
+        # 7. Sort suggestions alphabetically by display name
+        intermediate_suggestions.sort(key=lambda x: x['display_name'])
 
-        # 7. Return the top 'limit' suggestions
+        # 8. Return the top 'limit' suggestions
         final_suggestions = intermediate_suggestions[:limit]
 
         return final_suggestions
 
     except sqlite3.Error as e:
-        current_app.logger.error(f"Autocomplete DB Error: {e}")
+        # Use current_app logger if available, otherwise print
+        log_func = current_app.logger.error if current_app else print
+        log_func(f"Autocomplete DB Error: {e}")
         return []
     except Exception as e:
-        current_app.logger.error(f"Autocomplete General Error: {e}")
+        log_func = current_app.logger.error if current_app else print
+        log_func(f"Autocomplete General Error: {e}")
         return []
 
 if __name__ == '__main__':
