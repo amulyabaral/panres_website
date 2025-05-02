@@ -908,7 +908,7 @@ def autocomplete():
     return jsonify(suggestions)
 
 # Autocomplete function using direct queries with explicit case-sensitive grouping and robust type checking
-def get_autocomplete_suggestions_direct(term, limit=500): # Keep the higher limit for now
+def get_autocomplete_suggestions_direct(term, limit=500):
     """
     Performs autocomplete search directly on triples table.
     Prioritizes case-sensitive prefix matches (GLOB) over case-insensitive ones (LIKE).
