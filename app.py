@@ -899,47 +899,47 @@ def test_db_connection():
 @app.route('/autocomplete')
 def autocomplete():
     search_term = request.args.get('q', '').strip()
-    # Call the new direct query function
+    # Call the direct query function (using GLOB now)
     suggestions = get_autocomplete_suggestions_direct(search_term)
     return jsonify(suggestions)
 
-# NEW Autocomplete function using direct LIKE queries
-def get_autocomplete_suggestions_direct(term, limit=25): # Increase limit slightly for direct prefix
+# Autocomplete function using direct GLOB queries for case-sensitivity
+def get_autocomplete_suggestions_direct(term, limit=25):
     """
-    Performs autocomplete search directly on triples table using LIKE for prefix matching
-    on item IDs (subjects) and labels (rdfs:label objects).
+    Performs CASE-SENSITIVE autocomplete search directly on triples table using GLOB
+    for prefix matching on item IDs (subjects) and labels (rdfs:label objects).
     Identifies Classes, Phenotypes, and Databases explicitly.
     """
     if not term or len(term) < 1: # Allow searching from 1 character
         return []
 
     db = get_db()
-    # Prepare the LIKE pattern for prefix matching
-    like_pattern = f"{term}%"
-    # Fetch a larger pool initially since we sort alphabetically at the end
+    # Prepare the GLOB pattern for case-sensitive prefix matching
+    # GLOB uses '*' as the wildcard, not '%'
+    glob_pattern = f"{term}*"
     candidate_limit = limit * 5 # Fetch more candidates to sort from
 
     try:
-        # 1. Find items where the ID (subject) starts with the term
+        # 1. Find items where the ID (subject) starts with the term (Case-Sensitive)
         query_id_match = """
             SELECT DISTINCT subject
             FROM triples
-            WHERE subject LIKE ?
+            WHERE subject GLOB ? -- Use GLOB instead of LIKE
             LIMIT ?
         """
-        id_match_results = query_db(query_id_match, (like_pattern, candidate_limit), db_conn=db)
+        id_match_results = query_db(query_id_match, (glob_pattern, candidate_limit), db_conn=db)
         matched_ids = {row['subject'] for row in id_match_results} if id_match_results else set()
 
-        # 2. Find items where the label starts with the term
+        # 2. Find items where the label starts with the term (Case-Sensitive)
         query_label_match = """
             SELECT DISTINCT subject
             FROM triples
-            WHERE predicate = ? AND object LIKE ?
+            WHERE predicate = ? AND object GLOB ? -- Use GLOB instead of LIKE
             LIMIT ?
         """
-        label_match_results = query_db(query_label_match, (RDFS_LABEL, like_pattern, candidate_limit), db_conn=db)
+        label_match_results = query_db(query_label_match, (RDFS_LABEL, glob_pattern, candidate_limit), db_conn=db)
         if label_match_results:
-            matched_ids.update(row['subject'] for row in label_match_results) # Add subjects found via label match
+            matched_ids.update(row['subject'] for row in label_match_results)
 
         if not matched_ids:
             return []
@@ -947,9 +947,7 @@ def get_autocomplete_suggestions_direct(term, limit=25): # Increase limit slight
         # Limit the number of IDs before fetching details if too many were found
         item_ids = list(matched_ids)
         if len(item_ids) > candidate_limit:
-             # This sort isn't strictly necessary but might help grab more relevant items
-             # if we have to truncate the list before fetching details.
-             item_ids.sort()
+             item_ids.sort() # Basic sort before potential truncation
              item_ids = item_ids[:candidate_limit]
 
         actual_ids_count = len(item_ids)
@@ -957,14 +955,14 @@ def get_autocomplete_suggestions_direct(term, limit=25): # Increase limit slight
 
         placeholders = ','.join('?' * actual_ids_count)
 
-        # 3. Fetch labels for all candidate items
+        # 3. Fetch labels for all candidate items (No change needed here)
         labels = {}
         label_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
         label_results = query_db(label_query, (RDFS_LABEL, *item_ids), db_conn=db)
         if label_results:
             labels = {row['subject']: row['object'] for row in label_results}
 
-        # 4. Fetch primary rdf:type for these items
+        # 4. Fetch primary rdf:type for these items (No change needed here)
         types = {}
         type_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
         type_results = query_db(type_query, (RDF_TYPE, *item_ids), db_conn=db)
@@ -976,11 +974,10 @@ def get_autocomplete_suggestions_direct(term, limit=25): # Increase limit slight
                  preferred_type = next((t for t in type_list if t != OWL_NAMED_INDIVIDUAL), None)
                  types[subj] = preferred_type if preferred_type else (type_list[0] if type_list else None)
 
-        # 5. Explicitly check if items are used as Class, Phenotype, or Database objects
+        # 5. Explicitly check if items are used as Class, Phenotype, or Database objects (No change needed here)
         class_ids = set()
         phenotype_ids = set()
         database_ids = set()
-
         check_query = f"SELECT DISTINCT object FROM triples WHERE predicate = ? AND object IN ({placeholders})"
         class_res = query_db(check_query, (HAS_RESISTANCE_CLASS, *item_ids), db_conn=db)
         if class_res: class_ids = {row['object'] for row in class_res}
@@ -989,13 +986,11 @@ def get_autocomplete_suggestions_direct(term, limit=25): # Increase limit slight
         db_res = query_db(check_query, (IS_FROM_DATABASE, *item_ids), db_conn=db)
         if db_res: database_ids = {row['object'] for row in db_res}
 
-        # 6. Build suggestion list
+        # 6. Build suggestion list (No change needed here)
         intermediate_suggestions = []
         for item_id in item_ids:
             display_name = labels.get(item_id, item_id)
             primary_rdf_type = types.get(item_id)
-
-            # Determine the best type indicator (same logic as before)
             type_indicator = "Other"
             if item_id in class_ids: type_indicator = "Resistance Class"
             elif item_id in phenotype_ids: type_indicator = "Predicted Phenotype"
@@ -1009,19 +1004,17 @@ def get_autocomplete_suggestions_direct(term, limit=25): # Increase limit slight
                 'display_name': display_name,
                 'link': url_for('details', item_id=quote(item_id)),
                 'type_indicator': type_indicator,
-                # No score needed now, sorting is alphabetical
             })
 
-        # 7. Sort suggestions alphabetically by display name
+        # 7. Sort suggestions alphabetically by display name (No change needed here)
         intermediate_suggestions.sort(key=lambda x: x['display_name'])
 
-        # 8. Return the top 'limit' suggestions
+        # 8. Return the top 'limit' suggestions (No change needed here)
         final_suggestions = intermediate_suggestions[:limit]
 
         return final_suggestions
 
     except sqlite3.Error as e:
-        # Use current_app logger if available, otherwise print
         log_func = current_app.logger.error if current_app else print
         log_func(f"Autocomplete DB Error: {e}")
         return []
