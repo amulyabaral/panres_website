@@ -53,8 +53,8 @@ OWL_NAMED_INDIVIDUAL = 'owl:NamedIndividual'
 
 def create_and_populate_fts(db_path):
     """
-    Creates/Recreates an FTS5 table indexing terms associated with owl:NamedIndividuals.
-    Indexes the individual's ID, label, and all associated predicates and objects (values or labels).
+    Creates/Recreates an FTS5 table indexing terms associated with ALL distinct subjects.
+    Indexes the subject's ID, label, and all associated predicates and objects (values or labels).
     """
     db = None
     start_time = time.time()
@@ -70,58 +70,64 @@ def create_and_populate_fts(db_path):
         cur.execute("DROP TABLE IF EXISTS item_search_fts;")
 
         print(" -> Creating new FTS table 'item_search_fts'...")
-        # Schema: individual_id (the NamedIndividual), search_term (indexed content)
+        # Schema: item_id (any subject), search_term (indexed content)
         cur.execute("""
             CREATE VIRTUAL TABLE item_search_fts USING fts5(
-                individual_id UNINDEXED,
+                item_id UNINDEXED,
                 search_term,
                 tokenize = 'unicode61 remove_diacritics 0'
             );
         """)
         db.commit()
 
-        print(f" -> Finding all '{OWL_NAMED_INDIVIDUAL}' subjects...")
-        # Find all subjects that are explicitly typed as owl:NamedIndividual
-        cur.execute(f"SELECT DISTINCT subject FROM triples WHERE predicate = ? AND object = ?", (RDF_TYPE, OWL_NAMED_INDIVIDUAL))
-        named_individual_rows = cur.fetchall()
-        named_individual_ids = {row['subject'] for row in named_individual_rows}
-        print(f"    Found {len(named_individual_ids)} named individuals.")
+        print(f" -> Finding ALL distinct subjects...")
+        cur.execute(f"SELECT DISTINCT subject FROM triples")
+        all_subject_rows = cur.fetchall()
+        all_subject_ids = {row['subject'] for row in all_subject_rows if row['subject']}
+        print(f"    Found {len(all_subject_ids)} distinct subjects.")
 
-        if not named_individual_ids:
-            print(" -> No named individuals found. FTS table will be empty.")
+        if not all_subject_ids:
+            print(" -> No subjects found. FTS table will be empty.")
             return
 
         print(" -> Preparing data for FTS insertion...")
         fts_data = []
         processed_count = 0
-        batch_size = 10000 # Process individuals in batches
-        individual_list = list(named_individual_ids)
+        batch_size = 10000 # Process subjects in batches
+        subject_list = list(all_subject_ids)
 
         # Pre-fetch all labels to avoid repeated queries inside the loop
         print("    Pre-fetching labels...")
-        all_ids_to_label = set(individual_list)
+        all_ids_to_label = set(subject_list)
         # Also need labels for potential object URIs, fetch all potential links
         cur.execute("SELECT DISTINCT object FROM triples WHERE object_is_literal = 0")
         potential_object_uris_rows = cur.fetchall()
-        potential_object_uris = {row['object'] for row in potential_object_uris_rows}
+        potential_object_uris = {row['object'] for row in potential_object_uris_rows if row['object']}
         all_ids_to_label.update(potential_object_uris)
 
         labels = {}
         if all_ids_to_label:
-            label_placeholders = ','.join('?' * len(all_ids_to_label))
-            label_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({label_placeholders})"
-            cur.execute(label_query, (RDFS_LABEL, *list(all_ids_to_label)))
-            label_results = cur.fetchall()
-            labels = {row['subject']: row['object'] for row in label_results}
-        print(f"    Fetched {len(labels)} labels.")
+            label_list = list(all_ids_to_label)
+            label_batch_size = 900 # SQLite variable limit is often 999
+            for i in range(0, len(label_list), label_batch_size):
+                 batch_label_ids = label_list[i:i+label_batch_size]
+                 placeholders = ','.join('?' * len(batch_label_ids))
+                 label_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
+                 cur.execute(label_query, (RDFS_LABEL, *batch_label_ids))
+                 label_results = cur.fetchall()
+                 for row in label_results:
+                     labels[row['subject']] = row['object']
+            print(f"    Fetched {len(labels)} labels.")
+        else:
+            print("    No IDs found needing labels.")
 
 
-        print(" -> Processing individuals and their triples for FTS...")
-        for i in range(0, len(individual_list), batch_size):
-            batch_ids = individual_list[i:i+batch_size]
+        print(" -> Processing subjects and their triples for FTS...")
+        for i in range(0, len(subject_list), batch_size):
+            batch_ids = subject_list[i:i+batch_size]
             placeholders = ','.join('?' * len(batch_ids))
 
-            # Fetch all triples for the current batch of individuals
+            # Fetch all triples for the current batch of subjects
             batch_triples_query = f"""
                 SELECT subject, predicate, object, object_is_literal
                 FROM triples
@@ -135,44 +141,44 @@ def create_and_populate_fts(db_path):
             for row in batch_triples:
                 triples_by_subject[row['subject']].append(row)
 
-            # Process each individual in the batch
-            for individual_id in batch_ids:
+            # Process each subject in the batch
+            for subject_id in batch_ids:
                 processed_count += 1
-                individual_label = labels.get(individual_id)
+                subject_label = labels.get(subject_id)
 
-                # Add the individual's ID and label to its searchable terms
-                terms_for_individual = {individual_id}
-                if individual_label:
-                    terms_for_individual.add(individual_label)
+                # Add the subject's ID and label to its searchable terms
+                terms_for_subject = {subject_id}
+                if subject_label:
+                    terms_for_subject.add(subject_label)
 
                 # Add terms from its triples
-                for triple in triples_by_subject[individual_id]:
+                for triple in triples_by_subject[subject_id]:
                     predicate = triple['predicate']
                     obj = triple['object']
                     is_literal = triple['object_is_literal']
 
-                    terms_for_individual.add(predicate) # Add the predicate itself
+                    terms_for_subject.add(predicate) # Add the predicate itself
 
                     if is_literal:
-                        terms_for_individual.add(obj) # Add literal value
+                        terms_for_subject.add(obj) # Add literal value
                     else:
                         # For URI objects, add the URI and its label (if found)
-                        terms_for_individual.add(obj)
+                        terms_for_subject.add(obj)
                         object_label = labels.get(obj)
                         if object_label:
-                            terms_for_individual.add(object_label)
+                            terms_for_subject.add(object_label)
 
-                # Add entries to fts_data: (individual_id, term)
-                for term in terms_for_individual:
-                    if term: # Ensure term is not empty
-                        fts_data.append((individual_id, str(term)))
+                # Add entries to fts_data: (item_id, term)
+                for term in terms_for_subject:
+                    if term: # Ensure term is not empty/None
+                        fts_data.append((subject_id, str(term)))
 
-                if processed_count % 500 == 0:
-                     print(f"    Processed {processed_count}/{len(individual_list)} individuals...")
+                if processed_count % 5000 == 0: # Log less frequently for potentially larger runs
+                     print(f"    Processed {processed_count}/{len(subject_list)} subjects...")
 
         print(f" -> Inserting {len(fts_data)} entries into FTS table...")
         # Use executemany for bulk insertion
-        cur.executemany("INSERT INTO item_search_fts (individual_id, search_term) VALUES (?, ?)", fts_data)
+        cur.executemany("INSERT INTO item_search_fts (item_id, search_term) VALUES (?, ?)", fts_data)
         db.commit()
         print(" -> FTS insertion complete.")
 
@@ -893,57 +899,54 @@ def test_db_connection():
 def autocomplete():
     search_term = request.args.get('q', '').strip()
     # Use the updated FTS suggestion function
-    suggestions = get_autocomplete_suggestions_fts_named_individuals(search_term)
+    suggestions = get_autocomplete_suggestions_fts(search_term)
     return jsonify(suggestions)
 
-# NEW Autocomplete function using the updated FTS table
-def get_autocomplete_suggestions_fts_named_individuals(term, limit=15):
+# RENAME Autocomplete function as it's no longer specific to NamedIndividuals
+def get_autocomplete_suggestions_fts(term, limit=15):
     """
-    Performs autocomplete search against the FTS table, returning matching
-    owl:NamedIndividuals with their label and type.
+    Performs autocomplete search against the FTS table (containing all subjects),
+    returning matching items with their label and type.
     """
     if not term or len(term) < 2:
         return []
 
     db = get_db()
-    # FTS query term - use prefix search
     fts_query_term = f'"{term}"*'
 
     try:
-        # 1. Find distinct matching individual IDs from FTS
+        # 1. Find distinct matching item IDs from FTS
         query_fts = """
-            SELECT DISTINCT individual_id
+            SELECT DISTINCT item_id
             FROM item_search_fts
             WHERE search_term MATCH ?
-            ORDER BY rank  -- FTS rank helps prioritize relevant individuals
+            ORDER BY rank
             LIMIT ?
         """
-        # Fetch slightly more initially to ensure we get enough unique IDs after potential label/type fetching issues
         initial_results = query_db(query_fts, (fts_query_term, limit * 2), db_conn=db)
 
         if not initial_results:
             return []
 
-        # Get unique individual IDs
-        individual_ids = list({row['individual_id'] for row in initial_results})
-        if not individual_ids: return []
+        # Get unique item IDs
+        item_ids = list({row['item_id'] for row in initial_results})
+        if not item_ids: return []
 
         # Limit to the desired number of final suggestions
-        individual_ids = individual_ids[:limit]
-        placeholders = ','.join('?' * len(individual_ids))
+        item_ids = item_ids[:limit]
+        placeholders = ','.join('?' * len(item_ids))
 
-        # 2. Fetch labels for these individuals
+        # 2. Fetch labels for these items
         labels = {}
         label_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
-        label_results = query_db(label_query, (RDFS_LABEL, *individual_ids), db_conn=db)
+        label_results = query_db(label_query, (RDFS_LABEL, *item_ids), db_conn=db)
         if label_results:
             labels = {row['subject']: row['object'] for row in label_results}
 
-        # 3. Fetch rdf:type for these individuals
+        # 3. Fetch rdf:type for these items
         types = {}
         type_query = f"SELECT subject, object FROM triples WHERE predicate = ? AND subject IN ({placeholders})"
-        type_results = query_db(type_query, (RDF_TYPE, *individual_ids), db_conn=db)
-        # Store the first type found for simplicity, prioritizing non-owl:NamedIndividual types if possible
+        type_results = query_db(type_query, (RDF_TYPE, *item_ids), db_conn=db)
         if type_results:
             temp_types = defaultdict(list)
             for row in type_results:
@@ -952,21 +955,22 @@ def get_autocomplete_suggestions_fts_named_individuals(term, limit=15):
             for subj, type_list in temp_types.items():
                 # Prefer a type that isn't NamedIndividual itself, if available
                 preferred_type = next((t for t in type_list if t != OWL_NAMED_INDIVIDUAL), None)
-                types[subj] = preferred_type if preferred_type else type_list[0] # Fallback to the first one
+                # If no preferred type, just take the first one from the list
+                types[subj] = preferred_type if preferred_type else (type_list[0] if type_list else "Unknown Type")
 
         # 4. Format suggestions
         final_suggestions = []
-        for individual_id in individual_ids:
-            display_name = labels.get(individual_id, individual_id) # Use ID if no label
-            rdf_type_raw = types.get(individual_id, "Unknown Type") # Get the raw type ID
+        for item_id in item_ids:
+            display_name = labels.get(item_id, item_id) # Use ID if no label
+            rdf_type_raw = types.get(item_id, "Unknown Type") # Get the raw type ID
 
             # Get a display label for the type URI if possible
             rdf_type_display = get_label(rdf_type_raw, db_conn=db)
 
             final_suggestions.append({
-                'id': individual_id,
+                'id': item_id,
                 'display_name': display_name,
-                'link': url_for('details', item_id=quote(individual_id)),
+                'link': url_for('details', item_id=quote(item_id)),
                 'type_indicator': rdf_type_display # Store the display type
             })
 
