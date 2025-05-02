@@ -31,13 +31,13 @@
     {% if grouped_items %}
         <div class="accordion space-y-2">
             {% for group_name, items_in_group in grouped_items.items() %}
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                <div class="bg-white border border-gray-200 rounded-md shadow-sm overflow-hidden">
                     <button class="accordion-header">
                         <span>{{ group_name }} ({{ items_in_group | length }} items)</span>
                         <span class="accordion-icon text-lg font-mono">+</span>
                     </button>
                     <div class="accordion-content hidden">
-                        <ul class="list-disc list-inside space-y-1 pl-6">
+                        <ul class="list-disc list-inside space-y-1 pl-8">
                             {% for item_info in items_in_group %}
                                 <li>
                                     <a href="{{ url_for('details', item_id=item_info.id | urlencode) }}" class="py-1 px-2 text-sm text-dtu-red hover:underline hover:bg-gray-50 rounded">
