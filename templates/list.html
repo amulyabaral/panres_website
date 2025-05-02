@@ -33,15 +33,16 @@
             <div class="accordion divide-y divide-gray-200">
                 {% for group_name, items_in_group in grouped_items.items() %}
                     <div>
-                        {# Rearrange spans: icon first, then text. Add class to text span. #}
                         <button class="accordion-header">
-                            <span class="accordion-icon">+</span> {# Icon first #}
-                            <span class="group-name flex-grow">{{ group_name }} ({{ items_in_group | length }} items)</span> {# Text second, add class, allow growth #}
+                            <span class="accordion-icon">+</span>
+                            <span class="group-name flex-grow">{{ group_name }} ({{ items_in_group | length }} items)</span>
                         </button>
                         <div class="accordion-content hidden">
-                            <ul class="list-disc list-inside space-y-1 pl-8">
+                            {# Apply grid layout: 1 col default, 2 cols on medium+, add gaps. Remove list styles/padding. #}
+                            <ul class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                                 {% for item_info in items_in_group %}
-                                    <li>
+                                    {# Add slight padding to list items within the grid #}
+                                    <li class="pl-2">
                                         <a href="{{ url_for('details', item_id=item_info.id | urlencode) }}" class="py-1 px-2 text-sm text-dtu-red hover:underline hover:bg-gray-50 rounded">
                                             {{ item_info.label }}
                                         </a>

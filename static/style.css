@@ -30,9 +30,8 @@
     }
 
     .accordion-header {
-         /* Adjusted padding, removed font-weight/hover, align items center */
-         @apply w-full text-left px-6 py-3 text-gray-700 flex items-center transition-colors duration-150 cursor-pointer;
-         /* No background hover */
+         /* Re-add subtle hover effect */
+         @apply w-full text-left px-6 py-3 text-gray-700 flex items-center transition-colors duration-150 cursor-pointer hover:bg-gray-50;
     }
     .accordion-content {
          /* Adjusted padding */
