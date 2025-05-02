@@ -31,9 +31,14 @@
 
     .accordion-header {
          @apply w-full text-left px-4 py-3 bg-gray-100 hover:bg-gray-200 font-semibold text-gray-700 flex justify-between items-center transition-colors duration-150 cursor-pointer;
+         /* Ensure top corners are rounded when collapsed */
+         @apply rounded-t-lg;
     }
     .accordion-content {
-         @apply border-t border-gray-300 p-4 bg-white; /* 'hidden' class will be toggled by JS */
+         /* Adjusted padding: Less top/bottom, keep horizontal */
+         @apply border-t border-gray-300 px-4 py-3 bg-white; /* 'hidden' class will be toggled by JS */
+         /* Ensure bottom corners are rounded when expanded */
+         @apply rounded-b-lg;
     }
     .accordion-icon {
         @apply text-lg font-mono;
